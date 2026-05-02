@@ -236,7 +236,54 @@ if page != "🏠 HOMEPAGE":
 # --- HALAMAN 0: HOMEPAGE ---
 if page == "🏠 HOMEPAGE":
     # ==========================================================
-    # 1. HEADER UTAMA
+    # 1. GLOBAL CSS UNTUK SHADOW & RADIUS (MENAMBAHKAN EFEK BOX)
+    # ==========================================================
+    st.markdown(f"""
+        <style>
+        /* Shadow untuk kartu KPI Custom HTML */
+        .kpi-card {{
+            background-color: #FFFFFF;
+            border-radius: 12px;
+            padding: 18px 15px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.08); /* Efek Shadow */
+            border: 1px solid #F0F2F6;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+            transition: transform 0.3s ease;
+        }}
+        .kpi-card:hover {{
+            transform: translateY(-5px); /* Efek melayang saat hover */
+        }}
+        .kpi-icon-box {{
+            background-color: #E8F4FC;
+            color: {BRAND_BLUE};
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            flex-shrink: 0;
+        }}
+        .kpi-title {{ font-size: 13px; color: #737373; font-weight: 600; margin-bottom: 4px; }}
+        .kpi-value {{ font-size: 20px; font-weight: 900; color: #111827; line-height: 1.1; }}
+
+        /* Shadow untuk seluruh st.container(border=True) - Termasuk Map, Chart & Navigasi */
+        div[data-testid="stVerticalBlockBorderWrapper"] {{
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            border-radius: 15px !important;
+            background-color: white;
+            border: 1px solid #F0F2F6 !important;
+            padding: 10px;
+        }}
+        </style>
+    """, unsafe_allow_html=True)
+
+    # ==========================================================
+    # 2. HEADER UTAMA
     # ==========================================================
     st.markdown(f"""
         <div class="feature-header" style="text-align: center; font-size: 28px; margin-top: 0px;">
@@ -247,8 +294,8 @@ if page == "🏠 HOMEPAGE":
         </p>
     """, unsafe_allow_html=True)
 
-   # ==========================================================
-    # 2. EXECUTIVE SUMMARY DASHBOARD (LOGIKA TIME-OFFSET SOSMED)
+    # ==========================================================
+    # 3. EXECUTIVE SUMMARY DASHBOARD
     # ==========================================================
     try:
         df_wa_home = load_wa_admin()
@@ -256,15 +303,12 @@ if page == "🏠 HOMEPAGE":
         df_sos_home = load_sosmed()
         df_web_home = load_website()
 
-        # --- LOGIKA WAKTU (Bulan Ini & Bulan Lalu) ---
         import datetime
         sekarang = datetime.datetime.now()
         
-        # 1. Parameter Bulan Ini (Untuk Website & WA)
+        # Parameter Waktu
         bulan_ini = sekarang.month
         tahun_ini = sekarang.year
-        
-        # 2. Parameter Bulan Lalu (Untuk Hutang Sosmed: Produksi April untuk Mei)
         bulan_lalu = 12 if sekarang.month == 1 else sekarang.month - 1
         tahun_bulan_lalu = sekarang.year - 1 if sekarang.month == 1 else sekarang.year
 
@@ -280,8 +324,7 @@ if page == "🏠 HOMEPAGE":
                 return df_temp[(df_temp['tgl_parsed'].dt.month == target_month) & (df_temp['tgl_parsed'].dt.year == target_year)]
             return df
 
-        # --- 1. Kalkulasi Leads & Closing (Akumulatif Target 450) ---
-        #
+        # Kalkulasi Leads & Closing
         if not df_wa_home.empty:
             if 'Tanggal Masuk' in df_wa_home.columns:
                 df_wa_home = df_wa_home[df_wa_home['Tanggal Masuk'].astype(str).str.strip() != '']
@@ -293,37 +336,22 @@ if page == "🏠 HOMEPAGE":
         else:
             total_leads, total_closing = 0, 0
 
-        # --- 2. Performa Views & Reach (Akumulatif) ---
+        # Performa Views & Reach
         total_view = df_in_home['View'].sum() if not df_in_home.empty and 'View' in df_in_home.columns else 0
         total_reach = df_in_home['Reach'].sum() if not df_in_home.empty and 'Reach' in df_in_home.columns else 0
 
-        # --- 3. Kalkulasi Hutang (KHUSUS FILTER WAKTU) ---
-        # Hutang Sosmed = Dilihat dari Deadline BULAN LALU
+        # Hutang Sosmed (Bulan Lalu) & Website (Bulan Ini)
         df_sos_debt = filter_data_berdasarkan_waktu(df_sos_home, bulan_lalu, tahun_bulan_lalu)
         sosmed_pending = len(df_sos_debt[df_sos_debt['PROSES'].astype(str).str.upper() != 'DONE']) if not df_sos_debt.empty and 'PROSES' in df_sos_debt.columns else 0
         
-        # Hutang Website = Tetap fokus BULAN INI
         df_web_now = filter_data_berdasarkan_waktu(df_web_home, bulan_ini, tahun_ini)
         done_kw = ['DONE', 'TRUE', 'V', '1', 'POSTED', 'SELESAI', 'UPLOAD', 'UPLOADED', 'SUDAH UPLOAD']
         web_pending = len(df_web_now[~df_web_now['Status Post'].astype(str).str.upper().str.strip().isin(done_kw)]) if not df_web_now.empty and 'Status Post' in df_web_now.columns else 0
-
-        # --- RENDER UI ---
-        # (Bagian CSS kpi-card tetap sama seperti sebelumnya)
-        st.markdown(f"""
-            <style>
-            .kpi-card {{ background-color: #FFFFFF; border-radius: 12px; padding: 18px 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.04); border: 1px solid #F0F2F6; display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }}
-            .kpi-icon-box {{ background-color: #E8F4FC; color: {BRAND_BLUE}; width: 48px; height: 48px; border-radius: 10px; display: flex; justify-content: center; align-items: center; font-size: 24px; flex-shrink: 0; }}
-            .kpi-details {{ display: flex; flex-direction: column; }}
-            .kpi-title {{ font-size: 13px; color: #737373; font-weight: 600; margin-bottom: 4px; }}
-            .kpi-value {{ font-size: 20px; font-weight: 900; color: #111827; line-height: 1.1; }}
-            </style>
-        """, unsafe_allow_html=True)
 
         def create_kpi_card(icon, title, value):
             return f'<div class="kpi-card"><div class="kpi-icon-box">{icon}</div><div class="kpi-details"><div class="kpi-title">{title}</div><div class="kpi-value">{value}</div></div></div>'
 
         kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-        # Nama bulan dinamis untuk keterangan
         nama_bulan_lalu = (sekarang.replace(day=1) - datetime.timedelta(days=1)).strftime('%B')
         nama_bulan_ini = sekarang.strftime('%B')
 
@@ -335,8 +363,8 @@ if page == "🏠 HOMEPAGE":
     except Exception as e:
         st.warning(f"⚠️ Gagal memuat Executive Summary: {e}")
 
-   # ==========================================================
-    # 3. PETA PERSEBARAN LEADS & GRAFIK (SUPER DICTIONARY)
+    # ==========================================================
+    # 4. PETA PERSEBARAN & GRAFIK (FULL WIDTH & SHADOW)
     # ==========================================================
     st.markdown(f"<h3 style='color:{BRAND_BLUE}; font-size: 18px; margin-bottom: 10px; margin-top: 15px;'>🗺️ Peta Persebaran & Top Asal Prospek</h3>", unsafe_allow_html=True)
     
@@ -346,20 +374,18 @@ if page == "🏠 HOMEPAGE":
             asal_counts = df_wa_home[asal_col].value_counts().reset_index()
             asal_counts.columns = ['Lokasi', 'Jumlah'] 
             
-            # --- PEMBERSIHAN DATA "-" DAN KOSONG ---
+            # Pembersihan data "-" dan sampah
             invalid_vals = ['', '-', 'nan', 'none', 'undefined', '#n/a']
             asal_counts = asal_counts[~asal_counts['Lokasi'].astype(str).str.strip().str.lower().isin(invalid_vals)]
             
-            # --- KAMUS KOORDINAT NASIONAL (SUPER DICTIONARY) ---
             indo_coords = {
-                # DKI JAKARTA & BANTEN
+                # DKI & BANTEN
                 'jakarta': [-6.2088, 106.8456], 'jkt': [-6.2088, 106.8456], 'jabodetabek': [-6.2088, 106.8456],
-                'tangerang': [-6.1702, 106.6403], 'serang': [-6.1200, 106.1503], 'cilegon': [-6.0174, 106.0201], 'pandeglang': [-6.3084, 106.1062], 'lebak': [-6.6346, 106.2238], 'rangkasbitung': [-6.3587, 106.2513],
+                'tangerang': [-6.1702, 106.6403], 'serang': [-6.1200, 106.1503], 'cilegon': [-6.0174, 106.0201], 'pandeglang': [-6.3084, 106.1062], 'lebak': [-6.6346, 106.2238],
                 # JAWA BARAT
                 'bandung': [-6.9147, 107.6098], 'jabar': [-6.9147, 107.6098], 'bogor': [-6.5971, 106.8060], 'bekasi': [-6.2383, 106.9756], 'depok': [-6.4025, 106.7942],
                 'cirebon': [-6.7320, 108.5523], 'tasikmalaya': [-7.3195, 108.2040], 'garut': [-7.2279, 107.9087], 'sukabumi': [-6.9275, 106.9426], 'cianjur': [-6.8168, 107.1425],
-                'karawang': [-6.3227, 107.3113], 'purwakarta': [-6.5387, 107.4485], 'subang': [-6.5714, 107.7592], 'indramayu': [-6.3275, 108.3228], 'majalengka': [-6.8365, 108.2275],
-                'kuningan': [-6.9758, 108.4831], 'sumedang': [-6.8588, 107.9205], 'ciamis': [-7.3320, 108.3541], 'banjar': [-7.3746, 108.5323], 'pangandaran': [-7.6977, 108.6558],
+                'karawang': [-6.3227, 107.3113], 'purwakarta': [-6.5387, 107.4485], 'subang': [-6.5714, 107.7592], 'indramayu': [-6.3275, 108.3228],
                 # JAWA TENGAH
                 'semarang': [-6.9666, 110.4166], 'jateng': [-7.1509, 110.1402], 'solo': [-7.5666, 110.8166], 'surakarta': [-7.5666, 110.8166], 'magelang': [-7.4705, 110.2177], 
                 'klaten': [-7.7056, 110.6031], 'purworejo': [-7.7126, 110.0091], 'kebumen': [-7.6672, 109.6515], 'boyolali': [-7.5172, 110.5950], 'sragen': [-7.4267, 111.0222],
@@ -368,7 +394,7 @@ if page == "🏠 HOMEPAGE":
                 'brebes': [-6.8690, 109.0435], 'tegal': [-6.8797, 109.1256], 'pemalang': [-6.8893, 109.3807], 'pekalongan': [-6.8887, 109.6753], 'batang': [-6.9142, 109.7314],
                 'kendal': [-6.9197, 110.2017], 'demak': [-6.8948, 110.6385], 'jepara': [-6.5861, 110.6674], 'kudus': [-6.8048, 110.8405], 'pati': [-6.7559, 111.0370], 
                 'rembang': [-6.7065, 111.3414], 'blora': [-7.1322, 111.4328], 'grobogan': [-7.0264, 110.9168], 'purwodadi': [-7.0868, 110.9158],
-                # DIY YOGYAKARTA
+                # DIY
                 'jogja': [-7.7955, 110.3694], 'yogyakarta': [-7.7955, 110.3694], 'diy': [-7.7955, 110.3694], 'yk': [-7.7955, 110.3694],
                 'sleman': [-7.7306, 110.3481], 'bantul': [-7.8887, 110.3289], 'gunungkidul': [-7.9656, 110.5988], 'kulon': [-7.8282, 110.1243], 'kulonprogo': [-7.8282, 110.1243],
                 # JAWA TIMUR
@@ -378,15 +404,11 @@ if page == "🏠 HOMEPAGE":
                 'tulungagung': [-8.0664, 111.9019], 'trenggalek': [-8.0494, 111.7107], 'ponorogo': [-7.8687, 111.4646], 'pacitan': [-8.1965, 111.1099], 'magetan': [-7.6534, 111.3304],
                 'ngawi': [-7.4042, 111.4429], 'bojonegoro': [-7.1502, 111.8818], 'tuban': [-6.8966, 112.0632], 'lamongan': [-7.1185, 112.3150], 'gresik': [-7.1561, 112.6555],
                 'bangkalan': [-7.0347, 112.7425], 'sampang': [-7.1866, 113.2435], 'pamekasan': [-7.1633, 113.4795], 'sumenep': [-7.0090, 113.8641], 'batu': [-7.8671, 112.5239],
-                # LUAR JAWA (KOTA UTAMA)
-                'bali': [-8.4095, 115.1889], 'denpasar': [-8.6500, 115.2167], 'badung': [-8.5818, 115.1772], 'gianyar': [-8.5369, 115.3262], 'singaraja': [-8.1120, 115.0884],
-                'sumatera': [-0.5897, 101.3431], 
-                'medan': [3.5951, 98.6722], # Medan kembali positif
-                'padang': [-0.9470, 100.4171], 'palembang': [-2.9909, 104.7565], 'pekanbaru': [0.5070, 101.4477], 'lampung': [-5.4500, 105.2666],
-                'kalimantan': [0.9619, 114.5548], 'balikpapan': [-1.2379, 116.8528], 'samarinda': [-0.5022, 117.1536], 'pontianak': [-0.0226, 109.3301], 'banjarmasin': [-3.3166, 114.5901],
-                'sulawesi': [-2.2179, 120.3279], 'makassar': [-5.1476, 119.4327], 'manado': [1.4748, 124.8420], 'palu': [-0.8917, 119.8707], 'kendari': [-3.9985, 122.5126],
-                'ntb': [-8.5659, 116.3249], 'mataram': [-8.5833, 116.1166], 'lombok': [-8.5659, 116.3249], 'ntt': [-8.6225, 120.1065], 'kupang': [-10.1771, 123.6070],
-                'papua': [-4.2699, 138.0803], 'jayapura': [-2.5337, 140.7186], 'maluku': [-3.2385, 130.1453], 'ambon': [-3.6954, 128.1814]
+                # LUAR JAWA
+                'bali': [-8.4095, 115.1889], 'denpasar': [-8.6500, 115.2167], 'medan': [3.5951, 98.6722], 'padang': [-0.9470, 100.4171], 'palembang': [-2.9909, 104.7565], 'pekanbaru': [0.5070, 101.4477], 'lampung': [-5.4500, 105.2666],
+                'balikpapan': [-1.2379, 116.8528], 'samarinda': [-0.5022, 117.1536], 'pontianak': [-0.0226, 109.3301], 'banjarmasin': [-3.3166, 114.5901],
+                'makassar': [-5.1476, 119.4327], 'manado': [1.4748, 124.8420], 'palu': [-0.8917, 119.8707], 'kendari': [-3.9985, 122.5126],
+                'mataram': [-8.5833, 116.1166], 'kupang': [-10.1771, 123.6070], 'jayapura': [-2.5337, 140.7186], 'ambon': [-3.6954, 128.1814]
             }
 
             lats, lons = [], []
@@ -395,38 +417,27 @@ if page == "🏠 HOMEPAGE":
                 matched = False
                 for key, coords in indo_coords.items():
                     if key == loc_lower or f" {key} " in f" {loc_lower} " or loc_lower.startswith(f"{key} ") or loc_lower.endswith(f" {key}"):
-                        lats.append(coords[0])
-                        lons.append(coords[1])
-                        matched = True
-                        break
-                
+                        lats.append(coords[0]); lons.append(coords[1])
+                        matched = True; break
                 if not matched:
                     for key, coords in indo_coords.items():
                         if key in loc_lower or loc_lower in key:
-                            lats.append(coords[0])
-                            lons.append(coords[1])
-                            matched = True
-                            break
-                            
+                            lats.append(coords[0]); lons.append(coords[1])
+                            matched = True; break
                 if not matched:
-                    lats.append(None)
-                    lons.append(None)
+                    lats.append(None); lons.append(None)
             
-            asal_counts['Lat'] = lats
-            asal_counts['Lon'] = lons
+            asal_counts['Lat'], asal_counts['Lon'] = lats, lons
             map_data = asal_counts.dropna(subset=['Lat', 'Lon'])
             
-            # ==========================================
-            # RENDER PETA (FULL WIDTH - POSISI ATAS)
-            # ==========================================
+            # Peta (Full Width dengan Shadow)
             with st.container(border=True):
                 st.markdown("<div style='font-size:14px; color:gray; font-weight:bold; margin-bottom:10px;'>Titik Persebaran (Heatmap)</div>", unsafe_allow_html=True)
                 if not map_data.empty:
                     fig_map = px.scatter_mapbox(
                         map_data, lat="Lat", lon="Lon", size="Jumlah", color="Jumlah", 
-                        color_continuous_scale=["#FF8C00", "#FF0000", "#8B0000"], # Oranye ke Marun
-                        size_max=50, zoom=5.0, 
-                        center=dict(lat=-7.0, lon=110.0), 
+                        color_continuous_scale=["#FF8C00", "#FF0000", "#8B0000"], 
+                        size_max=50, zoom=5.0, center=dict(lat=-7.0, lon=110.0), 
                         mapbox_style="carto-positron", hover_name="Lokasi", hover_data={"Lat":False, "Lon":False, "Jumlah":True}
                     )
                     fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, height=400, coloraxis_showscale=False)
@@ -436,15 +447,11 @@ if page == "🏠 HOMEPAGE":
             
             st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
             
-            # ==========================================
-            # RENDER GRAFIK BAR (FULL WIDTH - POSISI BAWAH)
-            # ==========================================
+            # Grafik Bar (Full Width dengan Shadow)
             with st.container(border=True):
                 st.markdown("<div style='font-size:14px; color:gray; font-weight:bold; margin-bottom:10px;'>Top 10 Asal Leads Terbanyak</div>", unsafe_allow_html=True)
-                
                 top_10_asal = asal_counts.head(10)
                 fig_bar = px.bar(top_10_asal, y='Lokasi', x='Jumlah', text_auto=True, orientation='h', color_discrete_sequence=[BRAND_BLUE])
-                
                 fig_bar.update_layout(
                     margin={"r":0,"t":0,"l":0,"b":0}, height=350, 
                     xaxis_title="Jumlah Prospek (Leads)", yaxis_title="", 
@@ -453,7 +460,6 @@ if page == "🏠 HOMEPAGE":
                 )
                 fig_bar.update_yaxes(tickfont=dict(color="#000000", size=11, family="Arial Black"))
                 st.plotly_chart(fig_bar, use_container_width=True)
-                
         else:
             st.info("Data Asal belum tersedia untuk dipetakan.")
     except Exception as e:
@@ -462,7 +468,7 @@ if page == "🏠 HOMEPAGE":
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ==========================================================
-    # 4. GRID NAVIGASI KOTAK BAWAH
+    # 5. GRID NAVIGASI KOTAK BAWAH
     # ==========================================================
     def create_square_card(icon, title, subtitle, target_page, button_key):
         with st.container(border=True):
