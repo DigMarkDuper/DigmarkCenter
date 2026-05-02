@@ -299,18 +299,18 @@ if page == "🏠 HOMEPAGE":
     except Exception as e:
         st.warning(f"⚠️ Gagal memuat Executive Summary: {e}")
 
-    # ==========================================================
+   # ==========================================================
     # 3. PETA PERSEBARAN LEADS & GRAFIK (SUPER DICTIONARY)
     # ==========================================================
     st.markdown(f"<h3 style='color:{BRAND_BLUE}; font-size: 18px; margin-bottom: 10px; margin-top: 15px;'>🗺️ Peta Persebaran & Top Asal Prospek</h3>", unsafe_allow_html=True)
     
-       try:
+    try:
         asal_col = next((col for col in df_wa_home.columns if 'Asal' in str(col)), None)
         if asal_col and not df_wa_home.empty:
             asal_counts = df_wa_home[asal_col].value_counts().reset_index()
             asal_counts.columns = ['Lokasi', 'Jumlah'] 
             
-            # --- KUNCI PERBAIKAN 1: Pembersihan Agresif untuk Data "-" dan Kosong ---
+            # --- PEMBERSIHAN DATA "-" DAN KOSONG ---
             invalid_vals = ['', '-', 'nan', 'none', 'undefined', '#n/a']
             asal_counts = asal_counts[~asal_counts['Lokasi'].astype(str).str.strip().str.lower().isin(invalid_vals)]
             
@@ -345,7 +345,7 @@ if page == "🏠 HOMEPAGE":
                 # LUAR JAWA (KOTA UTAMA)
                 'bali': [-8.4095, 115.1889], 'denpasar': [-8.6500, 115.2167], 'badung': [-8.5818, 115.1772], 'gianyar': [-8.5369, 115.3262], 'singaraja': [-8.1120, 115.0884],
                 'sumatera': [-0.5897, 101.3431], 
-                'medan': [3.5951, 98.6722], # KUNCI PERBAIKAN 2: Tanda minus dihapus, Medan kembali ke daratan Sumatra Utara
+                'medan': [3.5951, 98.6722], # Medan kembali positif
                 'padang': [-0.9470, 100.4171], 'palembang': [-2.9909, 104.7565], 'pekanbaru': [0.5070, 101.4477], 'lampung': [-5.4500, 105.2666],
                 'kalimantan': [0.9619, 114.5548], 'balikpapan': [-1.2379, 116.8528], 'samarinda': [-0.5022, 117.1536], 'pontianak': [-0.0226, 109.3301], 'banjarmasin': [-3.3166, 114.5901],
                 'sulawesi': [-2.2179, 120.3279], 'makassar': [-5.1476, 119.4327], 'manado': [1.4748, 124.8420], 'palu': [-0.8917, 119.8707], 'kendari': [-3.9985, 122.5126],
@@ -388,8 +388,7 @@ if page == "🏠 HOMEPAGE":
                 if not map_data.empty:
                     fig_map = px.scatter_mapbox(
                         map_data, lat="Lat", lon="Lon", size="Jumlah", color="Jumlah", 
-                        # KUNCI PERBAIKAN: Warna tidak memudar ke putih, melainkan Oranye -> Merah -> Marun
-                        color_continuous_scale=["#FF8C00", "#FF0000", "#8B0000"], 
+                        color_continuous_scale=["#FF8C00", "#FF0000", "#8B0000"], # Oranye ke Marun
                         size_max=50, zoom=5.0, 
                         center=dict(lat=-7.0, lon=110.0), 
                         mapbox_style="carto-positron", hover_name="Lokasi", hover_data={"Lat":False, "Lon":False, "Jumlah":True}
@@ -398,6 +397,8 @@ if page == "🏠 HOMEPAGE":
                     st.plotly_chart(fig_map, use_container_width=True)
                 else:
                     st.warning("⚠️ Belum ada koordinat peta yang terdeteksi dari data Asal.")
+            
+            st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
             
             # ==========================================
             # RENDER GRAFIK BAR (FULL WIDTH - POSISI BAWAH)
@@ -423,7 +424,6 @@ if page == "🏠 HOMEPAGE":
         st.error(f"Gagal memuat Peta: {e}")
 
     st.markdown("<br>", unsafe_allow_html=True)
-
 
     # ==========================================================
     # 4. GRID NAVIGASI KOTAK BAWAH
