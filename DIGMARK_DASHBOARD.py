@@ -44,51 +44,63 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import json
 
+import streamlit as st
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+import re
+
 def init_connection():
     try:
-        # 1. Cek apakah Secrets terbaca
         if "gcp_service_account" not in st.secrets:
-            st.error("❌ ERROR: Data 'Secrets' di Dashboard Streamlit belum diisi atau salah ketik labelnya.")
+            st.error("Secrets tidak ditemukan.")
             return None
         
+        # 1. Ambil data Secrets sebagai dictionary
         creds_info = dict(st.secrets["gcp_service_account"])
         
-        # 2. Bersihkan Kunci Rahasia
         if "private_key" in creds_info:
-            creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n").strip()
+            pk = creds_info["private_key"]
+            
+            # --- PROSES SANITASI KUNCI (MENGATASI ERROR 65/BASE64) ---
+            # Lepaskan karakter escape backslash jika ada
+            pk = pk.replace("\\n", "\n")
+            
+            # Pisahkan header/footer dengan isi kunci
+            parts = pk.split("-----")
+            if len(parts) >= 5:
+                header = "-----" + parts[1] + "-----"
+                body = parts[2]
+                footer = "-----" + parts[3] + "-----"
+                
+                # Bersihkan BODY dari semua karakter non-base64 (spasi, enter, tab)
+                # Ini kunci untuk menghilangkan error 'multiple of 4'
+                body = re.sub(r'[^A-Za-z0-9+/=]', '', body)
+                
+                # Gabungkan kembali dengan format standar Google
+                pk = f"{header}\n{body}\n{footer}\n"
+            
+            creds_info["private_key"] = pk
 
-        # 3. Setup Protokol
+        # 2. Inisialisasi Koneksi
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_info, scope)
         client = gspread.authorize(creds)
         
-        # 4. Cek Nama Spreadsheet (Sangat Sensitif Huruf Besar/Kecil)
-        # Pastikan namanya persis: MASTER DATA DIGITAL MARKETING 2.0
-        nama_file = "MASTER DATA DIGITAL MARKETING 2.0" 
-        spreadsheet = client.open(nama_file)
+        # Nama file harus persis
+        spreadsheet = client.open("MASTER DATA DIGITAL MARKETING 2.0") 
         return spreadsheet
 
-    except gspread.exceptions.SpreadsheetNotFound:
-        st.error(f"❌ ERROR: File '{nama_file}' tidak ditemukan. Apakah Mas sudah SHARE file tersebut ke email service account?")
-        st.info(f"Email yang harus di-share: {creds_info.get('client_email')}")
-        return None
     except Exception as e:
-        st.error(f"⚠️ KESALAHAN SISTEM: {e}")
+        st.error(f"⚠️ Masalah Enkripsi/Koneksi: {e}")
         return None
-# Eksekusi koneksi
-spreadsheet = init_connection()
 
-if spreadsheet is None:
-    st.warning("Aplikasi terhenti karena gagal menyambung ke database. Periksa kembali Secrets.")
-    st.stop()
-# Cara memanggilnya agar tidak error 'NoneType'
+# Eksekusi
 spreadsheet = init_connection()
-
 if spreadsheet:
-    # Lanjutkan ambil worksheet jika koneksi sukses
-    df_wa = spreadsheet.get_worksheet(3) # Contoh ambil tab ke-4
+    st.success("✅ Berhasil Terkoneksi!")
+    # Lanjutkan kode dashboard Mas di sini...
 else:
-    st.stop() # Berhenti di sini jika koneksi gagal agar tidak muncul error 'NoneType'
+    st.stop()
 # 3. Fungsi Load Data
 @st.cache_data(ttl=5)
 def load_sosmed():
