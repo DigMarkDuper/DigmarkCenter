@@ -46,42 +46,47 @@ import json
 
 def init_connection():
     try:
-        # 1. Pastikan Secrets tersedia
         if "gcp_service_account" not in st.secrets:
-            st.error("❌ Label [gcp_service_account] tidak ditemukan di Secrets Dashboard.")
+            st.error("❌ Secrets tidak ditemukan.")
             return None
         
-        # 2. Ambil data dan pastikan berbentuk dictionary
-        creds_info = st.secrets["gcp_service_account"]
+        # 1. Ambil data Secrets
+        creds_info = dict(st.secrets["gcp_service_account"])
         
-        # Jika data terbaca sebagai string, konversi ke dict
-        if isinstance(creds_info, str):
-            creds_info = json.loads(creds_info)
-        else:
-            creds_info = dict(creds_info)
-
-        # 3. FIX: Perbaikan Karakter Private Key
-        # Membersihkan spasi tambahan dan memastikan tanda \n terbaca benar
+        # 2. Perbaikan Karakter & Padding Private Key
         if "private_key" in creds_info:
-            cleaned_key = creds_info["private_key"].replace("\\n", "\n")
-            if not cleaned_key.startswith("-----BEGIN"):
-                # Tambahan jika tanda petik ganda hilang saat copy-paste
-                cleaned_key = cleaned_key.strip('"') 
-            creds_info["private_key"] = cleaned_key
+            pk = creds_info["private_key"]
+            
+            # Bersihkan karakter escape yang sering muncul saat copy-paste
+            pk = pk.replace("\\n", "\n").strip()
+            
+            # Fix Incorrect Padding secara manual jika kelipatan tidak pas
+            missing_padding = len(pk) % 4
+            if missing_padding:
+                pk += '=' * (4 - missing_padding)
+            
+            creds_info["private_key"] = pk
 
-        # 4. Inisialisasi Koneksi
+        # 3. Inisialisasi Koneksi ke Google Sheets LPK
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_info, scope)
         client = gspread.authorize(creds)
         
-        # GANTI dengan Nama File Google Sheets Anda
+        # Pastikan nama file MASTER DATA DIGITAL MARKETING 2.0 benar
         spreadsheet = client.open("MASTER DATA DIGITAL MARKETING 2.0") 
         return spreadsheet
 
     except Exception as e:
-        st.error(f"⚠️ Gagal menyambung ke Google Sheets: {e}")
+        # Menangkap error spesifik agar Mas tidak bingung
+        st.error(f"⚠️ Masalah Koneksi: {e}")
         return None
 
+# Eksekusi koneksi
+spreadsheet = init_connection()
+
+if spreadsheet is None:
+    st.warning("Aplikasi terhenti karena gagal menyambung ke database. Periksa kembali Secrets.")
+    st.stop()
 # Cara memanggilnya agar tidak error 'NoneType'
 spreadsheet = init_connection()
 
