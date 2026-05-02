@@ -701,8 +701,7 @@ if page == "📱 SOSIAL MEDIA":
                 hide_index=False, # Membantu sistem menemukan baris yang tepat di Sheet
                 key="editor_sosmed"
             )
-
-               if st.button("💾 Simpan Semua Perubahan ke Google Sheets", use_container_width=True):
+                    if st.button("💾 Simpan Semua Perubahan ke Google Sheets", use_container_width=True):
                 with st.spinner("Sinkronisasi database..."):
                     updates = 0
                     for idx in edited_df.index:
