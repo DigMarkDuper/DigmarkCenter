@@ -632,7 +632,6 @@ if page == "📱 SOSIAL MEDIA":
             s2.metric("Hutang Post YT 🎥", yt_p)
             s3.metric("Hutang Post TikTok 💃", tt_p)
 
-            # --- RENDER CHARTS ---
             st.markdown("---")
             c1, c2 = st.columns(2)
             with c1:
@@ -649,32 +648,51 @@ if page == "📱 SOSIAL MEDIA":
                 fig_d.update_layout(margin=dict(t=0, b=0, l=0, r=0), height=300, plot_bgcolor='white')
                 st.plotly_chart(fig_d, use_container_width=True)
 
-            # --- LIVE EDITOR DENGAN WARNA VISUAL (EMOJI CODING) ---
+            # --- DETAIL TUGAS EXPANDER ---
+            st.markdown('<div class="feature-header">📝 Detail Tugas per PIC</div>', unsafe_allow_html=True)
+            for name in selected_pic:
+                pic_prod = filtered_df[(filtered_df['PIC'] == name) & (filtered_df['PROSES'] != 'DONE')]
+                pic_sched = filtered_df[(filtered_df['PIC'] == name) & (filtered_df['PROSES'] == 'DONE') & 
+                                        ((filtered_df['IG'] == False) | ((v_mask) & (filtered_df['YT'] == False)) | (filtered_df['TIKTOK'] == False))]
+                if not pic_prod.empty or not pic_sched.empty:
+                    with st.expander(f"📋 {name} - Audit Pipeline"):
+                        if not pic_prod.empty:
+                            st.markdown(f"**Hutang Produksi:**")
+                            for _, r in pic_prod.iterrows():
+                                st.write(f"🔹 **[{r['Kode Konten']}]** {r['Output']}: {r['Judul Konten']}")
+                        if not pic_sched.empty:
+                            st.markdown(f"**Hutang Scheduling:**")
+                            for _, r in pic_sched.iterrows():
+                                plts = [p for p in ['IG', 'TIKTOK'] if not r[p]]
+                                if "Video" in r['Output'] and not r['YT']: plts.append("YT")
+                                if plts: st.warning(f"⚠️ **[{r['Kode Konten']}]** Belum Post di: {', '.join(plts)}")
+                else:
+                    st.success(f"✅ {name} - Clear!")
+
+            # ==========================================================
+            # LIVE EDITOR DENGAN WARNA VISUAL (EMOJI)
+            # ==========================================================
             st.markdown('<div class="feature-header">📋 Master Production Pipeline (Live Editor)</div>', unsafe_allow_html=True)
             st.info("💡 **Visual Guide:** 🔵 Ejak | 🟢 Hana | 🟡 Abi | 🟣 Hanif ——— 🎬 Video | 🎨 Design")
 
-            # Menerapkan Map Visual ke Dataframe sebelum masuk editor
-            # Ini membuat tampilan tabel jauh lebih berwarna dan mudah dibaca
+            # Persiapan DataFrame untuk Tampilan (Menambahkan Emoji)
             df_display = filtered_df[['Kode Konten', 'Tanggal Deadline', 'Output', 'PIC', 'Judul Konten', 'PROSES', 'IG', 'YT', 'TIKTOK']].copy()
             
+            # Map visual agar saat editor dibuka sudah ada emojinya
+            pic_map = {"Ejak": "🔵 Ejak", "Hana": "🟢 Hana", "Abi": "🟡 Abi", "Hanif": "🟣 Hanif"}
+            out_map = {"Video": "🎬 Video", "Design": "🎨 Design"}
+            stat_map = {"DONE": "✅ DONE", "PENDING": "⏳ PENDING", "ON PROGRESS": "🏗️ ON PROGRESS"}
+
+            df_display['PIC'] = df_display['PIC'].map(pic_map).fillna(df_display['PIC'])
+            df_display['Output'] = df_display['Output'].map(out_map).fillna(df_display['Output'])
+            df_display['PROSES'] = df_display['PROSES'].map(stat_map).fillna(df_display['PROSES'])
+
             edited_df = st.data_editor(
                 df_display,
                 column_config={
-                    "PIC": st.column_config.SelectboxColumn(
-                        "PIC", 
-                        options=["🔵 Ejak", "🟢 Hana", "🟡 Abi", "🟣 Hanif"],
-                        help="Pilih PIC penanggung jawab"
-                    ),
-                    "Output": st.column_config.SelectboxColumn(
-                        "Output", 
-                        options=["🎬 Video", "🎨 Design"],
-                        help="Tentukan jenis output konten"
-                    ),
-                    "PROSES": st.column_config.SelectboxColumn(
-                        "Status", 
-                        options=["✅ DONE", "⏳ PENDING", "🏗️ ON PROGRESS"],
-                        help="Update progress produksi"
-                    ),
+                    "PIC": st.column_config.SelectboxColumn("PIC", options=list(pic_map.values())),
+                    "Output": st.column_config.SelectboxColumn("Output", options=list(out_map.values())),
+                    "PROSES": st.column_config.SelectboxColumn("Status", options=list(stat_map.values())),
                     "IG": st.column_config.CheckboxColumn("IG"),
                     "YT": st.column_config.CheckboxColumn("YT"),
                     "TIKTOK": st.column_config.CheckboxColumn("TikTok")
@@ -685,80 +703,29 @@ if page == "📱 SOSIAL MEDIA":
                 key="editor_sosmed"
             )
 
-            # --- TOMBOL SIMPAN DENGAN PEMBERSIHAN EMOJI ---
-            if st.button("💾 Simpan Semua Perubahan ke Google Sheets", use_container_width=True):
-                with st.spinner("Menyelaraskan data..."):
-                    updates = 0
-                    for idx in edited_df.index:
-                        for col in ["PIC", "Output", "PROSES", "IG", "YT", "TIKTOK"]:
-                            old_val = str(filtered_df.at[idx, col]).strip()
-                            new_val_raw = edited_df.at[idx, col]
-                            
-                            # Membersihkan Emoji sebelum dikirim ke Google Sheets agar database tetap bersih
-                            # Kita ambil kata terakhir saja (misal: "🔵 Ejak" -> "Ejak")
-                            if isinstance(new_val_raw, str) and " " in new_val_raw:
-                                new_val = new_val_raw.split(" ")[-1].strip()
-                            else:
-                                new_val = new_val_raw
-
-                            if old_val != str(new_val).strip():
-                                # Handle format khusus (Checkbox)
-                                if isinstance(new_val, bool):
-                                    val_to_send = "V" if new_val else ""
-                                else:
-                                    val_to_send = str(new_val)
-                                
-                                # Update ke Google Sheets
-                                update_sheet_cell(0, idx, col, val_to_send)
-                                updates += 1
-                    
-                    if updates > 0:
-                        st.success(f"✅ Berhasil! {updates} data diperbarui.")
-                        st.cache_data.clear()
-                        st.rerun()
-                    else:
-                        st.info("Tidak ada perubahan yang dideteksi.")
-
-    except Exception as e:
-        st.error(f"Kesalahan Teknis Sosmed: {e}")
-            # ==========================================================
-            # LIVE EDITOR DENGAN DROP DOWN (PIC, OUTPUT, STATUS)
-            # ==========================================================
-            st.markdown('<div class="feature-header">📋 Master Production Pipeline (Live Editor)</div>', unsafe_allow_html=True)
-            
-            edited_df = st.data_editor(
-                filtered_df[['Kode Konten', 'Tanggal Deadline', 'Output', 'PIC', 'Judul Konten', 'PROSES', 'IG', 'YT', 'TIKTOK']],
-                column_config={
-                    "PIC": st.column_config.SelectboxColumn("PIC", options=["Ejak", "Hana", "Abi", "Hanif"]),
-                    "Output": st.column_config.SelectboxColumn("Output", options=["Video", "Design"]),
-                    "PROSES": st.column_config.SelectboxColumn("Status", options=["DONE", "PENDING", "ON PROGRESS"]),
-                    "IG": st.column_config.CheckboxColumn("IG"),
-                    "YT": st.column_config.CheckboxColumn("YT"),
-                    "TIKTOK": st.column_config.CheckboxColumn("TikTok")
-                },
-                disabled=['Kode Konten', 'Tanggal Deadline', 'Judul Konten'], # Kode & Judul dikunci
-                use_container_width=True,
-                hide_index=False,
-                key="editor_sosmed"
-            )
-
+            # --- LOGIKA SIMPAN ---
             if st.button("💾 Simpan Semua Perubahan ke Google Sheets", use_container_width=True):
                 with st.spinner("Sinkronisasi database..."):
                     updates = 0
                     for idx in edited_df.index:
-                        # Kita pantau kolom yang boleh diedit
                         for col in ["PIC", "Output", "PROSES", "IG", "YT", "TIKTOK"]:
-                            old_val = filtered_df.at[idx, col]
-                            new_val = edited_df.at[idx, col]
+                            # Ambil nilai lama (dari filtered_df asli tanpa emoji)
+                            old_val = str(filtered_df.at[idx, col]).strip()
+                            # Ambil nilai baru (dari editor yang mungkin ada emojinya)
+                            new_val_raw = edited_df.at[idx, col]
                             
-                            if old_val != new_val:
-                                # Konversi Boolean ke format String 'V' atau Kosong
+                            # Bersihkan Emoji (ambil teks setelah spasi jika ada)
+                            if isinstance(new_val_raw, str) and " " in new_val_raw:
+                                new_val = new_val_raw.split(" ", 1)[-1].strip()
+                            else:
+                                new_val = new_val_raw
+
+                            if old_val != str(new_val).strip():
                                 if isinstance(new_val, bool):
                                     val_to_send = "V" if new_val else ""
                                 else:
                                     val_to_send = str(new_val) 
                                 
-                                # Kirim perubahan (Halaman Sosmed index 0)
                                 update_sheet_cell(0, idx, col, val_to_send)
                                 updates += 1
                     
