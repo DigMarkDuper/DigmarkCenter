@@ -88,7 +88,7 @@ def get_raw_df(sheet_index):
     if client:
         try:
             # Pastikan nama file 100% sama dengan di Drive
-            spreadsheet = client.open("MASTER DATA DIGITAL MARKETING 2.0")
+            spreadsheet = client.open("MASTER DATA DIGITAL MARK 2.0")
             sheet = spreadsheet.get_worksheet(sheet_index)
             return pd.DataFrame(sheet.get_all_records())
         except Exception as e:
