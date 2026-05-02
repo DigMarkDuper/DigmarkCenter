@@ -304,14 +304,17 @@ if page == "🏠 HOMEPAGE":
     # ==========================================================
     st.markdown(f"<h3 style='color:{BRAND_BLUE}; font-size: 18px; margin-bottom: 10px; margin-top: 15px;'>🗺️ Peta Persebaran & Top Asal Prospek</h3>", unsafe_allow_html=True)
     
-    try:
+   try:
         asal_col = next((col for col in df_wa_home.columns if 'Asal' in str(col)), None)
         if asal_col and not df_wa_home.empty:
             asal_counts = df_wa_home[asal_col].value_counts().reset_index()
             asal_counts.columns = ['Lokasi', 'Jumlah'] 
-            asal_counts = asal_counts[asal_counts['Lokasi'].astype(str).str.strip() != '']
             
-            # --- KAMUS KOORDINAT NASIONAL (SELURUH KABUPATEN UTAMA) ---
+            # --- KUNCI PERBAIKAN 1: Pembersihan Agresif untuk Data "-" dan Kosong ---
+            invalid_vals = ['', '-', 'nan', 'none', 'undefined', '#n/a']
+            asal_counts = asal_counts[~asal_counts['Lokasi'].astype(str).str.strip().str.lower().isin(invalid_vals)]
+            
+            # --- KAMUS KOORDINAT NASIONAL (SUPER DICTIONARY) ---
             indo_coords = {
                 # DKI JAKARTA & BANTEN
                 'jakarta': [-6.2088, 106.8456], 'jkt': [-6.2088, 106.8456], 'jabodetabek': [-6.2088, 106.8456],
@@ -341,7 +344,9 @@ if page == "🏠 HOMEPAGE":
                 'bangkalan': [-7.0347, 112.7425], 'sampang': [-7.1866, 113.2435], 'pamekasan': [-7.1633, 113.4795], 'sumenep': [-7.0090, 113.8641], 'batu': [-7.8671, 112.5239],
                 # LUAR JAWA (KOTA UTAMA)
                 'bali': [-8.4095, 115.1889], 'denpasar': [-8.6500, 115.2167], 'badung': [-8.5818, 115.1772], 'gianyar': [-8.5369, 115.3262], 'singaraja': [-8.1120, 115.0884],
-                'sumatera': [-0.5897, 101.3431], 'medan': [-3.5951, 98.6722], 'padang': [-0.9470, 100.4171], 'palembang': [-2.9909, 104.7565], 'pekanbaru': [0.5070, 101.4477], 'lampung': [-5.4500, 105.2666],
+                'sumatera': [-0.5897, 101.3431], 
+                'medan': [3.5951, 98.6722], # KUNCI PERBAIKAN 2: Tanda minus dihapus, Medan kembali ke daratan Sumatra Utara
+                'padang': [-0.9470, 100.4171], 'palembang': [-2.9909, 104.7565], 'pekanbaru': [0.5070, 101.4477], 'lampung': [-5.4500, 105.2666],
                 'kalimantan': [0.9619, 114.5548], 'balikpapan': [-1.2379, 116.8528], 'samarinda': [-0.5022, 117.1536], 'pontianak': [-0.0226, 109.3301], 'banjarmasin': [-3.3166, 114.5901],
                 'sulawesi': [-2.2179, 120.3279], 'makassar': [-5.1476, 119.4327], 'manado': [1.4748, 124.8420], 'palu': [-0.8917, 119.8707], 'kendari': [-3.9985, 122.5126],
                 'ntb': [-8.5659, 116.3249], 'mataram': [-8.5833, 116.1166], 'lombok': [-8.5659, 116.3249], 'ntt': [-8.6225, 120.1065], 'kupang': [-10.1771, 123.6070],
