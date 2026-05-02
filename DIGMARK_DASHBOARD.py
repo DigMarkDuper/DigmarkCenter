@@ -235,7 +235,9 @@ if page != "🏠 HOMEPAGE":
 
 # --- HALAMAN 0: HOMEPAGE ---
 if page == "🏠 HOMEPAGE":
-    # Header Utama
+    # ==========================================================
+    # 1. HEADER UTAMA
+    # ==========================================================
     st.markdown(f"""
         <div class="feature-header" style="text-align: center; font-size: 28px; margin-top: 0px;">
             Pusat Kendali Digital Marketing
@@ -246,147 +248,70 @@ if page == "🏠 HOMEPAGE":
     """, unsafe_allow_html=True)
 
     # ==========================================================
-    # EXECUTIVE SUMMARY DASHBOARD (TARIK DATA DARI SEMUA TAB)
+    # 2. EXECUTIVE SUMMARY DASHBOARD
     # ==========================================================
     try:
-        # Load data secara diam-diam
         df_wa_home = load_wa_admin()
         df_in_home = load_insight()
         df_sos_home = load_sosmed()
         df_web_home = load_website()
 
-       # 1. Kalkulasi Leads & Closing (SUDAH DIPERBAIKI DENGAN FILTER)
+        # Kalkulasi Leads & Closing
         if not df_wa_home.empty:
-            # Buang baris kosong "hantu" yang terbaca oleh Google Sheets
             if 'Tanggal Masuk' in df_wa_home.columns:
                 df_wa_home = df_wa_home[df_wa_home['Tanggal Masuk'].astype(str).str.strip() != '']
                 df_wa_home = df_wa_home[df_wa_home['Tanggal Masuk'].notna()]
-                
-            # Buang leads dengan Tag Partnership (Sama persis seperti di halaman WA Report)
             if 'Mekari Tag' in df_wa_home.columns:
                 df_wa_home = df_wa_home[~df_wa_home['Mekari Tag'].astype(str).str.contains('Partnership', case=False, na=False)]
             
             total_leads = len(df_wa_home)
-            
-            # Hitung total closing dari data yang sudah bersih
             status_col = next((col for col in df_wa_home.columns if 'Status' in str(col)), None)
             total_closing = len(df_wa_home[df_wa_home[status_col].astype(str).str.contains('Closing', case=False, na=False)]) if status_col else 0
         else:
-            total_leads = 0
-            total_closing = 0
+            total_leads, total_closing = 0, 0
 
-        # 2. Kalkulasi Views & Reach
+        # Kalkulasi Views, Reach, Hutang
         total_view = df_in_home['View'].sum() if not df_in_home.empty and 'View' in df_in_home.columns else 0
         total_reach = df_in_home['Reach'].sum() if not df_in_home.empty and 'Reach' in df_in_home.columns else 0
-
-        # 3. Kalkulasi Hutang Sosmed
         sosmed_pending = len(df_sos_home[df_sos_home['PROSES'].astype(str).str.upper() != 'DONE']) if not df_sos_home.empty and 'PROSES' in df_sos_home.columns else 0
-
-        # 4. Kalkulasi Hutang Website
         done_kw = ['DONE', 'TRUE', 'V', '1', 'POSTED', 'SELESAI', 'UPLOAD', 'UPLOADED', 'SUDAH UPLOAD']
-        if not df_web_home.empty and 'Status Post' in df_web_home.columns:
-            web_pending = len(df_web_home[~df_web_home['Status Post'].astype(str).str.upper().str.strip().isin(done_kw)])
-        else:
-            web_pending = 0
+        web_pending = len(df_web_home[~df_web_home['Status Post'].astype(str).str.upper().str.strip().isin(done_kw)]) if not df_web_home.empty and 'Status Post' in df_web_home.columns else 0
 
-        # --- CSS KHUSUS KARTU KPI (Desain Kotak Modern) ---
         st.markdown(f"""
             <style>
-            .kpi-card {{
-                background-color: #FFFFFF;
-                border-radius: 12px;
-                padding: 18px 15px;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.04);
-                border: 1px solid #F0F2F6;
-                display: flex;
-                align-items: center;
-                gap: 15px;
-                margin-bottom: 15px;
-            }}
-            .kpi-icon-box {{
-                background-color: #E8F4FC; /* Warna pastel biru */
-                color: {BRAND_BLUE};
-                width: 48px;
-                height: 48px;
-                border-radius: 10px;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                font-size: 24px;
-                flex-shrink: 0;
-            }}
-            .kpi-details {{
-                display: flex;
-                flex-direction: column;
-            }}
-            .kpi-title {{
-                font-size: 13px;
-                color: #737373;
-                font-weight: 600;
-                margin-bottom: 4px;
-            }}
-            .kpi-value {{
-                font-size: 20px;
-                font-weight: 900;
-                color: #111827;
-                line-height: 1.1;
-            }}
+            .kpi-card {{ background-color: #FFFFFF; border-radius: 12px; padding: 18px 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.04); border: 1px solid #F0F2F6; display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }}
+            .kpi-icon-box {{ background-color: #E8F4FC; color: {BRAND_BLUE}; width: 48px; height: 48px; border-radius: 10px; display: flex; justify-content: center; align-items: center; font-size: 24px; flex-shrink: 0; }}
+            .kpi-details {{ display: flex; flex-direction: column; }}
+            .kpi-title {{ font-size: 13px; color: #737373; font-weight: 600; margin-bottom: 4px; }}
+            .kpi-value {{ font-size: 20px; font-weight: 900; color: #111827; line-height: 1.1; }}
             </style>
         """, unsafe_allow_html=True)
 
-        # Fungsi pencetak HTML Kartu KPI
         def create_kpi_card(icon, title, value):
-            return f"""
-                <div class="kpi-card">
-                    <div class="kpi-icon-box">{icon}</div>
-                    <div class="kpi-details">
-                        <div class="kpi-title">{title}</div>
-                        <div class="kpi-value">{value}</div>
-                    </div>
-                </div>
-            """
+            return f'<div class="kpi-card"><div class="kpi-icon-box">{icon}</div><div class="kpi-details"><div class="kpi-title">{title}</div><div class="kpi-value">{value}</div></div></div>'
 
-        # Render Visualisasi Executive Summary
-        st.markdown(f"<h3 style='color:{BRAND_BLUE}; font-size: 18px; margin-bottom: 15px;'>📊 Executive Summary</h3>", unsafe_allow_html=True)
-        
         kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-        with kpi1:
-            st.markdown(create_kpi_card("🎯", "Closing / Leads", f"{total_closing} / {total_leads}"), unsafe_allow_html=True)
-        with kpi2:
-            st.markdown(create_kpi_card("👀", "Views / Reach", f"{total_view:,.0f} / {total_reach:,.0f}"), unsafe_allow_html=True)
-        with kpi3:
-            st.markdown(create_kpi_card("📱", "Hutang Sosmed", f"{sosmed_pending} Task"), unsafe_allow_html=True)
-        with kpi4:
-            st.markdown(create_kpi_card("🌐", "Hutang Website", f"{web_pending} Page"), unsafe_allow_html=True)
-            
-        st.markdown("<br>", unsafe_allow_html=True)
+        with kpi1: st.markdown(create_kpi_card("🎯", "Closing / Leads", f"{total_closing} / {total_leads}"), unsafe_allow_html=True)
+        with kpi2: st.markdown(create_kpi_card("👀", "Views / Reach", f"{total_view:,.0f} / {total_reach:,.0f}"), unsafe_allow_html=True)
+        with kpi3: st.markdown(create_kpi_card("📱", "Hutang Sosmed", f"{sosmed_pending} Task"), unsafe_allow_html=True)
+        with kpi4: st.markdown(create_kpi_card("🌐", "Hutang Website", f"{web_pending} Page"), unsafe_allow_html=True)
 
     except Exception as e:
         st.warning(f"⚠️ Gagal memuat Executive Summary: {e}")
-        
-       # ==========================================================
-        # MAPPING PERSEBARAN & TOP LOKASI LEADS
-        # ==========================================================
-        st.markdown(f"<h3 style='color:{BRAND_BLUE}; font-size: 18px; margin-bottom: 10px; margin-top: 15px;'>🗺️ Peta Persebaran & Top Asal Prospek</h3>", unsafe_allow_html=True)
-        
-        # 1. Deteksi otomatis kolom Asal agar anti-error
-        asal_col = next((col for col in df_wa_home.columns if 'Asal' in str(col)), None)
-        
-        if asal_col:
-            # 2. Bersihkan data (Buang Partnership persis seperti di Halaman 4)
-            if 'Mekari Tag' in df_wa_home.columns:
-                df_map_clean = df_wa_home[~df_wa_home['Mekari Tag'].astype(str).str.contains('Partnership', case=False, na=False)]
-            else:
-                df_map_clean = df_wa_home.copy()
 
-            # 3. Hitung jumlah lokasi
-            asal_counts = df_map_clean[asal_col].value_counts().reset_index()
-            # Amankan penamaan kolom untuk semua versi Pandas
+
+    # ==========================================================
+    # 3. PETA PERSEBARAN LEADS & GRAFIK (YANG TADI HILANG)
+    # ==========================================================
+    st.markdown(f"<h3 style='color:{BRAND_BLUE}; font-size: 18px; margin-bottom: 10px; margin-top: 15px;'>🗺️ Peta Persebaran & Top Asal Prospek</h3>", unsafe_allow_html=True)
+    
+    try:
+        asal_col = next((col for col in df_wa_home.columns if 'Asal' in str(col)), None)
+        if asal_col and not df_wa_home.empty:
+            asal_counts = df_wa_home[asal_col].value_counts().reset_index()
             asal_counts.columns = ['Lokasi', 'Jumlah'] 
-            # Buang baris kosong
             asal_counts = asal_counts[asal_counts['Lokasi'].astype(str).str.strip() != '']
             
-            # 4. Kamus Koordinat LPK Duta Persada
             indo_coords = {
                 'jakarta': [-6.2088, 106.8456], 'jkt': [-6.2088, 106.8456], 'jabodetabek': [-6.2088, 106.8456],
                 'bandung': [-6.9147, 107.6098], 'jabar': [-6.9147, 107.6098], 'bogor': [-6.5971, 106.8060],
@@ -398,10 +323,8 @@ if page == "🏠 HOMEPAGE":
                 'bali': [-8.4095, 115.1889], 'sumatera': [-0.5897, 101.3431], 'kalimantan': [0.9619, 114.5548], 'sulawesi': [-2.2179, 120.3279]
             }
 
-            # 5. Mesin Pencocok Teks Ekstra Cerdas
             lats, lons = [], []
             for loc in asal_counts['Lokasi']:
-                # Hilangkan kata "Kabupaten" atau "Kota" agar pencarian lebih akurat
                 loc_lower = str(loc).lower().replace('kabupaten', '').replace('kota', '').replace('provinsi', '').strip()
                 matched = False
                 for key, coords in indo_coords.items():
@@ -411,29 +334,17 @@ if page == "🏠 HOMEPAGE":
                         matched = True
                         break
                 if not matched:
-                    lats.append(None)
-                    lons.append(None)
+                    lats.append(None); lons.append(None)
             
             asal_counts['Lat'] = lats
             asal_counts['Lon'] = lons
-            
-            # Peta HANYA menampilkan data yang punya titik koordinat
             map_data = asal_counts.dropna(subset=['Lat', 'Lon'])
             
-            # 6. Membagi Layar: Kiri Peta, Kanan Grafik Bar
             c_map, c_bar = st.columns([3, 2])
-            
             with c_map:
                 with st.container(border=True):
                     if not map_data.empty:
-                        # Membuat Peta Titik Merah
-                        fig_map = px.scatter_mapbox(
-                            map_data, lat="Lat", lon="Lon", size="Jumlah", color="Jumlah",
-                            color_continuous_scale="Reds", size_max=45, zoom=4.8,
-                            center=dict(lat=-7.0, lon=110.0), # Kamera fokus langsung ke area Jawa
-                            mapbox_style="carto-positron",
-                            hover_name="Lokasi", hover_data={"Lat":False, "Lon":False, "Jumlah":True}
-                        )
+                        fig_map = px.scatter_mapbox(map_data, lat="Lat", lon="Lon", size="Jumlah", color="Jumlah", color_continuous_scale="Reds", size_max=45, zoom=4.8, center=dict(lat=-7.0, lon=110.0), mapbox_style="carto-positron", hover_name="Lokasi", hover_data={"Lat":False, "Lon":False, "Jumlah":True})
                         fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, height=320, coloraxis_showscale=False)
                         st.plotly_chart(fig_map, use_container_width=True)
                     else:
@@ -442,23 +353,20 @@ if page == "🏠 HOMEPAGE":
             with c_bar:
                 with st.container(border=True):
                     st.markdown("<div style='font-size:13px; color:gray; font-weight:bold; margin-bottom:5px;'>Top 7 Asal Leads Terbanyak</div>", unsafe_allow_html=True)
-                    # Grafik Bar Biru (Menampilkan SEMUA data, termasuk yang tidak terdeteksi Peta)
-                    top_asal = asal_counts.head(7) 
-                    fig_bar = px.bar(top_asal, y='Lokasi', x='Jumlah', text_auto=True, orientation='h', color_discrete_sequence=[BRAND_BLUE])
-                    fig_bar.update_layout(
-                        margin={"r":0,"t":0,"l":0,"b":0}, height=295,
-                        xaxis_title="", yaxis_title="", yaxis={'categoryorder':'total ascending'},
-                        paper_bgcolor='white', plot_bgcolor='white'
-                    )
+                    fig_bar = px.bar(asal_counts.head(7), y='Lokasi', x='Jumlah', text_auto=True, orientation='h', color_discrete_sequence=[BRAND_BLUE])
+                    fig_bar.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, height=295, xaxis_title="", yaxis_title="", yaxis={'categoryorder':'total ascending'}, paper_bgcolor='white', plot_bgcolor='white')
                     fig_bar.update_yaxes(tickfont=dict(color="#000000", size=10, family="Arial Black"))
                     st.plotly_chart(fig_bar, use_container_width=True)
         else:
-            st.info("Kolom 'Asal' tidak ditemukan pada database WA Admin.")
-            
-        st.markdown("<br>", unsafe_allow_html=True)
-        
+            st.info("Data Asal belum tersedia untuk dipetakan.")
+    except Exception as e:
+        st.error(f"Gagal memuat Peta: {e}")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+
     # ==========================================================
-    # FUNGSI PENCETAK KOTAK 1:1 (TOMBOL NAVIGASI)
+    # 4. GRID NAVIGASI KOTAK BAWAH
     # ==========================================================
     def create_square_card(icon, title, subtitle, target_page, button_key):
         with st.container(border=True):
@@ -471,17 +379,11 @@ if page == "🏠 HOMEPAGE":
             """, unsafe_allow_html=True)
             st.button("Masuk ➔", key=button_key, use_container_width=True, on_click=go_to_page, args=(target_page,))
 
-    # --- MEMBANGUN GRID 4 KOLOM ---
     c1, c2, c3, c4 = st.columns(4)
-    
-    with c1:
-        create_square_card("📱", "Sosial Media", "Jadwal Tayang & Hutang PIC", "📱 SOSIAL MEDIA", "btn_sos")
-    with c2:
-        create_square_card("🌐", "Website Audit", "Status Artikel & Pilar SEO", "🌐 WEBSITE AUDIT", "btn_web")
-    with c3:
-        create_square_card("📈", "Analytics", "Interaksi, Views & Leads", "📈 INSIGHTS & ANALYTICS", "btn_in")
-    with c4:
-        create_square_card("💬", "WA Report", "Funneling & Sukses Closing", "💬 WA ADMIN REPORT", "btn_wa")
+    with c1: create_square_card("📱", "Sosial Media", "Jadwal Tayang & Hutang PIC", "📱 SOSIAL MEDIA", "btn_sos")
+    with c2: create_square_card("🌐", "Website Audit", "Status Artikel & Pilar SEO", "🌐 WEBSITE AUDIT", "btn_web")
+    with c3: create_square_card("📈", "Analytics", "Interaksi, Views & Leads", "📈 INSIGHTS & ANALYTICS", "btn_in")
+    with c4: create_square_card("💬", "WA Report", "Funneling & Sukses Closing", "💬 WA ADMIN REPORT", "btn_wa")
 
     st.markdown("<hr style='border: 1px solid #EEE; margin-top: 40px;'>", unsafe_allow_html=True)
         
