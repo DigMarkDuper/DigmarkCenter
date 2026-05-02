@@ -23,23 +23,49 @@ st.set_page_config(page_title="Digmark Command Center", layout="wide")
 def check_password():
     """Mengembalikan True jika pengguna memasukkan password yang benar."""
     def password_entered():
+        # Masukkan password pilihan Mas di sini
         if st.session_state["password"] == "DUTADUPER55": 
             st.session_state["password_correct"] = True
             del st.session_state["password"]
         else:
             st.session_state["password_correct"] = False
 
-    if "password_correct" not in st.session_state:
-        st.text_input("Masukkan Password Akses Command Center:", type="password", 
-                     on_change=password_entered, key="password")
-        return False
-    elif not st.session_state["password_correct"]:
-        st.text_input("Password Salah. Coba lagi:", type="password", 
-                     on_change=password_entered, key="password")
-        st.error("😕 Akses ditolak.")
-        return False
-    else:
+    # Jika password sudah benar, langsung izinkan akses
+    if st.session_state.get("password_correct"):
         return True
+
+    # Tampilan Halaman Login (Clean & Professional)
+    st.markdown("""
+        <style>
+        .login-header {
+            color: #005696; 
+            text-align: center; 
+            font-weight: bold; 
+            margin-bottom: 20px;
+        }
+        </style>
+        <h2 class="login-header">🔐 DIGITAL MARKETING COMMAND CENTER <br> LPK DUTA PERSADA</h2>
+    """, unsafe_allow_html=True)
+
+    # Input password
+    st.text_input("Masukkan Password Akses:", type="password", 
+                 on_change=password_entered, key="password")
+
+    # Tampilkan pesan error jika salah
+    if st.session_state.get("password_correct") == False:
+        st.error("😕 Password salah. Silakan hubungi admin.")
+    
+    return False
+
+# =====================================================================
+# GERBANG KEAMANAN UTAMA
+# =====================================================================
+if not check_password():
+    st.stop()  # Menghentikan seluruh script agar isi dashboard tidak muncul
+
+# --- SELURUH KODE DASHBOARD MASUK DI BAWAH SINI ---
+st.success("✅ Login Berhasil!")
+# Lanjutkan dengan init_connection() dan visualisasi grafik...
 
 # =====================================================================
 # 3. FUNGSI KONEKSI DATABASE (GOOGLE SHEETS)
