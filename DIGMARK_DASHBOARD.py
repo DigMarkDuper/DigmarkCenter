@@ -301,7 +301,7 @@ if page == "🏠 HOMEPAGE":
 
 
     # ==========================================================
-    # 3. PETA PERSEBARAN LEADS & GRAFIK (YANG TADI HILANG)
+    # 3. PETA PERSEBARAN LEADS & GRAFIK (SUPER DICTIONARY)
     # ==========================================================
     st.markdown(f"<h3 style='color:{BRAND_BLUE}; font-size: 18px; margin-bottom: 10px; margin-top: 15px;'>🗺️ Peta Persebaran & Top Asal Prospek</h3>", unsafe_allow_html=True)
     
@@ -312,27 +312,66 @@ if page == "🏠 HOMEPAGE":
             asal_counts.columns = ['Lokasi', 'Jumlah'] 
             asal_counts = asal_counts[asal_counts['Lokasi'].astype(str).str.strip() != '']
             
+            # --- KAMUS KOORDINAT NASIONAL (SELURUH KABUPATEN UTAMA) ---
             indo_coords = {
+                # DKI JAKARTA & BANTEN
                 'jakarta': [-6.2088, 106.8456], 'jkt': [-6.2088, 106.8456], 'jabodetabek': [-6.2088, 106.8456],
-                'bandung': [-6.9147, 107.6098], 'jabar': [-6.9147, 107.6098], 'bogor': [-6.5971, 106.8060],
-                'semarang': [-6.9666, 110.4166], 'jateng': [-7.1509, 110.1402], 'solo': [-7.5666, 110.8166], 'magelang': [-7.4705, 110.2177], 
-                'klaten': [-7.7056, 110.6031], 'purworejo': [-7.7126, 110.0091], 'kebumen': [-7.6672, 109.6515],
+                'tangerang': [-6.1702, 106.6403], 'serang': [-6.1200, 106.1503], 'cilegon': [-6.0174, 106.0201], 'pandeglang': [-6.3084, 106.1062], 'lebak': [-6.6346, 106.2238], 'rangkasbitung': [-6.3587, 106.2513],
+                # JAWA BARAT
+                'bandung': [-6.9147, 107.6098], 'jabar': [-6.9147, 107.6098], 'bogor': [-6.5971, 106.8060], 'bekasi': [-6.2383, 106.9756], 'depok': [-6.4025, 106.7942],
+                'cirebon': [-6.7320, 108.5523], 'tasikmalaya': [-7.3195, 108.2040], 'garut': [-7.2279, 107.9087], 'sukabumi': [-6.9275, 106.9426], 'cianjur': [-6.8168, 107.1425],
+                'karawang': [-6.3227, 107.3113], 'purwakarta': [-6.5387, 107.4485], 'subang': [-6.5714, 107.7592], 'indramayu': [-6.3275, 108.3228], 'majalengka': [-6.8365, 108.2275],
+                'kuningan': [-6.9758, 108.4831], 'sumedang': [-6.8588, 107.9205], 'ciamis': [-7.3320, 108.3541], 'banjar': [-7.3746, 108.5323], 'pangandaran': [-7.6977, 108.6558],
+                # JAWA TENGAH
+                'semarang': [-6.9666, 110.4166], 'jateng': [-7.1509, 110.1402], 'solo': [-7.5666, 110.8166], 'surakarta': [-7.5666, 110.8166], 'magelang': [-7.4705, 110.2177], 
+                'klaten': [-7.7056, 110.6031], 'purworejo': [-7.7126, 110.0091], 'kebumen': [-7.6672, 109.6515], 'boyolali': [-7.5172, 110.5950], 'sragen': [-7.4267, 111.0222],
+                'wonogiri': [-7.8159, 110.9264], 'karanganyar': [-7.5959, 111.0049], 'sukoharjo': [-7.6766, 110.8351], 'temanggung': [-7.3134, 110.1718], 'wonosobo': [-7.3621, 109.9001],
+                'purwokerto': [-7.4243, 109.2302], 'banyumas': [-7.5146, 109.2950], 'cilacap': [-7.7300, 109.0160], 'banjarnegara': [-7.3970, 109.6976], 'purbalingga': [-7.3879, 109.3622],
+                'brebes': [-6.8690, 109.0435], 'tegal': [-6.8797, 109.1256], 'pemalang': [-6.8893, 109.3807], 'pekalongan': [-6.8887, 109.6753], 'batang': [-6.9142, 109.7314],
+                'kendal': [-6.9197, 110.2017], 'demak': [-6.8948, 110.6385], 'jepara': [-6.5861, 110.6674], 'kudus': [-6.8048, 110.8405], 'pati': [-6.7559, 111.0370], 
+                'rembang': [-6.7065, 111.3414], 'blora': [-7.1322, 111.4328], 'grobogan': [-7.0264, 110.9168], 'purwodadi': [-7.0868, 110.9158],
+                # DIY YOGYAKARTA
                 'jogja': [-7.7955, 110.3694], 'yogyakarta': [-7.7955, 110.3694], 'diy': [-7.7955, 110.3694], 'yk': [-7.7955, 110.3694],
-                'sleman': [-7.7306, 110.3481], 'bantul': [-7.8887, 110.3289], 'gunungkidul': [-7.9656, 110.5988], 'kulon': [-7.8282, 110.1243],
+                'sleman': [-7.7306, 110.3481], 'bantul': [-7.8887, 110.3289], 'gunungkidul': [-7.9656, 110.5988], 'kulon': [-7.8282, 110.1243], 'kulonprogo': [-7.8282, 110.1243],
+                # JAWA TIMUR
                 'surabaya': [-7.2504, 112.7688], 'jatim': [-7.2504, 112.7688], 'malang': [-7.9797, 112.6304], 'madiun': [-7.6298, 111.5239],
-                'bali': [-8.4095, 115.1889], 'sumatera': [-0.5897, 101.3431], 'kalimantan': [0.9619, 114.5548], 'sulawesi': [-2.2179, 120.3279]
+                'banyuwangi': [-8.2192, 114.3692], 'jember': [-8.1721, 113.6995], 'lumajang': [-8.1332, 113.2226], 'probolinggo': [-7.7554, 113.2159], 'pasuruan': [-7.6449, 112.9033],
+                'sidoarjo': [-7.4478, 112.7183], 'mojokerto': [-7.4726, 112.4338], 'jombang': [-7.5459, 112.2329], 'kediri': [-7.8228, 112.0119], 'blitar': [-8.0983, 112.1609],
+                'tulungagung': [-8.0664, 111.9019], 'trenggalek': [-8.0494, 111.7107], 'ponorogo': [-7.8687, 111.4646], 'pacitan': [-8.1965, 111.1099], 'magetan': [-7.6534, 111.3304],
+                'ngawi': [-7.4042, 111.4429], 'bojonegoro': [-7.1502, 111.8818], 'tuban': [-6.8966, 112.0632], 'lamongan': [-7.1185, 112.3150], 'gresik': [-7.1561, 112.6555],
+                'bangkalan': [-7.0347, 112.7425], 'sampang': [-7.1866, 113.2435], 'pamekasan': [-7.1633, 113.4795], 'sumenep': [-7.0090, 113.8641], 'batu': [-7.8671, 112.5239],
+                # LUAR JAWA (KOTA UTAMA)
+                'bali': [-8.4095, 115.1889], 'denpasar': [-8.6500, 115.2167], 'badung': [-8.5818, 115.1772], 'gianyar': [-8.5369, 115.3262], 'singaraja': [-8.1120, 115.0884],
+                'sumatera': [-0.5897, 101.3431], 'medan': [-3.5951, 98.6722], 'padang': [-0.9470, 100.4171], 'palembang': [-2.9909, 104.7565], 'pekanbaru': [0.5070, 101.4477], 'lampung': [-5.4500, 105.2666],
+                'kalimantan': [0.9619, 114.5548], 'balikpapan': [-1.2379, 116.8528], 'samarinda': [-0.5022, 117.1536], 'pontianak': [-0.0226, 109.3301], 'banjarmasin': [-3.3166, 114.5901],
+                'sulawesi': [-2.2179, 120.3279], 'makassar': [-5.1476, 119.4327], 'manado': [1.4748, 124.8420], 'palu': [-0.8917, 119.8707], 'kendari': [-3.9985, 122.5126],
+                'ntb': [-8.5659, 116.3249], 'mataram': [-8.5833, 116.1166], 'lombok': [-8.5659, 116.3249], 'ntt': [-8.6225, 120.1065], 'kupang': [-10.1771, 123.6070],
+                'papua': [-4.2699, 138.0803], 'jayapura': [-2.5337, 140.7186], 'maluku': [-3.2385, 130.1453], 'ambon': [-3.6954, 128.1814]
             }
 
             lats, lons = [], []
             for loc in asal_counts['Lokasi']:
-                loc_lower = str(loc).lower().replace('kabupaten', '').replace('kota', '').replace('provinsi', '').strip()
+                # Pembersihan yang lebih agresif agar 'Kab. Banyuwangi' atau 'Banyuwangi Kota' tetap terbaca
+                loc_lower = str(loc).lower().replace('kabupaten', '').replace('kab.', '').replace('kota', '').replace('provinsi', '').replace('prov.', '').strip()
                 matched = False
+                # Urutkan pencarian agar yang paling pas yang terpilih
                 for key, coords in indo_coords.items():
-                    if key in loc_lower or loc_lower in key:
+                    # Memisahkan kata agar tidak salah mendeteksi (contoh: "Malang" di "Pemalang")
+                    if key == loc_lower or f" {key} " in f" {loc_lower} " or loc_lower.startswith(f"{key} ") or loc_lower.endswith(f" {key}"):
                         lats.append(coords[0])
                         lons.append(coords[1])
                         matched = True
                         break
+                
+                # Jika metode pertama gagal, pakai pencarian longgar (substring)
+                if not matched:
+                    for key, coords in indo_coords.items():
+                        if key in loc_lower or loc_lower in key:
+                            lats.append(coords[0])
+                            lons.append(coords[1])
+                            matched = True
+                            break
+                            
                 if not matched:
                     lats.append(None); lons.append(None)
             
@@ -344,7 +383,12 @@ if page == "🏠 HOMEPAGE":
             with c_map:
                 with st.container(border=True):
                     if not map_data.empty:
-                        fig_map = px.scatter_mapbox(map_data, lat="Lat", lon="Lon", size="Jumlah", color="Jumlah", color_continuous_scale="Reds", size_max=45, zoom=4.8, center=dict(lat=-7.0, lon=110.0), mapbox_style="carto-positron", hover_name="Lokasi", hover_data={"Lat":False, "Lon":False, "Jumlah":True})
+                        fig_map = px.scatter_mapbox(
+                            map_data, lat="Lat", lon="Lon", size="Jumlah", color="Jumlah", 
+                            color_continuous_scale="Reds", size_max=45, zoom=4.8, 
+                            center=dict(lat=-7.0, lon=110.0), 
+                            mapbox_style="carto-positron", hover_name="Lokasi", hover_data={"Lat":False, "Lon":False, "Jumlah":True}
+                        )
                         fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, height=320, coloraxis_showscale=False)
                         st.plotly_chart(fig_map, use_container_width=True)
                     else:
