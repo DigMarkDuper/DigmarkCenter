@@ -3,7 +3,7 @@ import streamlit as st
 def check_password():
     """Mengembalikan True jika pengguna memasukkan password yang benar."""
     def password_entered():
-        if st.session_state["password"] == "LPK_JUARA_2026": # Ganti dengan password pilihan Mas
+        if st.session_state["password"] == "DUTADUPER55": # Ganti dengan password pilihan Mas
             st.session_state["password_correct"] = True
             del st.session_state["password"]
         else:
