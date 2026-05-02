@@ -702,18 +702,24 @@ if page == "📱 SOSIAL MEDIA":
                 key="editor_sosmed"
             )
 
-            if st.button("💾 Simpan Semua Perubahan ke Google Sheets", use_container_width=True):
+           if st.button("💾 Simpan Semua Perubahan ke Google Sheets", use_container_width=True):
                 with st.spinner("Sinkronisasi database..."):
                     updates = 0
                     for idx in edited_df.index:
                         for col in ["PROSES", "IG", "YT", "TIKTOK"]:
-                            if filtered_df.at[idx, col] != edited_df.at[idx, col]:
-                                # Format Boolean kembali ke 'V'
-                                val = "V" if (isinstance(edited_df.at[idx, col], bool) and edited_df.at[idx, col]) else (
-                                      "" if isinstance(edited_df.at[idx, col], bool) else edited_df.at[idx, col])
+                            old_val = filtered_df.at[idx, col]
+                            new_val = edited_df.at[idx, col]
+                            
+                            if old_val != new_val:
+                                # LOGIKA FIX: Pastikan TIDAK ADA objek bool yang lolos
+                                if isinstance(new_val, bool):
+                                    val_to_send = "V" if new_val else ""
+                                else:
+                                    # Paksa jadi string jika itu Selectbox atau teks
+                                    val_to_send = str(new_val) 
                                 
-                                # Fungsi update_sheet_cell yang Mas masukkan di bagian 3
-                                update_sheet_cell(0, idx, col, val)
+                                # Kirim ke fungsi update
+                                update_sheet_cell(0, idx, col, val_to_send)
                                 updates += 1
                     
                     if updates > 0:
@@ -722,9 +728,6 @@ if page == "📱 SOSIAL MEDIA":
                         st.rerun()
                     else:
                         st.info("Tidak ada data baru untuk disimpan.")
-
-    except Exception as e:
-        st.error(f"Kesalahan Teknis Sosmed: {e}")
 
 # --- HALAMAN 2: WEBSITE AUDIT ---
 elif page == "🌐 WEBSITE AUDIT":
