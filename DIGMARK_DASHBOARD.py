@@ -599,6 +599,7 @@ if page == "📱 SOSIAL MEDIA":
         df = load_sosmed()
         st.sidebar.markdown(f"<h2 style='color:{BRAND_BLUE};'>Manager Controls</h2>", unsafe_allow_html=True)
         
+        # --- SIDEBAR FILTERS ---
         months = df['Bulan-Deadline'].dropna().unique().tolist() if 'Bulan-Deadline' in df.columns else []
         selected_months = st.sidebar.multiselect("Bulan Deadline:", options=months, default=months, key="sos_bulan")
         
@@ -609,79 +610,84 @@ if page == "📱 SOSIAL MEDIA":
         filtered_df = df[mask].copy()
 
         if not filtered_df.empty:
-            # --- LOGIKA PERHITUNGAN ---
+            # --- 1. BARIS METRIK (RINGKAS) ---
             v_mask = filtered_df['Output'].str.contains('Video', case=False, na=False)
             v_total, v_done = len(filtered_df[v_mask]), len(filtered_df[v_mask & (filtered_df['PROSES'] == 'DONE')])
             d_total, d_done = len(filtered_df[~v_mask]), len(filtered_df[~v_mask & (filtered_df['PROSES'] == 'DONE')])
-
+            
             ig_p = len(filtered_df[(filtered_df['PROSES'] == 'DONE') & (filtered_df['IG'] == False)])
             tt_p = len(filtered_df[(filtered_df['PROSES'] == 'DONE') & (filtered_df['TIKTOK'] == False)])
             yt_p = len(filtered_df[(filtered_df['PROSES'] == 'DONE') & (v_mask) & (filtered_df['YT'] == False)])
 
-            # --- RENDER METRIK ---
-            st.markdown('<div class="feature-header">📊 Produksi & Realisasi</div>', unsafe_allow_html=True)
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Total Rencana", len(filtered_df))
-            m2.metric("Total DONE ✅", v_done + d_done)
-            m3.metric("Video Selesai 🎬", f"{v_done}/{v_total}")
-            m4.metric("Design Selesai 🎨", f"{d_done}/{d_total}")
-
-            st.markdown('<div class="feature-header">📲 Status Penjadwalan (Scheduling)</div>', unsafe_allow_html=True)
-            s1, s2, s3 = st.columns(3)
-            s1.metric("Hutang Post IG 📸", ig_p)
-            s2.metric("Hutang Post YT 🎥", yt_p)
-            s3.metric("Hutang Post TikTok 💃", tt_p)
+            # Layout Metrik 2x4 agar tidak memakan tempat
+            st.markdown('<div class="feature-header">📊 Ringkasan Eksekutif</div>', unsafe_allow_html=True)
+            m_col1, m_col2, m_col3, m_col4 = st.columns(4)
+            m_col1.metric("Rencana", len(filtered_df))
+            m_col2.metric("Selesai (DONE)", v_done + d_done)
+            m_col3.metric("Video 🎬", f"{v_done}/{v_total}")
+            m_col4.metric("Design 🎨", f"{d_done}/{d_total}")
+            
+            h_col1, h_col2, h_col3, h_col4 = st.columns(4)
+            h_col1.write("**Hutang Post:**")
+            h_col2.metric("Instagram 📸", ig_p)
+            h_col3.metric("YouTube 🎥", yt_p)
+            h_col4.metric("TikTok 💃", tt_p)
 
             st.markdown("---")
-            c1, c2 = st.columns(2)
-            with c1:
-                st.markdown('<div class="feature-header">🏛️ Sebaran Pilar Konten</div>', unsafe_allow_html=True)
+
+            # --- 2. TATA LETAK KANAN-KIRI (UTAMA) ---
+            col_kiri, col_kanan = st.columns([1.2, 1]) # Kiri sedikit lebih lebar untuk grafik
+
+            with col_kiri:
+                st.markdown('<div class="feature-header">🏛️ Sebaran Pilar & Beban PIC</div>', unsafe_allow_html=True)
+                
+                # Grafik Pie (Kecil)
                 p_counts = filtered_df['Konten Pillar'].value_counts().reset_index()
-                fig_p = px.pie(p_counts, names='Konten Pillar', values='count', hole=0.3, color_discrete_sequence=[BRAND_BLUE, BRAND_YELLOW, "#003A66", "#FFD700"])
-                fig_p.update_layout(margin=dict(t=0, b=0, l=0, r=0), height=300)
+                fig_p = px.pie(p_counts, names='Konten Pillar', values='count', hole=0.4, color_discrete_sequence=[BRAND_BLUE, BRAND_YELLOW, "#003A66", "#FFD700"])
+                fig_p.update_layout(margin=dict(t=10, b=10, l=10, r=10), height=250, showlegend=False)
                 st.plotly_chart(fig_p, use_container_width=True)
 
-            with c2:
-                st.markdown('<div class="feature-header">⚠️ Hutang Produksi per PIC</div>', unsafe_allow_html=True)
+                # Grafik Bar (Kecil)
                 debt = filtered_df[filtered_df['PROSES'] != 'DONE'].groupby('PIC').size().reset_index(name='Hutang')
                 fig_d = px.bar(pd.merge(pd.DataFrame({'PIC': list_pic}), debt, on='PIC', how='left').fillna(0), x='PIC', y='Hutang', color_discrete_sequence=[BRAND_BLUE], text_auto=True)
-                fig_d.update_layout(margin=dict(t=0, b=0, l=0, r=0), height=300, plot_bgcolor='white')
+                fig_d.update_layout(margin=dict(t=10, b=10, l=10, r=10), height=250, plot_bgcolor='white', yaxis_title=None, xaxis_title=None)
                 st.plotly_chart(fig_d, use_container_width=True)
 
-            # --- DETAIL TUGAS EXPANDER ---
-            st.markdown('<div class="feature-header">📝 Detail Tugas per PIC</div>', unsafe_allow_html=True)
-            for name in selected_pic:
-                pic_prod = filtered_df[(filtered_df['PIC'] == name) & (filtered_df['PROSES'] != 'DONE')]
-                pic_sched = filtered_df[(filtered_df['PIC'] == name) & (filtered_df['PROSES'] == 'DONE') & 
-                                        ((filtered_df['IG'] == False) | ((v_mask) & (filtered_df['YT'] == False)) | (filtered_df['TIKTOK'] == False))]
-                if not pic_prod.empty or not pic_sched.empty:
-                    with st.expander(f"📋 {name} - Audit Pipeline"):
+            with col_kanan:
+                st.markdown('<div class="feature-header">📝 Audit Pipeline PIC</div>', unsafe_allow_html=True)
+                # Tampilkan Audit langsung dalam list expander yang compact
+                for name in selected_pic:
+                    pic_prod = filtered_df[(filtered_df['PIC'] == name) & (filtered_df['PROSES'] != 'DONE')]
+                    pic_sched = filtered_df[(filtered_df['PIC'] == name) & (filtered_df['PROSES'] == 'DONE') & 
+                                            ((filtered_df['IG'] == False) | ((v_mask) & (filtered_df['YT'] == False)) | (filtered_df['TIKTOK'] == False))]
+                    
+                    # Header Expander berwarna jika ada hutang
+                    label = f"🔴 {name}" if (not pic_prod.empty or not pic_sched.empty) else f"🟢 {name}"
+                    with st.expander(label):
                         if not pic_prod.empty:
-                            st.markdown(f"**Hutang Produksi:**")
+                            st.caption("**Hutang Produksi:**")
                             for _, r in pic_prod.iterrows():
-                                st.write(f"🔹 **[{r['Kode Konten']}]** {r['Output']}: {r['Judul Konten']}")
+                                st.write(f"· {r['Output']}: {r['Judul Konten']}")
                         if not pic_sched.empty:
-                            st.markdown(f"**Hutang Scheduling:**")
+                            st.caption("**Hutang Post:**")
                             for _, r in pic_sched.iterrows():
                                 plts = [p for p in ['IG', 'TIKTOK'] if not r[p]]
                                 if "Video" in r['Output'] and not r['YT']: plts.append("YT")
-                                if plts: st.warning(f"⚠️ **[{r['Kode Konten']}]** Belum Post di: {', '.join(plts)}")
-                else:
-                    st.success(f"✅ {name} - Clear!")
+                                st.warning(f"⚠️ {r['Kode Konten']} ({', '.join(plts)})")
+                        if pic_prod.empty and pic_sched.empty:
+                            st.write("Semua tugas beres! ✨")
 
-            # ==========================================================
-            # LIVE EDITOR DENGAN WARNA VISUAL (EMOJI)
-            # ==========================================================
-            st.markdown('<div class="feature-header">📋 Master Production Pipeline (Live Editor)</div>', unsafe_allow_html=True)
+            st.markdown("---")
 
-            # Persiapan DataFrame untuk Tampilan (Menambahkan Emoji)
-            df_display = filtered_df[['Kode Konten', 'Tanggal Deadline', 'Output', 'PIC', 'Judul Konten', 'PROSES', 'IG', 'YT', 'TIKTOK']].copy()
+            # --- 3. MASTER PIPELINE (FULL WIDTH TETAP DI BAWAH) ---
+            st.markdown('<div class="feature-header">📋 Live Editor Database</div>', unsafe_allow_html=True)
             
-            # Map visual agar saat editor dibuka sudah ada emojinya
+            # Map visual untuk editor
             pic_map = {"Ejak": "🔵 Ejak", "Hana": "🟢 Hana", "Abi": "🟡 Abi", "Hanif": "🟣 Hanif"}
             out_map = {"Video": "🎬 Video", "Design": "🎨 Design"}
             stat_map = {"DONE": "✅ DONE", "PENDING": "⏳ PENDING", "ON PROGRESS": "🏗️ ON PROGRESS"}
 
+            df_display = filtered_df[['Kode Konten', 'Tanggal Deadline', 'Output', 'PIC', 'Judul Konten', 'PROSES', 'IG', 'YT', 'TIKTOK']].copy()
             df_display['PIC'] = df_display['PIC'].map(pic_map).fillna(df_display['PIC'])
             df_display['Output'] = df_display['Output'].map(out_map).fillna(df_display['Output'])
             df_display['PROSES'] = df_display['PROSES'].map(stat_map).fillna(df_display['PROSES'])
@@ -702,42 +708,31 @@ if page == "📱 SOSIAL MEDIA":
                 key="editor_sosmed"
             )
 
-            # --- LOGIKA SIMPAN ---
-            if st.button("💾 Simpan Semua Perubahan ke Google Sheets", use_container_width=True):
-                with st.spinner("Sinkronisasi database..."):
+            if st.button("💾 Simpan Semua Perubahan", use_container_width=True):
+                with st.spinner("Menyimpan ke Cloud..."):
                     updates = 0
                     for idx in edited_df.index:
                         for col in ["PIC", "Output", "PROSES", "IG", "YT", "TIKTOK"]:
-                            # Ambil nilai lama (dari filtered_df asli tanpa emoji)
                             old_val = str(filtered_df.at[idx, col]).strip()
-                            # Ambil nilai baru (dari editor yang mungkin ada emojinya)
                             new_val_raw = edited_df.at[idx, col]
                             
-                            # Bersihkan Emoji (ambil teks setelah spasi jika ada)
                             if isinstance(new_val_raw, str) and " " in new_val_raw:
                                 new_val = new_val_raw.split(" ", 1)[-1].strip()
                             else:
                                 new_val = new_val_raw
 
                             if old_val != str(new_val).strip():
-                                if isinstance(new_val, bool):
-                                    val_to_send = "V" if new_val else ""
-                                else:
-                                    val_to_send = str(new_val) 
-                                
+                                val_to_send = "V" if (isinstance(new_val, bool) and new_val) else ("" if isinstance(new_val, bool) else str(new_val))
                                 update_sheet_cell(0, idx, col, val_to_send)
                                 updates += 1
                     
                     if updates > 0:
-                        st.success(f"✅ Berhasil! {updates} perubahan tersimpan.")
+                        st.success(f"Berhasil memperbarui {updates} data!")
                         st.cache_data.clear()
                         st.rerun()
-                    else:
-                        st.info("Tidak ada data baru untuk disimpan.")
 
     except Exception as e:
-        st.error(f"Kesalahan Teknis Sosmed: {e}")
-
+        st.error(f"Kesalahan Teknis: {e}")
 # --- HALAMAN 2: WEBSITE AUDIT ---
 elif page == "🌐 WEBSITE AUDIT":
     st.title("🌐 WEBSITE MANAGEMENT")
