@@ -157,22 +157,26 @@ st.markdown(f"""
     """, unsafe_allow_html=True)
 
 # =====================================================================
-# 5. NAVIGASI UTAMA
+# 5. NAVIGASI UTAMA (DENGAN KONTROL SESSION STATE)
 # =====================================================================
+# Inisialisasi memori sistem agar tombol di Homepage bisa memindah Sidebar
+if "nav_page" not in st.session_state:
+    st.session_state.nav_page = "🏠 HOMEPAGE"
+
 st.sidebar.markdown(f"<h1 style='color:{BRAND_BLUE};'>🚀 NAVIGATION</h1>", unsafe_allow_html=True)
 
-# Tambahkan "🏠 HOMEPAGE" di urutan pertama list ini
-page = st.sidebar.radio("Pilih Proses Kerja:", [
-    "🏠 HOMEPAGE", 
-    "📱 SOSIAL MEDIA", 
-    "🌐 WEBSITE AUDIT", 
-    "📈 INSIGHTS & ANALYTICS", 
-    "💬 WA ADMIN REPORT"
-])
+# Tambahkan parameter 'key="nav_page"' agar terkunci dengan memori
+page = st.sidebar.radio(
+    "Pilih Proses Kerja:", 
+    ["🏠 HOMEPAGE", "📱 SOSIAL MEDIA", "🌐 WEBSITE AUDIT", "📈 INSIGHTS & ANALYTICS", "💬 WA ADMIN REPORT"],
+    key="nav_page" 
+)
 
 if st.sidebar.button("🔄 Force Global Refresh"):
     st.cache_data.clear()
     st.rerun()
+
+st.success("✅ Login Berhasil! Selamat bekerja, Tim Digmark.")
     
 # --- RUNNING TEXT NOTIFICATION ---
 st.markdown(f"""
@@ -204,93 +208,43 @@ if page == "🏠 HOMEPAGE":
         <div class="feature-header" style="text-align: center; font-size: 28px; margin-top: 0px;">
             Pusat Kendali Digital Marketing
         </div>
-    """, unsafe_allow_html=True)
-    
-    # Sambutan Personal & Motivasi
-    st.markdown(f"""
-        <h2 style='text-align: center; color: {BRAND_BLUE};'>
-            Selamat Datang di Sistem Terintegrasi LPK Duta Persada
-        </h2>
-        <p style='text-align: center; font-size: 18px; color: gray; font-weight: 500;'>
-            Pilih modul kerja pada panel navigasi di sebelah kiri untuk memulai pemantauan data.<br>
-            Mari jaga sinergi kerja untuk mengamankan target konversi pendaftaran tahun ini.
+        <p style='text-align: center; font-size: 16px; color: gray; margin-bottom: 40px;'>
+            Pilih modul kerja di bawah ini untuk segera memulai pemantauan data.
         </p>
-        <hr style='border: 1.5px solid {BRAND_YELLOW}; margin-bottom: 30px;'>
     """, unsafe_allow_html=True)
 
-    # ==========================================
-    # CSS KHUSUS UNTUK KARTU MODUL (TOMBOL BESAR)
-    # ==========================================
-    st.markdown(f"""
-        <style>
-        .mod-card {{
-            background-color: #FFFFFF;
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-            border: 1px solid #EAEAEA;
-            border-left: 8px solid {BRAND_BLUE};
-            transition: all 0.3s ease;
-            min-height: 140px;
-            margin-bottom: 20px;
-        }}
-        .mod-card:hover {{
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.12);
-            border-left: 8px solid {BRAND_YELLOW};
-            cursor: pointer;
-        }}
-        .mod-title {{
-            color: {BRAND_BLUE};
-            font-size: 1.2rem;
-            font-weight: 900;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }}
-        .mod-desc {{
-            color: #666666;
-            font-size: 0.95rem;
-            font-weight: 500;
-            line-height: 1.6;
-        }}
-        </style>
-    """, unsafe_allow_html=True)
+    # --- FUNGSI PENCETAK KOTAK 1:1 ---
+    def create_square_card(icon, title, subtitle, target_page, button_key):
+        # Menggunakan container bergaris bawaan Streamlit agar rapi
+        with st.container(border=True):
+            # Layout Ikon, Judul, dan Subjudul
+            st.markdown(f"""
+                <div style="text-align: center; padding: 10px 0px 5px 0px;">
+                    <div style="font-size: 70px; line-height: 1; margin-bottom: 15px;">{icon}</div>
+                    <div style="font-size: 14px; font-weight: 900; color: {BRAND_BLUE}; text-transform: uppercase; line-height: 1.2;">{title}</div>
+                    <div style="font-size: 12px; color: #666; margin-top: 8px; min-height: 35px;">{subtitle}</div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            # Tombol ini yang "mengganti" posisi radio sidebar lalu me-refresh layar
+            if st.button("Masuk ➔", key=button_key, use_container_width=True):
+                st.session_state.nav_page = target_page
+                st.rerun()
 
-    st.markdown(f"<h3 style='color:{BRAND_BLUE}; margin-bottom: 20px;'>📋 Modul Tersedia:</h3>", unsafe_allow_html=True)
-    
-    # Membuat Grid 2 Kolom untuk Kartu
-    c1, c2 = st.columns(2)
+    # --- MEMBANGUN GRID 4 KOLOM ---
+    # Ini yang membuat tampilannya menjadi kotak-kotak 1:1 berjajar rapi
+    c1, c2, c3, c4 = st.columns(4)
     
     with c1:
-        st.markdown(f"""
-            <div class="mod-card">
-                <div class="mod-title">📱 Sosial Media Command Center</div>
-                <div class="mod-desc">Pantau jadwal tayang, realisasi produksi video/desain, dan hutang kerja dari masing-masing PIC secara real-time.</div>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown(f"""
-            <div class="mod-card">
-                <div class="mod-title">📈 Insights & Analytics</div>
-                <div class="mod-desc">Analisis mendalam mengenai pertumbuhan audiens, interaksi, dan matriks klik profil (leads generation).</div>
-            </div>
-        """, unsafe_allow_html=True)
-        
+        create_square_card("📱", "Sosial Media", "Jadwal Tayang & Hutang PIC", "📱 SOSIAL MEDIA", "btn_sos")
     with c2:
-        st.markdown(f"""
-            <div class="mod-card">
-                <div class="mod-title">🌐 Website Management</div>
-                <div class="mod-desc">Monitoring pilar konten web (Artikel, News, Gallery) dan status SEO dari masing-masing artikel.</div>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown(f"""
-            <div class="mod-card">
-                <div class="mod-title">💬 WA Admin & Closing Report</div>
-                <div class="mod-desc">Pelacakan <i>funneling</i> leads prospek secara real-time dari fase Follow-up hingga pencapaian Sukses Closing.</div>
-            </div>
-        """, unsafe_allow_html=True)
+        create_square_card("🌐", "Website Audit", "Status Artikel & Pilar SEO", "🌐 WEBSITE AUDIT", "btn_web")
+    with c3:
+        create_square_card("📈", "Analytics", "Interaksi, Views & Leads", "📈 INSIGHTS & ANALYTICS", "btn_in")
+    with c4:
+        create_square_card("💬", "WA Report", "Funneling & Sukses Closing", "💬 WA ADMIN REPORT", "btn_wa")
+
+    st.markdown("<hr style='border: 1px solid #EEE; margin-top: 40px;'>", unsafe_allow_html=True)
         
 # --- HALAMAN 1: SOSIAL MEDIA ---
 if page == "📱 SOSIAL MEDIA":
