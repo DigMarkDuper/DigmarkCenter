@@ -236,50 +236,48 @@ if page != "🏠 HOMEPAGE":
 # --- HALAMAN 0: HOMEPAGE ---
 if page == "🏠 HOMEPAGE":
     # ==========================================================
-    # 1. GLOBAL CSS UNTUK SHADOW & RADIUS (DIPERKUAT)
+    # 1. GLOBAL CSS: FONT WORK SANS & SHADOW BOX (TARUH DI SINI)
     # ==========================================================
     st.markdown(f"""
         <style>
-        /* Shadow untuk kartu KPI Custom HTML */
+        /* 1. Import Font Work Sans */
+        @import url('https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;600;800&display=swap');
+
+        /* 2. Terapkan Font ke Seluruh Aplikasi */
+        html, body, [data-testid="stAppViewContainer"], .main {{
+            font-family: 'Work Sans', sans-serif !important;
+        }}
+
+        /* 3. Shadow untuk Kartu KPI (HTML Custom) */
         .kpi-card {{
             background-color: #FFFFFF;
             border-radius: 12px;
             padding: 18px 15px;
-            box-shadow: 0 12px 24px rgba(0,0,0,0.1) !important; /* Shadow dipertebal */
+            box-shadow: 0 12px 24px rgba(0,0,0,0.12) !important;
             border: 1px solid #F0F2F6;
             display: flex;
             align-items: center;
             gap: 15px;
             margin-bottom: 15px;
             transition: transform 0.3s ease;
+            font-family: 'Work Sans', sans-serif !important;
         }}
-        .kpi-card:hover {{
-            transform: translateY(-5px);
-        }}
-        .kpi-icon-box {{
-            background-color: #E8F4FC;
-            color: {BRAND_BLUE};
-            width: 48px;
-            height: 48px;
-            border-radius: 10px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 24px;
-            flex-shrink: 0;
-        }}
-        .kpi-title {{ font-size: 13px; color: #737373; font-weight: 600; margin-bottom: 4px; }}
-        .kpi-value {{ font-size: 20px; font-weight: 900; color: #111827; line-height: 1.1; }}
+        .kpi-card:hover {{ transform: translateY(-5px); }}
 
-        /* MENERAPKAN SHADOW KE SEMUA st.container(border=True) */
-        /* Termasuk Map, Chart, dan Navigasi Bawah agar terlihat melayang */
+        /* 4. Shadow untuk Kotak Peta, Grafik, & Navigasi (Streamlit Native) */
         [data-testid="stVerticalBlockBorderWrapper"] {{
-            box-shadow: 0 12px 28px rgba(0,0,0,0.12) !important; /* Efek shadow nyata */
+            box-shadow: 0 12px 28px rgba(0,0,0,0.12) !important;
             border-radius: 15px !important;
             background-color: white !important;
             border: 1px solid #F0F2F6 !important;
             padding: 15px !important;
             margin-bottom: 20px !important;
+        }}
+        
+        /* Font spesifik untuk judul */
+        h1, h2, h3, .feature-header {{
+            font-family: 'Work Sans', sans-serif !important;
+            font-weight: 800 !important;
         }}
         </style>
     """, unsafe_allow_html=True)
