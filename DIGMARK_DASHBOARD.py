@@ -606,10 +606,10 @@ if page == "📱 SOSIAL MEDIA":
         selected_pic = st.sidebar.multiselect("Pantau PIC:", options=list_pic, default=list_pic, key="sos_pic")
 
         mask = (df['PIC'].isin(selected_pic)) & (df['Bulan-Deadline'].isin(selected_months))
-        filtered_df = df[mask]
+        filtered_df = df[mask].copy()
 
         if not filtered_df.empty:
-            # --- LOGIKA PERHITUNGAN (TETAP SAMA) ---
+            # --- LOGIKA PERHITUNGAN ---
             v_mask = filtered_df['Output'].str.contains('Video', case=False, na=False)
             v_total, v_done = len(filtered_df[v_mask]), len(filtered_df[v_mask & (filtered_df['PROSES'] == 'DONE')])
             d_total, d_done = len(filtered_df[~v_mask]), len(filtered_df[~v_mask & (filtered_df['PROSES'] == 'DONE')])
@@ -618,6 +618,7 @@ if page == "📱 SOSIAL MEDIA":
             tt_p = len(filtered_df[(filtered_df['PROSES'] == 'DONE') & (filtered_df['TIKTOK'] == False)])
             yt_p = len(filtered_df[(filtered_df['PROSES'] == 'DONE') & (v_mask) & (filtered_df['YT'] == False)])
 
+            # --- RENDER METRIK ---
             st.markdown('<div class="feature-header">📊 Produksi & Realisasi</div>', unsafe_allow_html=True)
             m1, m2, m3, m4 = st.columns(4)
             m1.metric("Total Rencana", len(filtered_df))
@@ -631,59 +632,95 @@ if page == "📱 SOSIAL MEDIA":
             s2.metric("Hutang Post YT 🎥", yt_p)
             s3.metric("Hutang Post TikTok 💃", tt_p)
 
+            # --- RENDER CHARTS ---
             st.markdown("---")
             c1, c2 = st.columns(2)
             with c1:
                 st.markdown('<div class="feature-header">🏛️ Sebaran Pilar Konten</div>', unsafe_allow_html=True)
                 p_counts = filtered_df['Konten Pillar'].value_counts().reset_index()
                 fig_p = px.pie(p_counts, names='Konten Pillar', values='count', hole=0.3, color_discrete_sequence=[BRAND_BLUE, BRAND_YELLOW, "#003A66", "#FFD700"])
-                fig_p.update_traces(textinfo='label+value', textfont_size=14)
-                fig_p.update_layout(paper_bgcolor='white', legend=dict(font=dict(color=TEXT_BLACK, size=12)), font=dict(color=TEXT_BLACK))
+                fig_p.update_layout(margin=dict(t=0, b=0, l=0, r=0), height=300)
                 st.plotly_chart(fig_p, use_container_width=True)
 
             with c2:
                 st.markdown('<div class="feature-header">⚠️ Hutang Produksi per PIC</div>', unsafe_allow_html=True)
                 debt = filtered_df[filtered_df['PROSES'] != 'DONE'].groupby('PIC').size().reset_index(name='Hutang')
                 fig_d = px.bar(pd.merge(pd.DataFrame({'PIC': list_pic}), debt, on='PIC', how='left').fillna(0), x='PIC', y='Hutang', color_discrete_sequence=[BRAND_BLUE], text_auto=True)
-                fig_d.update_layout(paper_bgcolor='white', plot_bgcolor='white', font=dict(color=TEXT_BLACK), xaxis=dict(tickfont=dict(color=TEXT_BLACK)), yaxis=dict(tickfont=dict(color=TEXT_BLACK), gridcolor='#EEE'))
+                fig_d.update_layout(margin=dict(t=0, b=0, l=0, r=0), height=300, plot_bgcolor='white')
                 st.plotly_chart(fig_d, use_container_width=True)
 
-            st.markdown('<div class="feature-header">🕵️ Komparasi Video vs Design per PIC</div>', unsafe_allow_html=True)
-            breakdown = []
-            for n in selected_pic:
-                for ot in ["Video", "Design"]:
-                    sub = filtered_df[(filtered_df['PIC'] == n) & (filtered_df['Output'].str.contains(ot, case=False, na=False))]
-                    if not sub.empty:
-                        d = len(sub[sub['PROSES'] == 'DONE'])
-                        breakdown.append({'PIC': n, 'Output': ot, 'Status': 'DONE', 'Jumlah': d})
-                        breakdown.append({'PIC': n, 'Output': ot, 'Status': 'BELUM', 'Jumlah': len(sub)-d})
-            if breakdown:
-                fig_br = px.bar(pd.DataFrame(breakdown), x='PIC', y='Jumlah', color='Status', facet_col='Output', color_discrete_map={'DONE': BRAND_YELLOW, 'BELUM': BRAND_BLUE}, barmode='group', text_auto=True)
-                fig_br.update_layout(paper_bgcolor='white', plot_bgcolor='white', font=dict(color=TEXT_BLACK), legend=dict(font=dict(color=TEXT_BLACK)))
-                fig_br.update_xaxes(tickfont=dict(color=TEXT_BLACK), title_font=dict(color=TEXT_BLACK))
-                fig_br.update_yaxes(tickfont=dict(color=TEXT_BLACK), title_font=dict(color=TEXT_BLACK), gridcolor='#EEE')
-                st.plotly_chart(fig_br, use_container_width=True)
+            # --- LIVE EDITOR DENGAN WARNA VISUAL (EMOJI CODING) ---
+            st.markdown('<div class="feature-header">📋 Master Production Pipeline (Live Editor)</div>', unsafe_allow_html=True)
+            st.info("💡 **Visual Guide:** 🔵 Ejak | 🟢 Hana | 🟡 Abi | 🟣 Hanif ——— 🎬 Video | 🎨 Design")
 
-            st.markdown('<div class="feature-header">📝 Detail Tugas per PIC</div>', unsafe_allow_html=True)
-            for name in selected_pic:
-                pic_prod = filtered_df[(filtered_df['PIC'] == name) & (filtered_df['PROSES'] != 'DONE')]
-                pic_sched = filtered_df[(filtered_df['PIC'] == name) & (filtered_df['PROSES'] == 'DONE') & 
-                                        ((filtered_df['IG'] == False) | ((v_mask) & (filtered_df['YT'] == False)) | (filtered_df['TIKTOK'] == False))]
-                if not pic_prod.empty or not pic_sched.empty:
-                    with st.expander(f"📋 {name} - Audit Pipeline"):
-                        if not pic_prod.empty:
-                            st.markdown(f"**Hutang Produksi:**")
-                            for _, r in pic_prod.iterrows():
-                                st.write(f"🔹 **[{r['Kode Konten']}]** {r['Output']}: {r['Judul Konten']}")
-                        if not pic_sched.empty:
-                            st.markdown(f"**Hutang Scheduling:**")
-                            for _, r in pic_sched.iterrows():
-                                plts = [p for p in ['IG', 'TIKTOK'] if not r[p]]
-                                if "Video" in r['Output'] and not r['YT']: plts.append("YT")
-                                if plts: st.warning(f"⚠️ **[{r['Kode Konten']}]** Belum Post di: {', '.join(plts)}")
-                else:
-                    st.success(f"✅ {name} - Clear!")
+            # Menerapkan Map Visual ke Dataframe sebelum masuk editor
+            # Ini membuat tampilan tabel jauh lebih berwarna dan mudah dibaca
+            df_display = filtered_df[['Kode Konten', 'Tanggal Deadline', 'Output', 'PIC', 'Judul Konten', 'PROSES', 'IG', 'YT', 'TIKTOK']].copy()
+            
+            edited_df = st.data_editor(
+                df_display,
+                column_config={
+                    "PIC": st.column_config.SelectboxColumn(
+                        "PIC", 
+                        options=["🔵 Ejak", "🟢 Hana", "🟡 Abi", "🟣 Hanif"],
+                        help="Pilih PIC penanggung jawab"
+                    ),
+                    "Output": st.column_config.SelectboxColumn(
+                        "Output", 
+                        options=["🎬 Video", "🎨 Design"],
+                        help="Tentukan jenis output konten"
+                    ),
+                    "PROSES": st.column_config.SelectboxColumn(
+                        "Status", 
+                        options=["✅ DONE", "⏳ PENDING", "🏗️ ON PROGRESS"],
+                        help="Update progress produksi"
+                    ),
+                    "IG": st.column_config.CheckboxColumn("IG"),
+                    "YT": st.column_config.CheckboxColumn("YT"),
+                    "TIKTOK": st.column_config.CheckboxColumn("TikTok")
+                },
+                disabled=['Kode Konten', 'Tanggal Deadline', 'Judul Konten'],
+                use_container_width=True,
+                hide_index=False,
+                key="editor_sosmed"
+            )
 
+            # --- TOMBOL SIMPAN DENGAN PEMBERSIHAN EMOJI ---
+            if st.button("💾 Simpan Semua Perubahan ke Google Sheets", use_container_width=True):
+                with st.spinner("Menyelaraskan data..."):
+                    updates = 0
+                    for idx in edited_df.index:
+                        for col in ["PIC", "Output", "PROSES", "IG", "YT", "TIKTOK"]:
+                            old_val = str(filtered_df.at[idx, col]).strip()
+                            new_val_raw = edited_df.at[idx, col]
+                            
+                            # Membersihkan Emoji sebelum dikirim ke Google Sheets agar database tetap bersih
+                            # Kita ambil kata terakhir saja (misal: "🔵 Ejak" -> "Ejak")
+                            if isinstance(new_val_raw, str) and " " in new_val_raw:
+                                new_val = new_val_raw.split(" ")[-1].strip()
+                            else:
+                                new_val = new_val_raw
+
+                            if old_val != str(new_val).strip():
+                                # Handle format khusus (Checkbox)
+                                if isinstance(new_val, bool):
+                                    val_to_send = "V" if new_val else ""
+                                else:
+                                    val_to_send = str(new_val)
+                                
+                                # Update ke Google Sheets
+                                update_sheet_cell(0, idx, col, val_to_send)
+                                updates += 1
+                    
+                    if updates > 0:
+                        st.success(f"✅ Berhasil! {updates} data diperbarui.")
+                        st.cache_data.clear()
+                        st.rerun()
+                    else:
+                        st.info("Tidak ada perubahan yang dideteksi.")
+
+    except Exception as e:
+        st.error(f"Kesalahan Teknis Sosmed: {e}")
             # ==========================================================
             # LIVE EDITOR DENGAN DROP DOWN (PIC, OUTPUT, STATUS)
             # ==========================================================
