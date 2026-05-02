@@ -8,6 +8,12 @@ import json
 import re
 
 # =====================================================================
+# 0. KONFIGURASI ADMIN (GANTI DI SINI)
+# =====================================================================
+ADMIN_PASSWORD = "DUTADUPER55" # Ganti password akses di sini
+LOGO_URL = "https://www.dutapersadajogja.com/assets/img/logo.png" # Ganti dengan URL logo atau path file lokal
+
+# =====================================================================
 # 1. IDENTITAS VISUAL & KONFIGURASI HALAMAN
 # =====================================================================
 BRAND_BLUE = "#005696"
@@ -23,40 +29,50 @@ st.set_page_config(page_title="Digmark Command Center", layout="wide")
 def check_password():
     """Mengembalikan True jika pengguna memasukkan password yang benar."""
     def password_entered():
-        # Masukkan password pilihan Mas di sini
-        if st.session_state["password"] == "DUTADUPER55": 
+        if st.session_state["password"] == ADMIN_PASSWORD: 
             st.session_state["password_correct"] = True
             del st.session_state["password"]
         else:
             st.session_state["password_correct"] = False
 
-    # Jika password sudah benar, langsung izinkan akses
     if st.session_state.get("password_correct"):
         return True
 
-    # Tampilan Halaman Login (Clean & Professional)
-    st.markdown("""
-        <style>
-        .login-header {
-            color: #005696; 
-            text-align: center; 
-            font-weight: bold; 
-            margin-bottom: 20px;
-        }
-        </style>
-        <h2 class="login-header">🔐 DIGITAL MARKETING COMMAND CENTER <br> LPK DUTA PERSADA</h2>
-    """, unsafe_allow_html=True)
+    # --- Tampilan Halaman Login ---
+    # Membuat kolom agar logo & input berada di tengah
+    _, col_mid, _ = st.columns([1, 2, 1])
+    
+    with col_mid:
+        # Menampilkan Logo
+        try:
+            st.image(LOGO_URL, width=250)
+        except:
+            # Jika logo gagal dimuat, tampilkan teks sebagai cadangan
+            st.markdown(f"<h1 style='text-align:center; color:{BRAND_BLUE};'>LPK DUTA PERSADA</h1>", unsafe_allow_html=True)
 
-    # Input password
-    st.text_input("Masukkan Password Akses:", type="password", 
-                 on_change=password_entered, key="password")
+        st.markdown(f"""
+            <h3 style='text-align: center; color: {BRAND_BLUE}; margin-top: -10px;'>
+                DIGITAL MARKETING COMMAND CENTER
+            </h3>
+            <hr style='border: 1px solid {BRAND_YELLOW};'>
+        """, unsafe_allow_html=True)
 
-    # Tampilkan pesan error jika salah
-    if st.session_state.get("password_correct") == False:
-        st.error("😕 Password salah. Silakan hubungi admin.")
+        # Input password
+        st.text_input("Masukkan Password Akses:", type="password", 
+                     on_change=password_entered, key="password")
+
+        # Notifikasi jika salah
+        if st.session_state.get("password_correct") == False:
+            st.error("😕 Password salah. Silakan hubungi admin.")
     
     return False
 
+# Jalankan Gerbang Keamanan
+if not check_password():
+    st.stop()
+
+# --- HALAMAN UTAMA DIMULAI DI SINI ---
+st.success("✅ Akses Diterima. Selamat bekerja!")
 # =====================================================================
 # GERBANG KEAMANAN UTAMA
 # =====================================================================
