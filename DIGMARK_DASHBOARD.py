@@ -163,61 +163,72 @@ if st.sidebar.button("🔄 Global Refresh"):
 st.success("✅ Login Berhasil! Selamat bekerja, Tim Digmark.")
 
 # =====================================================================
-# 5. LOGIKA HALAMAN
+# 5. NAVIGASI & LOGIKA HALAMAN (STRUKTUR SATU PINTU)
 # =====================================================================
+st.sidebar.markdown(f"<h1 style='color:{BRAND_BLUE};'>🚀 NAVIGATION</h1>", unsafe_allow_html=True)
+page = st.sidebar.radio("Pilih Proses Kerja:", ["📱 SOSIAL MEDIA", "🌐 WEBSITE AUDIT", "📈 ANALYTICS", "💬 WA REPORT"])
 
+if st.sidebar.button("🔄 Refresh Data"):
+    st.cache_data.clear()
+    st.rerun()
+
+# --- HALAMAN SOSIAL MEDIA ---
 if page == "📱 SOSIAL MEDIA":
     st.markdown('<div class="feature-header">📱 SOSIAL MEDIA COMMAND CENTER</div>', unsafe_allow_html=True)
     try:
         df = load_sosmed()
         if not df.empty:
-            months = df['Bulan-Deadline'].dropna().unique().tolist()
-            sel_months = st.sidebar.multiselect("Bulan Deadline:", months, default=months)
-            pic_list = ["Ejak", "Hana", "Abi", "Hanif"]
-            sel_pic = st.sidebar.multiselect("Pantau PIC:", pic_list, default=pic_list)
+            st.sidebar.markdown("---")
+            st.sidebar.subheader("Filter Sosmed")
             
+            # TAMBAHKAN 'key' agar tidak error duplikasi ID
+            months = df['Bulan-Deadline'].dropna().unique().tolist()
+            sel_months = st.sidebar.multiselect(
+                "Pilih Bulan Deadline:", months, default=months, key="ms_bulan_sosmed"
+            )
+            
+            pic_list = ["Ejak", "Hana", "Abi", "Hanif"]
+            sel_pic = st.sidebar.multiselect(
+                "Pantau PIC Sosmed:", pic_list, default=pic_list, key="ms_pic_sosmed"
+            )
+            
+            # Proses Filter Data
             mask = (df['PIC'].isin(sel_pic)) & (df['Bulan-Deadline'].isin(sel_months))
             f_df = df[mask]
             
             if not f_df.empty:
-                m1, m2, m3 = st.columns(3)
+                # Tampilkan Metrik
+                m1, m2 = st.columns(2)
                 m1.metric("Total Rencana", len(f_df))
                 m2.metric("Total DONE ✅", len(f_df[f_df['PROSES'] == 'DONE']))
+                
+                # Tampilkan Tabel
                 st.dataframe(f_df, use_container_width=True, hide_index=True)
+            else:
+                st.warning("Data tidak cocok dengan filter.")
         else:
-            st.info("Data tidak ditemukan.")
+            st.info("Spreadsheet Tab Sosmed masih kosong.")
     except Exception as e:
-        st.error(f"Kesalahan Sosmed: {e}")
+        st.error(f"Kesalahan Teknis Sosmed: {e}")
 
+# --- HALAMAN WEBSITE ---
 elif page == "🌐 WEBSITE AUDIT":
     st.markdown('<div class="feature-header">🌐 WEBSITE AUDIT DASHBOARD</div>', unsafe_allow_html=True)
     try:
         df_web = load_website()
         if not df_web.empty:
+            # Gunakan key berbeda untuk filter website
+            months_w = df_web['Bulan-Deadline'].dropna().unique().tolist()
+            sel_months_w = st.sidebar.multiselect(
+                "Filter Bulan Website:", months_w, default=months_w, key="ms_bulan_web"
+            )
             st.dataframe(df_web, use_container_width=True, hide_index=True)
         else:
-            st.info("Data website kosong.")
+            st.info("Data website belum tersedia.")
     except Exception as e:
-        st.error(f"Kesalahan Website: {e}")
+        st.error(f"Kesalahan Teknis Website: {e}")
 
-elif page == "📈 ANALYTICS":
-    st.markdown('<div class="feature-header">📈 INSIGHTS & ANALYTICS</div>', unsafe_allow_html=True)
-    try:
-        df_in = load_insight()
-        if not df_in.empty:
-            st.dataframe(df_in, use_container_width=True, hide_index=True)
-    except Exception as e:
-        st.error(f"Kesalahan Insight: {e}")
-
-elif page == "💬 WA REPORT":
-    st.markdown('<div class="feature-header">💬 WA ADMIN & CLOSING REPORT</div>', unsafe_allow_html=True)
-    try:
-        df_wa = load_wa_admin()
-        if not df_wa.empty:
-            st.metric("Total Leads", len(df_wa))
-            st.dataframe(df_wa, use_container_width=True, hide_index=True)
-    except Exception as e:
-        st.error(f"Kesalahan WA Report: {e}")
+# --- HALAMAN LAINNYA (Diteruskan dengan 'elif')... ---
         
 # =====================================================================
 # HALAMAN 1: SOSIAL MEDIA
