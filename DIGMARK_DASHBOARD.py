@@ -383,7 +383,9 @@ if page == "🏠 HOMEPAGE":
                 if not map_data.empty:
                     fig_map = px.scatter_mapbox(
                         map_data, lat="Lat", lon="Lon", size="Jumlah", color="Jumlah", 
-                        color_continuous_scale="Reds", size_max=50, zoom=5.0, 
+                        # KUNCI PERBAIKAN: Warna tidak memudar ke putih, melainkan Oranye -> Merah -> Marun
+                        color_continuous_scale=["#FF8C00", "#FF0000", "#8B0000"], 
+                        size_max=50, zoom=5.0, 
                         center=dict(lat=-7.0, lon=110.0), 
                         mapbox_style="carto-positron", hover_name="Lokasi", hover_data={"Lat":False, "Lon":False, "Jumlah":True}
                     )
@@ -391,9 +393,6 @@ if page == "🏠 HOMEPAGE":
                     st.plotly_chart(fig_map, use_container_width=True)
                 else:
                     st.warning("⚠️ Belum ada koordinat peta yang terdeteksi dari data Asal.")
-            
-            # Memberi sedikit jarak bernapas antara Peta dan Grafik Bar
-            st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
             
             # ==========================================
             # RENDER GRAFIK BAR (FULL WIDTH - POSISI BAWAH)
