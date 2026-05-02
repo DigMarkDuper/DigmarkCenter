@@ -2,15 +2,14 @@ import streamlit as st
 import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-import json
-import re
 import plotly.express as px
 import plotly.graph_objects as go
+import sys
+from streamlit.web import cli as stcli
 
 # =====================================================================
-# 1. KONFIGURASI GLOBAL (WAJIB PALING ATAS)
+# 1. KONFIGURASI GLOBAL
 # =====================================================================
-# Perintah Streamlit pertama harus st.set_page_config
 st.set_page_config(page_title="Digmark Command Center", layout="wide", page_icon="🚀")
 
 ADMIN_PASSWORD = "DUTADUPER55" 
@@ -22,7 +21,7 @@ TEXT_BLACK = "#000000"
 BG_WHITE = "#FFFFFF"
 
 # =====================================================================
-# 2. SISTEM KEAMANAN (PASSWORD)
+# 2. SISTEM KEAMANAN (LOGIN)
 # =====================================================================
 def check_password():
     def password_entered():
@@ -35,7 +34,6 @@ def check_password():
     if st.session_state.get("password_correct"):
         return True
 
-    # Render Halaman Login
     st.markdown(f"""
         <style>
         .login-box {{ display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }}
@@ -58,24 +56,18 @@ def check_password():
             st.error("😕 Password salah. Silakan hubungi admin.")
     return False
 
-# GERBANG KEAMANAN MUTLAK (Script berhenti di sini jika belum login)
 if not check_password():
     st.stop()
 
 # =====================================================================
-# 3. KONEKSI & FUNGSI LOAD DATA (Definisikan SEMUA Fungsi di sini)
+# 3. KONEKSI & LOAD DATA
 # =====================================================================
 @st.cache_resource
 def init_connection():
     try:
-        if "gcp_service_account" not in st.secrets:
-            st.error("Secrets 'gcp_service_account' tidak ditemukan.")
-            return None
         creds_info = dict(st.secrets["gcp_service_account"])
         if "private_key" in creds_info:
-            pk = creds_info["private_key"].replace("\\n", "\n").strip()
-            creds_info["private_key"] = pk
-        
+            creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n").strip()
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_info, scope)
         return gspread.authorize(creds)
@@ -87,8 +79,7 @@ def get_raw_df(sheet_index):
     client = init_connection()
     if client:
         try:
-            # Pastikan nama file 100% sama dengan di Drive
-            spreadsheet = client.open("MASTER DATA DIGITAL MARK 2.0")
+            spreadsheet = client.open("MASTER DATA DIGITAL MARKETING 2.0")
             sheet = spreadsheet.get_worksheet(sheet_index)
             return pd.DataFrame(sheet.get_all_records())
         except Exception as e:
@@ -99,17 +90,15 @@ def get_raw_df(sheet_index):
 def load_sosmed():
     df = get_raw_df(0)
     if not df.empty:
-        # Perbaikan error 'Bulan-Deadline'
         col = 'Tanggal Deadline'
         if col in df.columns:
             df[col] = pd.to_datetime(df[col], dayfirst=True, errors='coerce')
             df['Bulan-Deadline'] = df[col].dt.strftime('%B %Y')
         else:
             df['Bulan-Deadline'] = "Unknown"
-        # Konversi Checkbox
         for c in ['IG', 'YT', 'TIKTOK']:
             if c in df.columns:
-                df[c] = df[c].apply(lambda x: True if str(x).upper() in ['TRUE', 'V', '1'] else False)
+                df[c] = df[c].apply(lambda x: True if str(x).upper() in ['TRUE', 'V', '1', 'CHECKED'] else False)
     return df
 
 @st.cache_data(ttl=5)
@@ -123,8 +112,7 @@ def load_website():
 @st.cache_data(ttl=5)
 def load_insight():
     df = get_raw_df(2)
-    numeric_cols = ['View', 'Reach', 'Interaction', 'Link Clicks', 'Profile Visit', 'Follow']
-    for col in numeric_cols:
+    for col in ['View', 'Reach', 'Interaction', 'Link Clicks', 'Profile Visit', 'Follow']:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
     return df
@@ -138,7 +126,7 @@ def load_wa_admin():
     return df
 
 # =====================================================================
-# 4. CSS CUSTOM & SIDEBAR
+# 4. STYLING CUSTOM
 # =====================================================================
 st.markdown(f"""
     <style>
@@ -146,103 +134,41 @@ st.markdown(f"""
     [data-testid="stSidebar"] {{ background-color: {BG_WHITE} !important; border-right: 3px solid {BRAND_BLUE}; }}
     .feature-header {{
         background-color: {BRAND_BLUE}; color: white !important; padding: 15px; border-radius: 8px; 
-        border-left: 10px solid {BRAND_YELLOW}; font-weight: bold; margin: 20px 0;
+        border-left: 10px solid {BRAND_YELLOW}; font-size: 22px; font-weight: 800; margin-top: 20px; margin-bottom: 20px;
     }}
-    p, span, label, .stMarkdown {{ color: {TEXT_BLACK} !important; font-weight: 600; }}
+    p, span, label, li, .stMarkdown, .streamlit-expanderHeader p {{ color: {TEXT_BLACK} !important; font-weight: 700 !important; }}
     </style>
     """, unsafe_allow_html=True)
 
+# =====================================================================
+# 5. NAVIGASI UTAMA
+# =====================================================================
 st.sidebar.markdown(f"<h1 style='color:{BRAND_BLUE};'>🚀 NAVIGATION</h1>", unsafe_allow_html=True)
-page = st.sidebar.radio("Pilih Proses Kerja:", ["📱 SOSIAL MEDIA", "🌐 WEBSITE AUDIT", "📈 ANALYTICS", "💬 WA REPORT"])
+page = st.sidebar.radio("Pilih Proses Kerja:", ["📱 SOSIAL MEDIA", "🌐 WEBSITE AUDIT", "📈 INSIGHTS & ANALYTICS", "💬 WA ADMIN REPORT"])
 
-if st.sidebar.button("🔄 Global Refresh"):
+if st.sidebar.button("🔄 Force Global Refresh"):
     st.cache_data.clear()
     st.rerun()
 
-# Notifikasi sukses HANYA muncul setelah login
 st.success("✅ Login Berhasil! Selamat bekerja, Tim Digmark.")
 
 # =====================================================================
-# 5. NAVIGASI & LOGIKA HALAMAN (STRUKTUR SATU PINTU)
+# 6. LOGIKA HALAMAN & GRAFIK LENGKAP
 # =====================================================================
-st.sidebar.markdown(f"<h1 style='color:{BRAND_BLUE};'>🚀 NAVIGATION</h1>", unsafe_allow_html=True)
-page = st.sidebar.radio("Pilih Proses Kerja:", ["📱 SOSIAL MEDIA", "🌐 WEBSITE AUDIT", "📈 ANALYTICS", "💬 WA REPORT"])
 
-if st.sidebar.button("🔄 Refresh Data"):
-    st.cache_data.clear()
-    st.rerun()
-
-# --- HALAMAN SOSIAL MEDIA ---
-if page == "📱 SOSIAL MEDIA":
-    st.markdown('<div class="feature-header">📱 SOSIAL MEDIA COMMAND CENTER</div>', unsafe_allow_html=True)
-    try:
-        df = load_sosmed()
-        if not df.empty:
-            st.sidebar.markdown("---")
-            st.sidebar.subheader("Filter Sosmed")
-            
-            # TAMBAHKAN 'key' agar tidak error duplikasi ID
-            months = df['Bulan-Deadline'].dropna().unique().tolist()
-            sel_months = st.sidebar.multiselect(
-                "Pilih Bulan Deadline:", months, default=months, key="ms_bulan_sosmed"
-            )
-            
-            pic_list = ["Ejak", "Hana", "Abi", "Hanif"]
-            sel_pic = st.sidebar.multiselect(
-                "Pantau PIC Sosmed:", pic_list, default=pic_list, key="ms_pic_sosmed"
-            )
-            
-            # Proses Filter Data
-            mask = (df['PIC'].isin(sel_pic)) & (df['Bulan-Deadline'].isin(sel_months))
-            f_df = df[mask]
-            
-            if not f_df.empty:
-                # Tampilkan Metrik
-                m1, m2 = st.columns(2)
-                m1.metric("Total Rencana", len(f_df))
-                m2.metric("Total DONE ✅", len(f_df[f_df['PROSES'] == 'DONE']))
-                
-                # Tampilkan Tabel
-                st.dataframe(f_df, use_container_width=True, hide_index=True)
-            else:
-                st.warning("Data tidak cocok dengan filter.")
-        else:
-            st.info("Spreadsheet Tab Sosmed masih kosong.")
-    except Exception as e:
-        st.error(f"Kesalahan Teknis Sosmed: {e}")
-
-# --- HALAMAN WEBSITE ---
-elif page == "🌐 WEBSITE AUDIT":
-    st.markdown('<div class="feature-header">🌐 WEBSITE AUDIT DASHBOARD</div>', unsafe_allow_html=True)
-    try:
-        df_web = load_website()
-        if not df_web.empty:
-            # Gunakan key berbeda untuk filter website
-            months_w = df_web['Bulan-Deadline'].dropna().unique().tolist()
-            sel_months_w = st.sidebar.multiselect(
-                "Filter Bulan Website:", months_w, default=months_w, key="ms_bulan_web"
-            )
-            st.dataframe(df_web, use_container_width=True, hide_index=True)
-        else:
-            st.info("Data website belum tersedia.")
-    except Exception as e:
-        st.error(f"Kesalahan Teknis Website: {e}")
-
-# --- HALAMAN LAINNYA (Diteruskan dengan 'elif')... ---
-        
-# =====================================================================
-# HALAMAN 1: SOSIAL MEDIA
-# =====================================================================
+# --- HALAMAN 1: SOSIAL MEDIA ---
 if page == "📱 SOSIAL MEDIA":
     st.title("🚀 SOSMED COMMAND CENTER")
     st.markdown("---")
     try:
         df = load_sosmed()
         st.sidebar.markdown(f"<h2 style='color:{BRAND_BLUE};'>Manager Controls</h2>", unsafe_allow_html=True)
-        months = df['Bulan-Deadline'].dropna().unique().tolist()
-        selected_months = st.sidebar.multiselect("Bulan Deadline:", options=months, default=months)
+        
+        months = df['Bulan-Deadline'].dropna().unique().tolist() if 'Bulan-Deadline' in df.columns else []
+        selected_months = st.sidebar.multiselect("Bulan Deadline:", options=months, default=months, key="sos_bulan")
+        
         list_pic = ["Ejak", "Hana", "Abi", "Hanif"] 
-        selected_pic = st.sidebar.multiselect("Pantau PIC:", options=list_pic, default=list_pic)
+        selected_pic = st.sidebar.multiselect("Pantau PIC:", options=list_pic, default=list_pic, key="sos_pic")
 
         mask = (df['PIC'].isin(selected_pic)) & (df['Bulan-Deadline'].isin(selected_months))
         filtered_df = df[mask]
@@ -322,14 +248,12 @@ if page == "📱 SOSIAL MEDIA":
                 else:
                     st.success(f"✅ {name} - Clear!")
 
-        st.markdown('<div class="feature-header">📋 Master Production Pipeline</div>', unsafe_allow_html=True)
-        st.dataframe(filtered_df[['Kode Konten', 'Tanggal Deadline', 'Output', 'PIC', 'Judul Konten', 'PROSES', 'IG', 'YT', 'TIKTOK']], use_container_width=True, hide_index=True)
+            st.markdown('<div class="feature-header">📋 Master Production Pipeline</div>', unsafe_allow_html=True)
+            st.dataframe(filtered_df[['Kode Konten', 'Tanggal Deadline', 'Output', 'PIC', 'Judul Konten', 'PROSES', 'IG', 'YT', 'TIKTOK']], use_container_width=True, hide_index=True)
     except Exception as e:
         st.error(f"Kesalahan Teknis Sosmed: {e}")
 
-# =====================================================================
-# HALAMAN 2: WEBSITE AUDIT 
-# =====================================================================
+# --- HALAMAN 2: WEBSITE AUDIT ---
 elif page == "🌐 WEBSITE AUDIT":
     st.title("🌐 WEBSITE MANAGEMENT")
     st.markdown("---")
@@ -339,7 +263,7 @@ elif page == "🌐 WEBSITE AUDIT":
         
         if 'Bulan-Deadline' in df_web.columns:
             months_web = df_web['Bulan-Deadline'].dropna().unique().tolist()
-            selected_months_web = st.sidebar.multiselect("Bulan Deadline:", options=months_web, default=months_web)
+            selected_months_web = st.sidebar.multiselect("Bulan Deadline:", options=months_web, default=months_web, key="web_bulan")
             mask_web = df_web['Bulan-Deadline'].isin(selected_months_web)
             filtered_web = df_web[mask_web].copy()
         else:
@@ -402,9 +326,7 @@ elif page == "🌐 WEBSITE AUDIT":
     except Exception as e:
         st.error(f"Kesalahan Teknis Website: {e}")
 
-# =====================================================================
-# HALAMAN 3: INSIGHTS & ANALYTICS
-# =====================================================================
+# --- HALAMAN 3: INSIGHTS & ANALYTICS ---
 elif page == "📈 INSIGHTS & ANALYTICS":
     st.title("📈 PERFORMA & ANALITIK KONTEN")
     st.markdown("---")
@@ -414,11 +336,10 @@ elif page == "📈 INSIGHTS & ANALYTICS":
         
         if 'Platform' in df_in.columns:
             list_platform = df_in['Platform'].dropna().unique().tolist()
-            sel_platform = st.sidebar.multiselect("Pilih Platform:", options=list_platform, default=list_platform)
+            sel_platform = st.sidebar.multiselect("Pilih Platform:", options=list_platform, default=list_platform, key="in_plat")
             df_in = df_in[df_in['Platform'].isin(sel_platform)]
         
         if not df_in.empty:
-            # 1. TOTAL AGGREGAT
             st.markdown('<div class="feature-header">🎯 Total Kinerja Aggregat (Seluruh Platform)</div>', unsafe_allow_html=True)
             t_view = df_in['View'].sum()
             t_reach = df_in['Reach'].sum()
@@ -433,7 +354,6 @@ elif page == "📈 INSIGHTS & ANALYTICS":
             i4.metric("Klik Link Bio 🔗", f"{t_clicks:,.0f}")
             i5.metric("Total Follower 👥", f"{t_follow:,.0f}")
 
-            # 2. BREAKDOWN PER PLATFORM
             st.markdown("---")
             st.markdown('<div class="feature-header">📱 Perincian Kinerja per Platform</div>', unsafe_allow_html=True)
             
@@ -455,7 +375,6 @@ elif page == "📈 INSIGHTS & ANALYTICS":
                     p5.metric(f"Follower {plat}", f"{p_follow:,.0f}")
                     st.markdown("---")
 
-            # 3. GRAFIK TREN (DENGAN FIX TEKS HITAM)
             st.markdown('<div class="feature-header">📈 Tren Pertumbuhan per Platform</div>', unsafe_allow_html=True)
             
             if 'Platform' in df_in.columns and 'Date' in df_in.columns:
@@ -465,11 +384,8 @@ elif page == "📈 INSIGHTS & ANALYTICS":
                 line_colors = [BRAND_BLUE, BRAND_YELLOW, "#003A66", "#87CEEB", "#FF8C00"]
 
                 def update_fig_style(fig):
-                    """Fungsi helper untuk memaksa semua teks grafik menjadi hitam pekat"""
                     fig.update_layout(
-                        paper_bgcolor='white', 
-                        plot_bgcolor='white', 
-                        font=dict(color="#000000", size=12),
+                        paper_bgcolor='white', plot_bgcolor='white', font=dict(color="#000000", size=12),
                         legend=dict(font=dict(color="#000000", size=12), bgcolor="rgba(255,255,255,0.5)"),
                         xaxis=dict(tickfont=dict(color="#000000"), title_font=dict(color="#000000")),
                         yaxis=dict(tickfont=dict(color="#000000"), title_font=dict(color="#000000"), gridcolor='#EEE')
@@ -509,28 +425,21 @@ elif page == "📈 INSIGHTS & ANALYTICS":
                     fig_follow = px.line(df_trend, x='Date', y='Follow', color='Platform', text='Follow', color_discrete_sequence=line_colors)
                     fig_follow.update_traces(mode='lines+markers+text', textposition='top center', texttemplate='%{text:,.0f}', line_shape='spline', marker=dict(size=8))
                     st.plotly_chart(update_fig_style(fig_follow), use_container_width=True)
-                
-                with c6:
-                    st.empty()
 
             st.markdown('<div class="feature-header">📋 Master Database Insight</div>', unsafe_allow_html=True)
-            # Tabel juga dipaksa putih bersih dengan teks hitam melalui CSS di bagian atas script utama
             st.dataframe(df_in, use_container_width=True, hide_index=True)
         else:
-            st.warning("⚠️ Tidak ada data analitik yang bisa ditampilkan.")
+            st.warning("⚠️ Tidak ada data analitik.")
     except Exception as e:
         st.error(f"Kesalahan Teknis Insight: {e}")
-# =====================================================================
-# HALAMAN 4: WA ADMIN REPORT
-# =====================================================================
+
+# --- HALAMAN 4: WA ADMIN REPORT ---
 elif page == "💬 WA ADMIN REPORT":
     st.title("💬 KINERJA WA ADMIN & CLOSING LPK")
     st.markdown("---")
-    
     try:
         df_wa = load_wa_admin()
         
-        # --- AUTO-DETECT KOLOM STATUS ---
         status_col = next((col for col in df_wa.columns if 'Status' in str(col)), None)
         if status_col:
             df_wa.rename(columns={status_col: 'Status'}, inplace=True)
@@ -538,29 +447,23 @@ elif page == "💬 WA ADMIN REPORT":
         else:
             df_wa['Status'] = ""
             
-        # --- FILTER PEMBERSIHAN LEADS ---
         if 'Mekari Tag' in df_wa.columns:
             df_wa = df_wa[~df_wa['Mekari Tag'].astype(str).str.contains('Partnership', case=False, na=False)]
         
-        # --- SIDEBAR CONTROLS ---
         st.sidebar.markdown(f"<h2 style='color:{BRAND_BLUE};'>Filter & Search</h2>", unsafe_allow_html=True)
         
-        # Filter Bulan
         if 'Bulan-Masuk' in df_wa.columns:
             months_wa = df_wa['Bulan-Masuk'].dropna().unique().tolist()
-            selected_months_wa = st.sidebar.multiselect("Pilih Bulan:", options=months_wa, default=months_wa)
+            selected_months_wa = st.sidebar.multiselect("Pilih Bulan:", options=months_wa, default=months_wa, key="wa_bulan")
             df_wa = df_wa[df_wa['Bulan-Masuk'].isin(selected_months_wa)]
             
-        # Fitur Search Asal (Penting untuk cek Kalsel/Mojokerto)
-        search_city = st.sidebar.text_input("Cari Asal Kota/Provinsi:", "").strip()
+        search_city = st.sidebar.text_input("Cari Asal Kota/Provinsi:", "", key="wa_search").strip()
         if search_city:
             df_wa = df_wa[df_wa['Asal'].astype(str).str.contains(search_city, case=False, na=False)]
 
         if not df_wa.empty:
-            # Kalkulasi Metrik Utama
             total_leads = len(df_wa)
             total_closing = len(df_wa[df_wa['Status'].str.contains('Closing', case=False, na=False)])
-            total_no_respon = len(df_wa[df_wa['Status'].str.contains('No Respon', case=False, na=False)])
             conversion_rate = (total_closing / total_leads * 100) if total_leads > 0 else 0
             
             st.markdown('<div class="feature-header">🎯 Real-Time Lead Health Check</div>', unsafe_allow_html=True)
@@ -588,8 +491,7 @@ elif page == "💬 WA ADMIN REPORT":
                 fig_funnel = px.bar(
                     df_f, x='Jumlah', y='Tahap', orientation='h',
                     text=df_f.apply(lambda r: f"{r['Jumlah']} ({r['Pct']}%)", axis=1),
-                    color='Tahap',
-                    color_discrete_sequence=[BRAND_BLUE, "#006bbd", "#0080e0", BRAND_YELLOW, "#32CD32"]
+                    color='Tahap', color_discrete_sequence=[BRAND_BLUE, "#006bbd", "#0080e0", BRAND_YELLOW, "#32CD32"]
                 )
                 fig_funnel.update_layout(
                     paper_bgcolor='white', plot_bgcolor='white', showlegend=False,
@@ -610,20 +512,14 @@ elif page == "💬 WA ADMIN REPORT":
                     fig_sumber.update_layout(paper_bgcolor='white', font=dict(color="#000000"))
                     st.plotly_chart(fig_sumber, use_container_width=True)
 
-            # --- MAPPING ASAL FULL (Tanpa Batasan Top 15) ---
             st.markdown('<div class="feature-header">📍 Mapping Persebaran Asal (Seluruh Data)</div>', unsafe_allow_html=True)
             if 'Asal' in df_wa.columns:
                 asal_counts = df_wa['Asal'].value_counts().reset_index()
                 asal_counts.columns = ['Asal', 'Jumlah']
                 asal_counts = asal_counts[asal_counts['Asal'].str.strip() != '']
-                
-                # Mengatur tinggi grafik otomatis berdasarkan jumlah data agar tidak berhimpitan
                 dynamic_height = max(400, len(asal_counts) * 25)
                 
-                fig_asal = px.bar(
-                    asal_counts, y='Asal', x='Jumlah', text_auto=True, orientation='h',
-                    color_discrete_sequence=[BRAND_BLUE]
-                )
+                fig_asal = px.bar(asal_counts, y='Asal', x='Jumlah', text_auto=True, orientation='h', color_discrete_sequence=[BRAND_BLUE])
                 fig_asal.update_layout(
                     paper_bgcolor='white', plot_bgcolor='white', height=dynamic_height,
                     xaxis_title="Jumlah Leads", yaxis_title="", yaxis={'categoryorder':'total ascending'},
