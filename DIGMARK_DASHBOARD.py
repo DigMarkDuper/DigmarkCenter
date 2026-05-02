@@ -299,7 +299,6 @@ if page == "🏠 HOMEPAGE":
     except Exception as e:
         st.warning(f"⚠️ Gagal memuat Executive Summary: {e}")
 
-
     # ==========================================================
     # 3. PETA PERSEBARAN LEADS & GRAFIK (SUPER DICTIONARY)
     # ==========================================================
@@ -351,19 +350,15 @@ if page == "🏠 HOMEPAGE":
 
             lats, lons = [], []
             for loc in asal_counts['Lokasi']:
-                # Pembersihan yang lebih agresif agar 'Kab. Banyuwangi' atau 'Banyuwangi Kota' tetap terbaca
                 loc_lower = str(loc).lower().replace('kabupaten', '').replace('kab.', '').replace('kota', '').replace('provinsi', '').replace('prov.', '').strip()
                 matched = False
-                # Urutkan pencarian agar yang paling pas yang terpilih
                 for key, coords in indo_coords.items():
-                    # Memisahkan kata agar tidak salah mendeteksi (contoh: "Malang" di "Pemalang")
                     if key == loc_lower or f" {key} " in f" {loc_lower} " or loc_lower.startswith(f"{key} ") or loc_lower.endswith(f" {key}"):
                         lats.append(coords[0])
                         lons.append(coords[1])
                         matched = True
                         break
                 
-                # Jika metode pertama gagal, pakai pencarian longgar (substring)
                 if not matched:
                     for key, coords in indo_coords.items():
                         if key in loc_lower or loc_lower in key:
@@ -373,11 +368,12 @@ if page == "🏠 HOMEPAGE":
                             break
                             
                 if not matched:
-                    lats.append(None); lons.append(None)
+                    lats.append(None)
+                    lons.append(None)
             
             asal_counts['Lat'] = lats
             asal_counts['Lon'] = lons
-           map_data = asal_counts.dropna(subset=['Lat', 'Lon'])
+            map_data = asal_counts.dropna(subset=['Lat', 'Lon'])
             
             # ==========================================
             # RENDER PETA (FULL WIDTH - POSISI ATAS)
@@ -387,11 +383,10 @@ if page == "🏠 HOMEPAGE":
                 if not map_data.empty:
                     fig_map = px.scatter_mapbox(
                         map_data, lat="Lat", lon="Lon", size="Jumlah", color="Jumlah", 
-                        color_continuous_scale="Reds", size_max=50, zoom=5.0, # Zoom sedikit diperbesar karena kanvas lebih lebar
+                        color_continuous_scale="Reds", size_max=50, zoom=5.0, 
                         center=dict(lat=-7.0, lon=110.0), 
                         mapbox_style="carto-positron", hover_name="Lokasi", hover_data={"Lat":False, "Lon":False, "Jumlah":True}
                     )
-                    # Tinggi peta dinaikkan menjadi 400 agar lebih memuaskan
                     fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, height=400, coloraxis_showscale=False)
                     st.plotly_chart(fig_map, use_container_width=True)
                 else:
@@ -406,11 +401,9 @@ if page == "🏠 HOMEPAGE":
             with st.container(border=True):
                 st.markdown("<div style='font-size:14px; color:gray; font-weight:bold; margin-bottom:10px;'>Top 10 Asal Leads Terbanyak</div>", unsafe_allow_html=True)
                 
-                # Karena kanvas lebar, kita naikkan dari Top 7 menjadi Top 10
                 top_10_asal = asal_counts.head(10)
                 fig_bar = px.bar(top_10_asal, y='Lokasi', x='Jumlah', text_auto=True, orientation='h', color_discrete_sequence=[BRAND_BLUE])
                 
-                # Menambahkan xaxis_title agar lebih jelas
                 fig_bar.update_layout(
                     margin={"r":0,"t":0,"l":0,"b":0}, height=350, 
                     xaxis_title="Jumlah Prospek (Leads)", yaxis_title="", 
