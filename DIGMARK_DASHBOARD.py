@@ -12,7 +12,6 @@ from streamlit.web import cli as stcli
 # =====================================================================
 st.set_page_config(page_title="Digmark Command Center", layout="wide", page_icon="🚀")
 
-ADMIN_PASSWORD = "DUTADUPER55" 
 LOGO_URL = "https://www.dutapersadajogja.com/assets/img/logo.png" 
 
 BRAND_BLUE = "#005696"
@@ -21,23 +20,20 @@ TEXT_BLACK = "#000000"
 BG_WHITE = "#FFFFFF"
 
 # =====================================================================
-# 2. SISTEM KEAMANAN (LOGIN)
+# 2. SISTEM KEAMANAN (USERNAME & PASSWORD)
 # =====================================================================
 def check_password():
-    def password_entered():
-        if st.session_state["password"] == ADMIN_PASSWORD: 
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]
-        else:
-            st.session_state["password_correct"] = False
-
+    # Jika sudah berhasil login sebelumnya, langsung beri akses
     if st.session_state.get("password_correct"):
         return True
 
+    # CSS untuk merapikan logo dan kotak login
     st.markdown(f"""
         <style>
         .login-box {{ display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }}
         .centered-image {{ display: block; margin-left: auto; margin-right: auto; border-radius: 50%; border: 3px solid {BRAND_YELLOW}; }}
+        /* Sedikit styling tambahan untuk tombol Login agar senada dengan warna Brand */
+        [data-testid="stFormSubmitButton"] button {{ width: 100%; background-color: {BRAND_BLUE}; color: white; border-radius: 5px; }}
         </style>
     """, unsafe_allow_html=True)
 
@@ -48,17 +44,37 @@ def check_password():
                 <img src="{LOGO_URL}" class="centered-image" width="180">
                 <h2 style='color: {BRAND_BLUE}; margin-top: 15px;'>DIGITAL MARKETING COMMAND CENTER</h2>
                 <p style='color: gray; margin-top: -10px;'>LPK Duta Persada Yogyakarta</p>
-                <hr style='border: 1px solid {BRAND_YELLOW}; width: 100%; margin-bottom: 25px;'>
+                <hr style='border: 1px solid {BRAND_YELLOW}; width: 100%; margin-bottom: 20px;'>
             </div>
         """, unsafe_allow_html=True)
-        st.text_input("Masukkan Password Akses:", type="password", on_change=password_entered, key="password")
-        if st.session_state.get("password_correct") == False:
-            st.error("😕 Password salah. Silakan hubungi admin.")
+
+        # Membuat Form Login
+        with st.form("login_form"):
+            input_username = st.text_input("Username:")
+            input_password = st.text_input("Password:", type="password")
+            submit_button = st.form_submit_button("Masuk ke Dashboard")
+
+            if submit_button:
+                # Membersihkan input dari spasi berlebih dan menjadikan huruf kecil
+                user = input_username.strip().lower()
+                
+                # Cek apakah blok [credentials] ada di Secrets
+                if "credentials" in st.secrets:
+                    # Validasi Username dan Password
+                    if user in st.secrets["credentials"] and st.secrets["credentials"][user] == input_password:
+                        st.session_state["password_correct"] = True
+                        st.session_state["current_user"] = user.capitalize() # Menyimpan nama user yang login
+                        st.rerun() # Refresh halaman untuk langsung masuk
+                    else:
+                        st.error("😕 Username atau Password salah.")
+                else:
+                    st.error("⚠️ Sistem Keamanan: Data kredensial tidak ditemukan di server.")
+
     return False
 
+# GERBANG KEAMANAN MUTLAK
 if not check_password():
     st.stop()
-
 # =====================================================================
 # 3. KONEKSI & LOAD DATA
 # =====================================================================
