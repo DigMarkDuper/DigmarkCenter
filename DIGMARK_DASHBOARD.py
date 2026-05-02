@@ -240,12 +240,58 @@ if page == "🏠 HOMEPAGE":
         <div class="feature-header" style="text-align: center; font-size: 28px; margin-top: 0px;">
             Pusat Kendali Digital Marketing
         </div>
-        <p style='text-align: center; font-size: 16px; color: gray; margin-bottom: 40px;'>
+        <p style='text-align: center; font-size: 16px; color: gray; margin-bottom: 30px;'>
             Pilih modul kerja di bawah ini untuk segera memulai pemantauan data.
         </p>
     """, unsafe_allow_html=True)
 
-    # --- FUNGSI PENCETAK KOTAK 1:1 ---
+    # ==========================================================
+    # EXECUTIVE SUMMARY DASHBOARD (TARIK DATA DARI SEMUA TAB)
+    # ==========================================================
+    try:
+        # Load data secara diam-diam
+        df_wa_home = load_wa_admin()
+        df_in_home = load_insight()
+        df_sos_home = load_sosmed()
+        df_web_home = load_website()
+
+        # 1. Kalkulasi Leads & Closing
+        total_leads = len(df_wa_home) if not df_wa_home.empty else 0
+        status_col = next((col for col in df_wa_home.columns if 'Status' in str(col)), None) if not df_wa_home.empty else None
+        total_closing = len(df_wa_home[df_wa_home[status_col].astype(str).str.contains('Closing', case=False, na=False)]) if status_col else 0
+
+        # 2. Kalkulasi Views & Reach
+        total_view = df_in_home['View'].sum() if not df_in_home.empty and 'View' in df_in_home.columns else 0
+        total_reach = df_in_home['Reach'].sum() if not df_in_home.empty and 'Reach' in df_in_home.columns else 0
+
+        # 3. Kalkulasi Hutang Sosmed
+        sosmed_pending = len(df_sos_home[df_sos_home['PROSES'].astype(str).str.upper() != 'DONE']) if not df_sos_home.empty and 'PROSES' in df_sos_home.columns else 0
+
+        # 4. Kalkulasi Hutang Website
+        done_kw = ['DONE', 'TRUE', 'V', '1', 'POSTED', 'SELESAI', 'UPLOAD', 'UPLOADED', 'SUDAH UPLOAD']
+        if not df_web_home.empty and 'Status Post' in df_web_home.columns:
+            web_pending = len(df_web_home[~df_web_home['Status Post'].astype(str).str.upper().str.strip().isin(done_kw)])
+        else:
+            web_pending = 0
+
+        # Render Visualisasi Executive Summary
+        st.markdown(f"<h3 style='color:{BRAND_BLUE}; font-size: 18px;'>📊 Executive Summary</h3>", unsafe_allow_html=True)
+        
+        with st.container(border=True):
+            kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+            kpi1.metric("Closing / Leads Masuk 🎯", f"{total_closing} / {total_leads}")
+            kpi2.metric("Total Views & Reach 👀", f"{total_view:,.0f} / {total_reach:,.0f}")
+            kpi3.metric("Hutang Task Sosmed ⚠️", f"{sosmed_pending} Konten")
+            kpi4.metric("Hutang Task Website ⚠️", f"{web_pending} Halaman")
+            
+        st.markdown("<br>", unsafe_allow_html=True)
+
+    except Exception as e:
+        st.warning(f"⚠️ Gagal memuat Executive Summary: {e}")
+
+    # ==========================================================
+    # FUNGSI PENCETAK KOTAK 1:1 (TOMBOL NAVIGASI)
+    # ==========================================================
     def create_square_card(icon, title, subtitle, target_page, button_key):
         with st.container(border=True):
             st.markdown(f"""
@@ -255,8 +301,6 @@ if page == "🏠 HOMEPAGE":
                     <div style="font-size: 12px; color: #666; margin-top: 8px; min-height: 35px;">{subtitle}</div>
                 </div>
             """, unsafe_allow_html=True)
-            
-            # KUNCI PERBAIKAN: Menggunakan on_click dan args agar berpindah tanpa Error API
             st.button("Masuk ➔", key=button_key, use_container_width=True, on_click=go_to_page, args=(target_page,))
 
     # --- MEMBANGUN GRID 4 KOLOM ---
