@@ -44,41 +44,50 @@ def check_password():
 # =====================================================================
 # 3. FUNGSI KONEKSI DATABASE (GOOGLE SHEETS)
 # =====================================================================
+@st.cache_resource # Menghindari koneksi berulang yang bisa bikin lemot
 def init_connection():
     try:
         if "gcp_service_account" not in st.secrets:
             st.error("Secrets 'gcp_service_account' tidak ditemukan di Dashboard Streamlit.")
             return None
         
-        # Ambil data Secrets sebagai dictionary
+        # 1. Ambil data Secrets
         creds_info = dict(st.secrets["gcp_service_account"])
         
+        # 2. Perbaikan Kunci Rahasia (Private Key)
+        # Kita pakai cara yang lebih aman untuk menangani karakter baris baru
         if "private_key" in creds_info:
             pk = creds_info["private_key"]
-            
-            # --- PROSES SANITASI KUNCI (MENGATASI ERROR 65/BASE64) ---
+            # Pastikan \n terbaca sebagai baris baru asli
             pk = pk.replace("\\n", "\n")
-            parts = pk.split("-----")
-            if len(parts) >= 5:
-                header = "-----" + parts[1] + "-----"
-                body = parts[2]
-                footer = "-----" + parts[3] + "-----"
-                body = re.sub(r'[^A-Za-z0-9+/=]', '', body)
-                pk = f"{header}\n{body}\n{footer}\n"
+            
+            # Jika kunci masih berantakan, kita bersihkan spasi di setiap barisnya
+            lines = pk.split("\n")
+            clean_lines = [line.strip() for line in lines if line.strip()]
+            pk = "\n".join(clean_lines)
             
             creds_info["private_key"] = pk
 
-        # Inisialisasi Koneksi
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        # 3. Inisialisasi Protokol Google
+        scope = [
+            "https://spreadsheets.google.com/feeds",
+            "https://www.googleapis.com/auth/drive"
+        ]
+        
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_info, scope)
         client = gspread.authorize(creds)
         
-        # Nama file harus persis sama dengan di Google Drive
-        spreadsheet = client.open("MASTER DATA DIGITAL MARKETING 2.0") 
-        return spreadsheet
+        # 4. Membuka File (Gunakan try-except khusus untuk nama file)
+        try:
+            spreadsheet = client.open("MASTER DATA DIGITAL MARKETING 2.0")
+            return spreadsheet
+        except gspread.exceptions.SpreadsheetNotFound:
+            st.error("❌ Google Sheets tidak ditemukan! Periksa kembali apakah ada spasi tersembunyi di judul file Mas.")
+            st.info(f"Pastikan sudah SHARE ke email ini: {creds_info.get('client_email')}")
+            return None
 
     except Exception as e:
-        st.error(f"⚠️ Masalah Enkripsi/Koneksi: {e}")
+        st.error(f"⚠️ Masalah Teknis Koneksi: {e}")
         return None
 
 # =====================================================================
