@@ -609,7 +609,7 @@ if page == "📱 SOSIAL MEDIA":
         filtered_df = df[mask]
 
         if not filtered_df.empty:
-            # --- LOGIKA PERHITUNGAN ---
+            # --- LOGIKA PERHITUNGAN (TETAP SAMA) ---
             v_mask = filtered_df['Output'].str.contains('Video', case=False, na=False)
             v_total, v_done = len(filtered_df[v_mask]), len(filtered_df[v_mask & (filtered_df['PROSES'] == 'DONE')])
             d_total, d_done = len(filtered_df[~v_mask]), len(filtered_df[~v_mask & (filtered_df['PROSES'] == 'DONE')])
@@ -684,29 +684,33 @@ if page == "📱 SOSIAL MEDIA":
                 else:
                     st.success(f"✅ {name} - Clear!")
 
-            # --- BAGIAN UPDATE: LIVE EDITOR & SAVE BUTTON ---
+            # ==========================================================
+            # LIVE EDITOR DENGAN DROP DOWN (PIC, OUTPUT, STATUS)
+            # ==========================================================
             st.markdown('<div class="feature-header">📋 Master Production Pipeline (Live Editor)</div>', unsafe_allow_html=True)
             
             edited_df = st.data_editor(
                 filtered_df[['Kode Konten', 'Tanggal Deadline', 'Output', 'PIC', 'Judul Konten', 'PROSES', 'IG', 'YT', 'TIKTOK']],
                 column_config={
+                    "PIC": st.column_config.SelectboxColumn("PIC", options=["Ejak", "Hana", "Abi", "Hanif"]),
+                    "Output": st.column_config.SelectboxColumn("Output", options=["Video", "Design"]),
+                    "PROSES": st.column_config.SelectboxColumn("Status", options=["DONE", "PENDING", "ON PROGRESS"]),
                     "IG": st.column_config.CheckboxColumn("IG"),
                     "YT": st.column_config.CheckboxColumn("YT"),
-                    "TIKTOK": st.column_config.CheckboxColumn("TikTok"),
-                    "PROSES": st.column_config.SelectboxColumn("Status", options=["DONE", "PENDING", "ON PROGRESS"])
+                    "TIKTOK": st.column_config.CheckboxColumn("TikTok")
                 },
-                disabled=['Kode Konten', 'Tanggal Deadline', 'Output', 'PIC', 'Judul Konten'],
+                disabled=['Kode Konten', 'Tanggal Deadline', 'Judul Konten'], # Kode & Judul dikunci
                 use_container_width=True,
                 hide_index=False,
                 key="editor_sosmed"
             )
 
-            # --- INDENTASI TOMBOL SIMPAN (FIXED) ---
             if st.button("💾 Simpan Semua Perubahan ke Google Sheets", use_container_width=True):
                 with st.spinner("Sinkronisasi database..."):
                     updates = 0
                     for idx in edited_df.index:
-                        for col in ["PROSES", "IG", "YT", "TIKTOK"]:
+                        # Kita pantau kolom yang boleh diedit
+                        for col in ["PIC", "Output", "PROSES", "IG", "YT", "TIKTOK"]:
                             old_val = filtered_df.at[idx, col]
                             new_val = edited_df.at[idx, col]
                             
@@ -717,7 +721,7 @@ if page == "📱 SOSIAL MEDIA":
                                 else:
                                     val_to_send = str(new_val) 
                                 
-                                # Panggil fungsi update yang sudah kita buat
+                                # Kirim perubahan (Halaman Sosmed index 0)
                                 update_sheet_cell(0, idx, col, val_to_send)
                                 updates += 1
                     
