@@ -369,32 +369,42 @@ if page == "🏠 HOMEPAGE":
         # ==========================================================
         st.markdown(f"<h3 style='color:{BRAND_BLUE}; font-size: 18px; margin-bottom: 10px; margin-top: 15px;'>🗺️ Peta Persebaran & Top Asal Prospek</h3>", unsafe_allow_html=True)
         
-        if 'Asal' in df_wa_home.columns:
-            # 1. Membersihkan data menggunakan logika persis seperti di WA Admin Report
-            asal_counts = df_wa_home['Asal'].value_counts().reset_index()
-            asal_counts.columns = ['Lokasi', 'Jumlah']
+        # 1. Deteksi otomatis kolom Asal agar anti-error
+        asal_col = next((col for col in df_wa_home.columns if 'Asal' in str(col)), None)
+        
+        if asal_col:
+            # 2. Bersihkan data (Buang Partnership persis seperti di Halaman 4)
+            if 'Mekari Tag' in df_wa_home.columns:
+                df_map_clean = df_wa_home[~df_wa_home['Mekari Tag'].astype(str).str.contains('Partnership', case=False, na=False)]
+            else:
+                df_map_clean = df_wa_home.copy()
+
+            # 3. Hitung jumlah lokasi
+            asal_counts = df_map_clean[asal_col].value_counts().reset_index()
+            # Amankan penamaan kolom untuk semua versi Pandas
+            asal_counts.columns = ['Lokasi', 'Jumlah'] 
+            # Buang baris kosong
             asal_counts = asal_counts[asal_counts['Lokasi'].astype(str).str.strip() != '']
             
-            # 2. Kamus Koordinat yang Diperluas (Fokus DIY & Sekitarnya)
+            # 4. Kamus Koordinat LPK Duta Persada
             indo_coords = {
                 'jakarta': [-6.2088, 106.8456], 'jkt': [-6.2088, 106.8456], 'jabodetabek': [-6.2088, 106.8456],
-                'jawa barat': [-6.9147, 107.6098], 'jabar': [-6.9147, 107.6098], 'bandung': [-6.9147, 107.6098], 'bogor': [-6.5971, 106.8060],
-                'jawa tengah': [-7.1509, 110.1402], 'jateng': [-7.1509, 110.1402], 'semarang': [-6.9666, 110.4166], 
-                'solo': [-7.5666, 110.8166], 'surakarta': [-7.5666, 110.8166], 'magelang': [-7.4705, 110.2177], 
+                'bandung': [-6.9147, 107.6098], 'jabar': [-6.9147, 107.6098], 'bogor': [-6.5971, 106.8060],
+                'semarang': [-6.9666, 110.4166], 'jateng': [-7.1509, 110.1402], 'solo': [-7.5666, 110.8166], 'magelang': [-7.4705, 110.2177], 
                 'klaten': [-7.7056, 110.6031], 'purworejo': [-7.7126, 110.0091], 'kebumen': [-7.6672, 109.6515],
-                'yogyakarta': [-7.7955, 110.3694], 'jogja': [-7.7955, 110.3694], 'diy': [-7.7955, 110.3694], 'yk': [-7.7955, 110.3694],
+                'jogja': [-7.7955, 110.3694], 'yogyakarta': [-7.7955, 110.3694], 'diy': [-7.7955, 110.3694], 'yk': [-7.7955, 110.3694],
                 'sleman': [-7.7306, 110.3481], 'bantul': [-7.8887, 110.3289], 'gunungkidul': [-7.9656, 110.5988], 'kulon': [-7.8282, 110.1243],
-                'jawa timur': [-7.2504, 112.7688], 'jatim': [-7.2504, 112.7688], 'surabaya': [-7.2504, 112.7688], 'malang': [-7.9797, 112.6304], 'madiun': [-7.6298, 111.5239],
+                'surabaya': [-7.2504, 112.7688], 'jatim': [-7.2504, 112.7688], 'malang': [-7.9797, 112.6304], 'madiun': [-7.6298, 111.5239],
                 'bali': [-8.4095, 115.1889], 'sumatera': [-0.5897, 101.3431], 'kalimantan': [0.9619, 114.5548], 'sulawesi': [-2.2179, 120.3279]
             }
 
-            # 3. Pencocokan Teks Cerdas
+            # 5. Mesin Pencocok Teks Ekstra Cerdas
             lats, lons = [], []
             for loc in asal_counts['Lokasi']:
-                loc_lower = str(loc).lower().strip()
+                # Hilangkan kata "Kabupaten" atau "Kota" agar pencarian lebih akurat
+                loc_lower = str(loc).lower().replace('kabupaten', '').replace('kota', '').replace('provinsi', '').strip()
                 matched = False
                 for key, coords in indo_coords.items():
-                    # Jika nama kota di kamus ada di dalam data WA Mas, atau sebaliknya
                     if key in loc_lower or loc_lower in key:
                         lats.append(coords[0])
                         lons.append(coords[1])
@@ -407,31 +417,33 @@ if page == "🏠 HOMEPAGE":
             asal_counts['Lat'] = lats
             asal_counts['Lon'] = lons
             
+            # Peta HANYA menampilkan data yang punya titik koordinat
             map_data = asal_counts.dropna(subset=['Lat', 'Lon'])
             
-            # 4. Membagi Layar: 60% untuk Peta, 40% untuk Grafik Bar
+            # 6. Membagi Layar: Kiri Peta, Kanan Grafik Bar
             c_map, c_bar = st.columns([3, 2])
             
             with c_map:
                 with st.container(border=True):
                     if not map_data.empty:
-                        # Peta Bubble Merah Menyala
+                        # Membuat Peta Titik Merah
                         fig_map = px.scatter_mapbox(
                             map_data, lat="Lat", lon="Lon", size="Jumlah", color="Jumlah",
-                            color_continuous_scale="Reds", size_max=40, zoom=4.5,
-                            center=dict(lat=-5.0, lon=111.0), mapbox_style="carto-positron",
+                            color_continuous_scale="Reds", size_max=45, zoom=4.8,
+                            center=dict(lat=-7.0, lon=110.0), # Kamera fokus langsung ke area Jawa
+                            mapbox_style="carto-positron",
                             hover_name="Lokasi", hover_data={"Lat":False, "Lon":False, "Jumlah":True}
                         )
                         fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, height=320, coloraxis_showscale=False)
                         st.plotly_chart(fig_map, use_container_width=True)
                     else:
-                        st.info("Peta belum bisa mendeteksi koordinat dari nama kota yang diketik tim Admin.")
+                        st.warning("⚠️ Belum ada koordinat peta yang terdeteksi dari data Asal.")
                         
             with c_bar:
                 with st.container(border=True):
                     st.markdown("<div style='font-size:13px; color:gray; font-weight:bold; margin-bottom:5px;'>Top 7 Asal Leads Terbanyak</div>", unsafe_allow_html=True)
-                    # Mengambil grafik bar persis dari WA tab
-                    top_asal = asal_counts.head(7) # Batasi 7 besar agar tingginya pas dengan peta
+                    # Grafik Bar Biru (Menampilkan SEMUA data, termasuk yang tidak terdeteksi Peta)
+                    top_asal = asal_counts.head(7) 
                     fig_bar = px.bar(top_asal, y='Lokasi', x='Jumlah', text_auto=True, orientation='h', color_discrete_sequence=[BRAND_BLUE])
                     fig_bar.update_layout(
                         margin={"r":0,"t":0,"l":0,"b":0}, height=295,
@@ -440,7 +452,9 @@ if page == "🏠 HOMEPAGE":
                     )
                     fig_bar.update_yaxes(tickfont=dict(color="#000000", size=10, family="Arial Black"))
                     st.plotly_chart(fig_bar, use_container_width=True)
-        
+        else:
+            st.info("Kolom 'Asal' tidak ditemukan pada database WA Admin.")
+            
         st.markdown("<br>", unsafe_allow_html=True)
         
     # ==========================================================
