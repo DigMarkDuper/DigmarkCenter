@@ -1,5 +1,4 @@
 import streamlit as st
-
 def check_password():
     """Mengembalikan True jika pengguna memasukkan password yang benar."""
     def password_entered():
@@ -40,18 +39,34 @@ TEXT_BLACK = "#000000"
 BG_WHITE = "#FFFFFF"
 
 # 2. Setup Koneksi Google Sheets
+import json # Tambahkan di baris paling atas file jika belum ada
+
 def init_connection():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     
-    # Mengambil kredensial dari Streamlit Secrets (Aman untuk Cloud)
-    creds_dict = st.secrets["gcp_service_account"]
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    # 1. Ambil data dari Secrets
+    creds_raw = st.secrets["gcp_service_account"]
     
+    # 2. ANTI-ERROR: Pastikan formatnya adalah Dictionary (Tabel)
+    # Jika Mas menempel JSON sebagai satu teks panjang, kita paksa jadi dict
+    if isinstance(creds_raw, str):
+        creds_dict = json.loads(creds_raw)
+    else:
+        # Jika sudah berbentuk TOML/Tabel di Streamlit Secrets
+        creds_dict = dict(creds_raw)
+    
+    # 3. PERBAIKAN PRIVATE KEY (Sangat Penting!)
+    # Streamlit Cloud sering salah baca tanda \n di kunci rahasia
+    if "private_key" in creds_dict:
+        creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+    
+    # 4. Gunakan from_json_keyfile_dict (BUKAN from_json_keyfile_name)
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     client = gspread.authorize(creds)
-    # Pastikan nama file di bawah ini persis sama dengan nama Google Sheets Anda
+    
+    # Pastikan Nama Spreadsheet Persis Sama
     spreadsheet = client.open("MASTER DATA DIGITAL MARKETING 2.0") 
     return spreadsheet
-
 # 3. Fungsi Load Data
 @st.cache_data(ttl=5)
 def load_sosmed():
