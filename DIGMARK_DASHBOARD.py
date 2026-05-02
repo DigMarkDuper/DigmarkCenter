@@ -176,6 +176,34 @@ def load_wa_admin():
         df['Tanggal Filter'] = pd.to_datetime(df['Tanggal Masuk'], dayfirst=True, errors='coerce')
         df['Bulan-Masuk'] = df['Tanggal Filter'].dt.strftime('%B %Y')
     return df
+# =====================================================================
+# 4. FUNGSI UPDATE DATA (TARUH TEPAT DI BAWAH load_wa_admin)
+# =====================================================================
+def update_sheet_cell(sheet_index, row_index, column_name, new_value):
+    """
+    row_index: index dari dataframe (0-based)
+    column_name: nama kolom target di spreadsheet
+    """
+    client = init_connection()
+    if client:
+        try:
+            spreadsheet = client.open("MASTER DATA DIGITAL MARKETING 2.0")
+            sheet = spreadsheet.get_worksheet(sheet_index)
+            
+            # 1. Ambil header untuk mencari nomor kolom
+            headers = sheet.row_values(1)
+            if column_name in headers:
+                col_index = headers.index(column_name) + 1 # gspread itu 1-based
+                
+                # 2. Update cell (row_index + 2 karena: +1 index sheet, +1 ada header)
+                sheet.update_cell(row_index + 2, col_index, new_value)
+                
+                # 3. Clear cache agar data terbaru langsung ditarik setelah update
+                st.cache_data.clear()
+                return True
+        except Exception as e:
+            st.error(f"Gagal update data ke Cloud: {e}")
+    return False
 
 # =====================================================================
 # 4. STYLING CUSTOM
