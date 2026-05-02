@@ -159,13 +159,15 @@ st.markdown(f"""
 # =====================================================================
 # 5. NAVIGASI UTAMA (DENGAN KONTROL SESSION STATE)
 # =====================================================================
-# Inisialisasi memori sistem agar tombol di Homepage bisa memindah Sidebar
 if "nav_page" not in st.session_state:
     st.session_state.nav_page = "🏠 HOMEPAGE"
 
+# FUNGSI CALLBACK: Mengganti halaman secara aman sebelum script me-render ulang
+def go_to_page(page_name):
+    st.session_state.nav_page = page_name
+
 st.sidebar.markdown(f"<h1 style='color:{BRAND_BLUE};'>🚀 NAVIGATION</h1>", unsafe_allow_html=True)
 
-# Tambahkan parameter 'key="nav_page"' agar terkunci dengan memori
 page = st.sidebar.radio(
     "Pilih Proses Kerja:", 
     ["🏠 HOMEPAGE", "📱 SOSIAL MEDIA", "🌐 WEBSITE AUDIT", "📈 INSIGHTS & ANALYTICS", "💬 WA ADMIN REPORT"],
@@ -201,6 +203,27 @@ st.markdown(f"""
 # 6. LOGIKA HALAMAN & GRAFIK LENGKAP
 # =====================================================================
 
+# --- CSS KHUSUS UNTUK TOMBOL MASUK ---
+st.markdown(f"""
+    <style>
+    /* Mengubah warna teks dan garis tombol menjadi Biru LPK */
+    div[data-testid="stButton"] button p {{
+        color: {BRAND_BLUE} !important;
+        font-weight: 800 !important;
+    }}
+    div[data-testid="stButton"] button {{
+        border-color: {BRAND_BLUE} !important;
+    }}
+    /* Efek Hover: Tombol jadi biru penuh, teks jadi putih */
+    div[data-testid="stButton"] button:hover {{
+        background-color: {BRAND_BLUE} !important;
+    }}
+    div[data-testid="stButton"] button:hover p {{
+        color: #FFFFFF !important;
+    }}
+    </style>
+""", unsafe_allow_html=True)
+
 # --- HALAMAN 0: HOMEPAGE ---
 if page == "🏠 HOMEPAGE":
     # Header Utama
@@ -215,9 +238,7 @@ if page == "🏠 HOMEPAGE":
 
     # --- FUNGSI PENCETAK KOTAK 1:1 ---
     def create_square_card(icon, title, subtitle, target_page, button_key):
-        # Menggunakan container bergaris bawaan Streamlit agar rapi
         with st.container(border=True):
-            # Layout Ikon, Judul, dan Subjudul
             st.markdown(f"""
                 <div style="text-align: center; padding: 10px 0px 5px 0px;">
                     <div style="font-size: 70px; line-height: 1; margin-bottom: 15px;">{icon}</div>
@@ -226,13 +247,10 @@ if page == "🏠 HOMEPAGE":
                 </div>
             """, unsafe_allow_html=True)
             
-            # Tombol ini yang "mengganti" posisi radio sidebar lalu me-refresh layar
-            if st.button("Masuk ➔", key=button_key, use_container_width=True):
-                st.session_state.nav_page = target_page
-                st.rerun()
+            # KUNCI PERBAIKAN: Menggunakan on_click dan args agar berpindah tanpa Error API
+            st.button("Masuk ➔", key=button_key, use_container_width=True, on_click=go_to_page, args=(target_page,))
 
     # --- MEMBANGUN GRID 4 KOLOM ---
-    # Ini yang membuat tampilannya menjadi kotak-kotak 1:1 berjajar rapi
     c1, c2, c3, c4 = st.columns(4)
     
     with c1:
