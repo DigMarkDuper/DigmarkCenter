@@ -128,39 +128,6 @@ if check_password():
     if spreadsheet:
         st.success("✅ Berhasil Terkoneksi ke Database LPK Duta Persada!")
         
-        # --- SIDEBAR NAVIGASI ---
-        st.sidebar.image("https://via.placeholder.com/150", caption="Digmark Command Center") # Ganti URL logo LPK Mas
-        st.sidebar.markdown(f"<h2 style='color:{BRAND_BLUE};'>NAVIGATION</h2>", unsafe_allow_html=True)
-        menu = st.sidebar.radio("Pilih Menu:", ["📊 Dashboard Utama", "📈 Performa Konten", "👥 Data Siswa"])
-
-        # --- AREA DASHBOARD UTAMA ---
-        if menu == "📊 Dashboard Utama":
-            st.title("🚀 DIGMARK COMMAND CENTER")
-            st.markdown(f"<h3 style='color:{BRAND_BLUE};'>Monitoring Synergy, Collaboration, & Resilience</h3>", unsafe_allow_html=True)
-            st.write("Gunakan menu di sidebar untuk memantau data secara real-time.")
-            
-            # Contoh menampilkan data singkat untuk testing
-            try:
-                sheet = spreadsheet.get_worksheet(0) # Ambil tab pertama
-                data = sheet.get_all_records()
-                df = pd.DataFrame(data)
-                st.dataframe(df.head(10))
-            except:
-                st.info("Data belum tersedia di tab pertama spreadsheet.")
-
-        # --- MENU LAINNYA ---
-        elif menu == "📈 Performa Konten":
-            st.title("📈 Analitik Performa Konten")
-            # Masukkan kode grafik analitik Mas di sini
-
-        elif menu == "👥 Data Siswa":
-            st.title("👥 Database Siswa Batch 51")
-            # Masukkan kode monitoring pendaftaran 45 siswa Mas di sini
-
-    else:
-        # Jika koneksi gagal meskipun password benar
-        st.warning("Aplikasi terhenti karena masalah teknis pada database.")
-        st.stop()
 # 3. Fungsi Load Data
 @st.cache_data(ttl=5)
 def load_sosmed():
