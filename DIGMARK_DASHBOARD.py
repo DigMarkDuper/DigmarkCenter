@@ -197,7 +197,7 @@ st.markdown(f"""
 # 6. LOGIKA HALAMAN & GRAFIK LENGKAP
 # =====================================================================
 
-# --- HALAMAN 0: HOMEPAGE (TAMBAHAN BARU) ---
+# --- HALAMAN 0: HOMEPAGE ---
 if page == "🏠 HOMEPAGE":
     # Header Utama
     st.markdown(f"""
@@ -218,17 +218,79 @@ if page == "🏠 HOMEPAGE":
         <hr style='border: 1.5px solid {BRAND_YELLOW}; margin-bottom: 30px;'>
     """, unsafe_allow_html=True)
 
-    # Kotak Pintasan (Penjelasan Menu)
-    st.markdown(f"<h3 style='color:{BRAND_BLUE};'>📋 Modul Tersedia:</h3>", unsafe_allow_html=True)
+    # ==========================================
+    # CSS KHUSUS UNTUK KARTU MODUL (TOMBOL BESAR)
+    # ==========================================
+    st.markdown(f"""
+        <style>
+        .mod-card {{
+            background-color: #FFFFFF;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            border: 1px solid #EAEAEA;
+            border-left: 8px solid {BRAND_BLUE};
+            transition: all 0.3s ease;
+            min-height: 140px;
+            margin-bottom: 20px;
+        }}
+        .mod-card:hover {{
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.12);
+            border-left: 8px solid {BRAND_YELLOW};
+            cursor: pointer;
+        }}
+        .mod-title {{
+            color: {BRAND_BLUE};
+            font-size: 1.2rem;
+            font-weight: 900;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }}
+        .mod-desc {{
+            color: #666666;
+            font-size: 0.95rem;
+            font-weight: 500;
+            line-height: 1.6;
+        }}
+        </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown(f"<h3 style='color:{BRAND_BLUE}; margin-bottom: 20px;'>📋 Modul Tersedia:</h3>", unsafe_allow_html=True)
     
+    # Membuat Grid 2 Kolom untuk Kartu
     c1, c2 = st.columns(2)
+    
     with c1:
-        st.info("📱 **SOSIAL MEDIA COMMAND CENTER**\nPantau jadwal tayang, realisasi produksi video/desain, dan hutang kerja dari masing-masing PIC.")
-        st.warning("📈 **INSIGHTS & ANALYTICS**\nAnalisis mendalam mengenai pertumbuhan audiens, interaksi, dan matriks klik profil (leads generation).")
+        st.markdown(f"""
+            <div class="mod-card">
+                <div class="mod-title">📱 Sosial Media Command Center</div>
+                <div class="mod-desc">Pantau jadwal tayang, realisasi produksi video/desain, dan hutang kerja dari masing-masing PIC secara real-time.</div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown(f"""
+            <div class="mod-card">
+                <div class="mod-title">📈 Insights & Analytics</div>
+                <div class="mod-desc">Analisis mendalam mengenai pertumbuhan audiens, interaksi, dan matriks klik profil (leads generation).</div>
+            </div>
+        """, unsafe_allow_html=True)
         
     with c2:
-        st.success("🌐 **WEBSITE MANAGEMENT**\nMonitoring pilar konten web (Artikel, News, Gallery) dan status SEO dari masing-masing artikel.")
-        st.error("💬 **WA ADMIN & CLOSING REPORT**\nPelacakan *funneling* leads prospek secara real-time dari fase Follow-up hingga Sukses Closing.")
+        st.markdown(f"""
+            <div class="mod-card">
+                <div class="mod-title">🌐 Website Management</div>
+                <div class="mod-desc">Monitoring pilar konten web (Artikel, News, Gallery) dan status SEO dari masing-masing artikel.</div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown(f"""
+            <div class="mod-card">
+                <div class="mod-title">💬 WA Admin & Closing Report</div>
+                <div class="mod-desc">Pelacakan <i>funneling</i> leads prospek secara real-time dari fase Follow-up hingga pencapaian Sukses Closing.</div>
+            </div>
+        """, unsafe_allow_html=True)
         
 # --- HALAMAN 1: SOSIAL MEDIA ---
 if page == "📱 SOSIAL MEDIA":
