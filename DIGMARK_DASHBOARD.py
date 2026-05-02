@@ -1,4 +1,29 @@
 import streamlit as st
+
+def check_password():
+    """Mengembalikan True jika pengguna memasukkan password yang benar."""
+    def password_entered():
+        if st.session_state["password"] == "LPK_JUARA_2026": # Ganti dengan password pilihan Mas
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        st.text_input("Masukkan Password Akses Command Center:", type="password", 
+                     on_change=password_entered, key="password")
+        return False
+    elif not st.session_state["password_correct"]:
+        st.text_input("Password Salah. Coba lagi:", type="password", 
+                     on_change=password_entered, key="password")
+        st.error("😕 Akses ditolak.")
+        return False
+    else:
+        return True
+
+if check_password():
+    # --- SELURUH KODE DASHBOARD ANDA MASUK DI SINI ---
+    st.success("Selamat Datang di Digmark Command Center!")
 import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
