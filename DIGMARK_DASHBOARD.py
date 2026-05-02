@@ -166,7 +166,24 @@ if st.sidebar.button("🔄 Force Global Refresh"):
     st.cache_data.clear()
     st.rerun()
 
-st.success("✅ Login Berhasil! Selamat bekerja, Tim Digmark.")
+# --- RUNNING TEXT NOTIFICATION ---
+st.markdown(f"""
+    <div style="
+        background-color: #d1e7dd; 
+        color: #0f5132; 
+        padding: 12px 15px; 
+        border-radius: 8px; 
+        border-left: 8px solid #198754;
+        font-size: 16px;
+        font-weight: bold;
+        margin-bottom: 25px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    ">
+        <marquee behavior="scroll" direction="left" scrollamount="6">
+            ✅ Login Berhasil! Selamat bekerja, Tim Digmark LPK Duta Persada. Tetap jaga sinergi dan ketangguhan tim, mari wujudkan target 450 pendaftaran siswa baru! 🚀
+        </marquee>
+    </div>
+""", unsafe_allow_html=True)
 
 # =====================================================================
 # 6. LOGIKA HALAMAN & GRAFIK LENGKAP
