@@ -255,10 +255,25 @@ if page == "🏠 HOMEPAGE":
         df_sos_home = load_sosmed()
         df_web_home = load_website()
 
-        # 1. Kalkulasi Leads & Closing
-        total_leads = len(df_wa_home) if not df_wa_home.empty else 0
-        status_col = next((col for col in df_wa_home.columns if 'Status' in str(col)), None) if not df_wa_home.empty else None
-        total_closing = len(df_wa_home[df_wa_home[status_col].astype(str).str.contains('Closing', case=False, na=False)]) if status_col else 0
+       # 1. Kalkulasi Leads & Closing (SUDAH DIPERBAIKI DENGAN FILTER)
+        if not df_wa_home.empty:
+            # Buang baris kosong "hantu" yang terbaca oleh Google Sheets
+            if 'Tanggal Masuk' in df_wa_home.columns:
+                df_wa_home = df_wa_home[df_wa_home['Tanggal Masuk'].astype(str).str.strip() != '']
+                df_wa_home = df_wa_home[df_wa_home['Tanggal Masuk'].notna()]
+                
+            # Buang leads dengan Tag Partnership (Sama persis seperti di halaman WA Report)
+            if 'Mekari Tag' in df_wa_home.columns:
+                df_wa_home = df_wa_home[~df_wa_home['Mekari Tag'].astype(str).str.contains('Partnership', case=False, na=False)]
+            
+            total_leads = len(df_wa_home)
+            
+            # Hitung total closing dari data yang sudah bersih
+            status_col = next((col for col in df_wa_home.columns if 'Status' in str(col)), None)
+            total_closing = len(df_wa_home[df_wa_home[status_col].astype(str).str.contains('Closing', case=False, na=False)]) if status_col else 0
+        else:
+            total_leads = 0
+            total_closing = 0
 
         # 2. Kalkulasi Views & Reach
         total_view = df_in_home['View'].sum() if not df_in_home.empty and 'View' in df_in_home.columns else 0
