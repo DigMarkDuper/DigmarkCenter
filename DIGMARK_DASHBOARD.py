@@ -1,8 +1,29 @@
 import streamlit as st
+import pandas as pd
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+import plotly.express as px
+import plotly.graph_objects as go
+import json
+import re
+
+# =====================================================================
+# 1. IDENTITAS VISUAL & KONFIGURASI HALAMAN
+# =====================================================================
+BRAND_BLUE = "#005696"
+BRAND_YELLOW = "#FDB813"
+TEXT_BLACK = "#000000" 
+BG_WHITE = "#FFFFFF"
+
+st.set_page_config(page_title="Digmark Command Center", layout="wide")
+
+# =====================================================================
+# 2. SISTEM KEAMANAN (PASSWORD)
+# =====================================================================
 def check_password():
     """Mengembalikan True jika pengguna memasukkan password yang benar."""
     def password_entered():
-        if st.session_state["password"] == "DUTADUPER55": # Ganti dengan password pilihan Mas
+        if st.session_state["password"] == "DUTADUPER55": 
             st.session_state["password_correct"] = True
             del st.session_state["password"]
         else:
@@ -20,73 +41,39 @@ def check_password():
     else:
         return True
 
-if check_password():
-    # --- SELURUH KODE DASHBOARD ANDA MASUK DI SINI ---
-    st.success("Selamat Datang di Digmark Command Center!")
-import pandas as pd
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
-import sys
-import os
-import plotly.express as px
-import plotly.graph_objects as go
-from streamlit.web import cli as stcli
-
-# 1. Identitas Visual LPK Duta Persada
-BRAND_BLUE = "#005696"
-BRAND_YELLOW = "#FDB813"
-TEXT_BLACK = "#000000" 
-BG_WHITE = "#FFFFFF"
-
-# 2. Setup Koneksi Google Sheets
-import streamlit as st
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
-import json
-
-import streamlit as st
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
-import re
-
+# =====================================================================
+# 3. FUNGSI KONEKSI DATABASE (GOOGLE SHEETS)
+# =====================================================================
 def init_connection():
     try:
         if "gcp_service_account" not in st.secrets:
-            st.error("Secrets tidak ditemukan.")
+            st.error("Secrets 'gcp_service_account' tidak ditemukan di Dashboard Streamlit.")
             return None
         
-        # 1. Ambil data Secrets sebagai dictionary
+        # Ambil data Secrets sebagai dictionary
         creds_info = dict(st.secrets["gcp_service_account"])
         
         if "private_key" in creds_info:
             pk = creds_info["private_key"]
             
             # --- PROSES SANITASI KUNCI (MENGATASI ERROR 65/BASE64) ---
-            # Lepaskan karakter escape backslash jika ada
             pk = pk.replace("\\n", "\n")
-            
-            # Pisahkan header/footer dengan isi kunci
             parts = pk.split("-----")
             if len(parts) >= 5:
                 header = "-----" + parts[1] + "-----"
                 body = parts[2]
                 footer = "-----" + parts[3] + "-----"
-                
-                # Bersihkan BODY dari semua karakter non-base64 (spasi, enter, tab)
-                # Ini kunci untuk menghilangkan error 'multiple of 4'
                 body = re.sub(r'[^A-Za-z0-9+/=]', '', body)
-                
-                # Gabungkan kembali dengan format standar Google
                 pk = f"{header}\n{body}\n{footer}\n"
             
             creds_info["private_key"] = pk
 
-        # 2. Inisialisasi Koneksi
+        # Inisialisasi Koneksi
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_info, scope)
         client = gspread.authorize(creds)
         
-        # Nama file harus persis
+        # Nama file harus persis sama dengan di Google Drive
         spreadsheet = client.open("MASTER DATA DIGITAL MARKETING 2.0") 
         return spreadsheet
 
@@ -94,13 +81,51 @@ def init_connection():
         st.error(f"⚠️ Masalah Enkripsi/Koneksi: {e}")
         return None
 
-# Eksekusi
-spreadsheet = init_connection()
-if spreadsheet:
-    st.success("✅ Berhasil Terkoneksi!")
-    # Lanjutkan kode dashboard Mas di sini...
-else:
-    st.stop()
+# =====================================================================
+# 4. ALUR UTAMA APLIKASI
+# =====================================================================
+
+# LANGKAH 1: Cek Password
+if check_password():
+    # LANGKAH 2: Jika Password Benar, Bangun Koneksi
+    spreadsheet = init_connection()
+    
+    if spreadsheet:
+        st.success("✅ Berhasil Terkoneksi ke Database LPK Duta Persada!")
+        
+        # --- SIDEBAR NAVIGASI ---
+        st.sidebar.image("https://via.placeholder.com/150", caption="Digmark Command Center") # Ganti URL logo LPK Mas
+        st.sidebar.markdown(f"<h2 style='color:{BRAND_BLUE};'>NAVIGATION</h2>", unsafe_allow_html=True)
+        menu = st.sidebar.radio("Pilih Menu:", ["📊 Dashboard Utama", "📈 Performa Konten", "👥 Data Siswa"])
+
+        # --- AREA DASHBOARD UTAMA ---
+        if menu == "📊 Dashboard Utama":
+            st.title("🚀 DIGMARK COMMAND CENTER")
+            st.markdown(f"<h3 style='color:{BRAND_BLUE};'>Monitoring Synergy, Collaboration, & Resilience</h3>", unsafe_allow_html=True)
+            st.write("Gunakan menu di sidebar untuk memantau data secara real-time.")
+            
+            # Contoh menampilkan data singkat untuk testing
+            try:
+                sheet = spreadsheet.get_worksheet(0) # Ambil tab pertama
+                data = sheet.get_all_records()
+                df = pd.DataFrame(data)
+                st.dataframe(df.head(10))
+            except:
+                st.info("Data belum tersedia di tab pertama spreadsheet.")
+
+        # --- MENU LAINNYA ---
+        elif menu == "📈 Performa Konten":
+            st.title("📈 Analitik Performa Konten")
+            # Masukkan kode grafik analitik Mas di sini
+
+        elif menu == "👥 Data Siswa":
+            st.title("👥 Database Siswa Batch 51")
+            # Masukkan kode monitoring pendaftaran 45 siswa Mas di sini
+
+    else:
+        # Jika koneksi gagal meskipun password benar
+        st.warning("Aplikasi terhenti karena masalah teknis pada database.")
+        st.stop()
 # 3. Fungsi Load Data
 @st.cache_data(ttl=5)
 def load_sosmed():
