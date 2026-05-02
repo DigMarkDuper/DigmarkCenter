@@ -39,47 +39,57 @@ TEXT_BLACK = "#000000"
 BG_WHITE = "#FFFFFF"
 
 # 2. Setup Koneksi Google Sheets
-import json
 import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+import json
 
 def init_connection():
     try:
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        
-        # 1. Ambil data dari Secrets
+        # 1. Pastikan Secrets tersedia
         if "gcp_service_account" not in st.secrets:
-            st.error("❌ Secrets 'gcp_service_account' tidak ditemukan di dashboard Streamlit.")
+            st.error("❌ Label [gcp_service_account] tidak ditemukan di Secrets Dashboard.")
             return None
-            
-        creds_raw = st.secrets["gcp_service_account"]
         
-        # 2. Konversi ke Dictionary (Tabel)
-        creds_dict = dict(creds_raw)
+        # 2. Ambil data dan pastikan berbentuk dictionary
+        creds_info = st.secrets["gcp_service_account"]
         
-        # 3. Perbaikan Manual Karakter Newline pada Private Key
-        if "private_key" in creds_dict:
-            creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
-            
-        # 4. Validasi Dasar: Cek apakah client_id ada sebelum diproses
-        required_keys = ["project_id", "private_key", "client_email", "client_id"]
-        for key in required_keys:
-            if key not in creds_dict:
-                st.error(f"❌ Kunci '{key}' hilang dari Secrets. Silakan cek kembali dashboard Streamlit.")
-                return None
+        # Jika data terbaca sebagai string, konversi ke dict
+        if isinstance(creds_info, str):
+            creds_info = json.loads(creds_info)
+        else:
+            creds_info = dict(creds_info)
 
-        # 5. Authorize
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        # 3. FIX: Perbaikan Karakter Private Key
+        # Membersihkan spasi tambahan dan memastikan tanda \n terbaca benar
+        if "private_key" in creds_info:
+            cleaned_key = creds_info["private_key"].replace("\\n", "\n")
+            if not cleaned_key.startswith("-----BEGIN"):
+                # Tambahan jika tanda petik ganda hilang saat copy-paste
+                cleaned_key = cleaned_key.strip('"') 
+            creds_info["private_key"] = cleaned_key
+
+        # 4. Inisialisasi Koneksi
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_info, scope)
         client = gspread.authorize(creds)
         
-        # Ganti dengan nama Google Sheets Mas yang benar
+        # GANTI dengan Nama File Google Sheets Anda
         spreadsheet = client.open("MASTER DATA DIGITAL MARKETING 2.0") 
         return spreadsheet
-        
+
     except Exception as e:
         st.error(f"⚠️ Gagal menyambung ke Google Sheets: {e}")
         return None
+
+# Cara memanggilnya agar tidak error 'NoneType'
+spreadsheet = init_connection()
+
+if spreadsheet:
+    # Lanjutkan ambil worksheet jika koneksi sukses
+    df_wa = spreadsheet.get_worksheet(3) # Contoh ambil tab ke-4
+else:
+    st.stop() # Berhenti di sini jika koneksi gagal agar tidak muncul error 'NoneType'
 # 3. Fungsi Load Data
 @st.cache_data(ttl=5)
 def load_sosmed():
