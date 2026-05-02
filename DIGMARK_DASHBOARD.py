@@ -673,7 +673,6 @@ if page == "📱 SOSIAL MEDIA":
             # LIVE EDITOR DENGAN WARNA VISUAL (EMOJI)
             # ==========================================================
             st.markdown('<div class="feature-header">📋 Master Production Pipeline (Live Editor)</div>', unsafe_allow_html=True)
-            st.info("💡 **Visual Guide:** 🔵 Ejak | 🟢 Hana | 🟡 Abi | 🟣 Hanif ——— 🎬 Video | 🎨 Design")
 
             # Persiapan DataFrame untuk Tampilan (Menambahkan Emoji)
             df_display = filtered_df[['Kode Konten', 'Tanggal Deadline', 'Output', 'PIC', 'Judul Konten', 'PROSES', 'IG', 'YT', 'TIKTOK']].copy()
