@@ -10,6 +10,9 @@ import plotly.graph_objects as go
 # =====================================================================
 # 1. KONFIGURASI GLOBAL (WAJIB PALING ATAS)
 # =====================================================================
+# Perintah Streamlit pertama harus st.set_page_config
+st.set_page_config(page_title="Digmark Command Center", layout="wide", page_icon="🚀")
+
 ADMIN_PASSWORD = "DUTADUPER55" 
 LOGO_URL = "https://www.dutapersadajogja.com/assets/img/logo.png" 
 
@@ -17,9 +20,6 @@ BRAND_BLUE = "#005696"
 BRAND_YELLOW = "#FDB813"
 TEXT_BLACK = "#000000" 
 BG_WHITE = "#FFFFFF"
-
-# Perintah Streamlit pertama harus st.set_page_config
-st.set_page_config(page_title="Digmark Command Center", layout="wide", page_icon="🚀")
 
 # =====================================================================
 # 2. SISTEM KEAMANAN (PASSWORD)
@@ -36,10 +36,10 @@ def check_password():
         return True
 
     # Render Halaman Login
-    st.markdown("""
+    st.markdown(f"""
         <style>
-        .login-box { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-        .centered-image { display: block; margin-left: auto; margin-right: auto; border-radius: 50%; border: 3px solid #FDB813; }
+        .login-box {{ display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }}
+        .centered-image {{ display: block; margin-left: auto; margin-right: auto; border-radius: 50%; border: 3px solid {BRAND_YELLOW}; }}
         </style>
     """, unsafe_allow_html=True)
 
@@ -58,12 +58,12 @@ def check_password():
             st.error("😕 Password salah. Silakan hubungi admin.")
     return False
 
-# GERBANG KEAMANAN MUTLAK
+# GERBANG KEAMANAN MUTLAK (Script berhenti di sini jika belum login)
 if not check_password():
-    st.stop() 
+    st.stop()
 
 # =====================================================================
-# 3. KONEKSI DATABASE & FUNGSI LOAD DATA
+# 3. KONEKSI & FUNGSI LOAD DATA (Definisikan SEMUA Fungsi di sini)
 # =====================================================================
 @st.cache_resource
 def init_connection():
@@ -83,33 +83,62 @@ def init_connection():
         st.error(f"⚠️ Koneksi Gagal: {e}")
         return None
 
-def get_df_from_sheet(sheet_index):
+def get_raw_df(sheet_index):
     client = init_connection()
     if client:
         try:
-            # Pastikan nama spreadsheet persis sama (Cek spasi/huruf)
-            spreadsheet = client.open("MASTER DATA DIGITAL MARK 2.0")
+            # Pastikan nama file 100% sama dengan di Drive
+            spreadsheet = client.open("MASTER DATA DIGITAL MARKETING 2.0")
             sheet = spreadsheet.get_worksheet(sheet_index)
             return pd.DataFrame(sheet.get_all_records())
         except Exception as e:
-            st.error(f"Gagal memuat Tab {sheet_index}: {e}")
+            st.error(f"Gagal akses Tab {sheet_index}: {e}")
     return pd.DataFrame()
 
-# Fungsi khusus Sosmed (Dulu yang bikin error karena tidak ada fungsinya)
 @st.cache_data(ttl=5)
 def load_sosmed():
-    df = get_df_from_sheet(0)
+    df = get_raw_df(0)
     if not df.empty:
-        df['Tanggal Deadline'] = pd.to_datetime(df['Tanggal Deadline'], dayfirst=True, errors='coerce')
-        df['Bulan-Deadline'] = df['Tanggal Deadline'].dt.strftime('%B %Y')
-        # Konversi checkbox V / TRUE
-        for col in ['IG', 'YT', 'TIKTOK']:
-            if col in df.columns:
-                df[col] = df[col].apply(lambda x: True if str(x).upper() in ['TRUE', 'V', '1'] else False)
+        # Perbaikan error 'Bulan-Deadline'
+        col = 'Tanggal Deadline'
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], dayfirst=True, errors='coerce')
+            df['Bulan-Deadline'] = df[col].dt.strftime('%B %Y')
+        else:
+            df['Bulan-Deadline'] = "Unknown"
+        # Konversi Checkbox
+        for c in ['IG', 'YT', 'TIKTOK']:
+            if c in df.columns:
+                df[c] = df[c].apply(lambda x: True if str(x).upper() in ['TRUE', 'V', '1'] else False)
+    return df
+
+@st.cache_data(ttl=5)
+def load_website():
+    df = get_raw_df(1)
+    if not df.empty and 'Deadline' in df.columns:
+        df['Tanggal Filter'] = pd.to_datetime(df['Deadline'], dayfirst=True, errors='coerce')
+        df['Bulan-Deadline'] = df['Tanggal Filter'].dt.strftime('%B %Y')
+    return df
+
+@st.cache_data(ttl=5)
+def load_insight():
+    df = get_raw_df(2)
+    numeric_cols = ['View', 'Reach', 'Interaction', 'Link Clicks', 'Profile Visit', 'Follow']
+    for col in numeric_cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+    return df
+
+@st.cache_data(ttl=5)
+def load_wa_admin():
+    df = get_raw_df(3)
+    if not df.empty and 'Tanggal Masuk' in df.columns:
+        df['Tanggal Filter'] = pd.to_datetime(df['Tanggal Masuk'], dayfirst=True, errors='coerce')
+        df['Bulan-Masuk'] = df['Tanggal Filter'].dt.strftime('%B %Y')
     return df
 
 # =====================================================================
-# 4. CSS & STYLING
+# 4. CSS CUSTOM & SIDEBAR
 # =====================================================================
 st.markdown(f"""
     <style>
@@ -123,44 +152,73 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
-# =====================================================================
-# 5. NAVIGASI & LOGIKA HALAMAN
-# =====================================================================
 st.sidebar.markdown(f"<h1 style='color:{BRAND_BLUE};'>🚀 NAVIGATION</h1>", unsafe_allow_html=True)
 page = st.sidebar.radio("Pilih Proses Kerja:", ["📱 SOSIAL MEDIA", "🌐 WEBSITE AUDIT", "📈 ANALYTICS", "💬 WA REPORT"])
 
-if st.sidebar.button("🔄 Refresh Data"):
+if st.sidebar.button("🔄 Global Refresh"):
     st.cache_data.clear()
     st.rerun()
 
-st.success("✅ Akses Diterima. Selamat bekerja!")
+# Notifikasi sukses HANYA muncul setelah login
+st.success("✅ Login Berhasil! Selamat bekerja, Tim Digmark.")
+
+# =====================================================================
+# 5. LOGIKA HALAMAN
+# =====================================================================
 
 if page == "📱 SOSIAL MEDIA":
     st.markdown('<div class="feature-header">📱 SOSIAL MEDIA COMMAND CENTER</div>', unsafe_allow_html=True)
     try:
         df = load_sosmed()
         if not df.empty:
-            # --- Sidebar Filters ---
             months = df['Bulan-Deadline'].dropna().unique().tolist()
-            sel_months = st.sidebar.multiselect("Bulan:", months, default=months)
+            sel_months = st.sidebar.multiselect("Bulan Deadline:", months, default=months)
+            pic_list = ["Ejak", "Hana", "Abi", "Hanif"]
+            sel_pic = st.sidebar.multiselect("Pantau PIC:", pic_list, default=pic_list)
             
-            pics = df['PIC'].unique().tolist()
-            sel_pic = st.sidebar.multiselect("Filter PIC:", pics, default=pics)
+            mask = (df['PIC'].isin(sel_pic)) & (df['Bulan-Deadline'].isin(sel_months))
+            f_df = df[mask]
             
-            filtered_df = df[(df['PIC'].isin(sel_pic)) & (df['Bulan-Deadline'].isin(sel_months))]
-            
-            # --- Metrics ---
-            m1, m2, m3 = st.columns(3)
-            m1.metric("Total Rencana", len(filtered_df))
-            m2.metric("Total Selesai ✅", len(filtered_df[filtered_df['PROSES'] == 'DONE']))
-            
-            st.dataframe(filtered_df, use_container_width=True, hide_index=True)
+            if not f_df.empty:
+                m1, m2, m3 = st.columns(3)
+                m1.metric("Total Rencana", len(f_df))
+                m2.metric("Total DONE ✅", len(f_df[f_df['PROSES'] == 'DONE']))
+                st.dataframe(f_df, use_container_width=True, hide_index=True)
         else:
-            st.warning("Data kosong.")
+            st.info("Data tidak ditemukan.")
     except Exception as e:
-        st.error(f"Kesalahan Visual: {e}")
+        st.error(f"Kesalahan Sosmed: {e}")
 
-# ... (Halaman lainnya tinggal mengikuti pola yang sama)
+elif page == "🌐 WEBSITE AUDIT":
+    st.markdown('<div class="feature-header">🌐 WEBSITE AUDIT DASHBOARD</div>', unsafe_allow_html=True)
+    try:
+        df_web = load_website()
+        if not df_web.empty:
+            st.dataframe(df_web, use_container_width=True, hide_index=True)
+        else:
+            st.info("Data website kosong.")
+    except Exception as e:
+        st.error(f"Kesalahan Website: {e}")
+
+elif page == "📈 ANALYTICS":
+    st.markdown('<div class="feature-header">📈 INSIGHTS & ANALYTICS</div>', unsafe_allow_html=True)
+    try:
+        df_in = load_insight()
+        if not df_in.empty:
+            st.dataframe(df_in, use_container_width=True, hide_index=True)
+    except Exception as e:
+        st.error(f"Kesalahan Insight: {e}")
+
+elif page == "💬 WA REPORT":
+    st.markdown('<div class="feature-header">💬 WA ADMIN & CLOSING REPORT</div>', unsafe_allow_html=True)
+    try:
+        df_wa = load_wa_admin()
+        if not df_wa.empty:
+            st.metric("Total Leads", len(df_wa))
+            st.dataframe(df_wa, use_container_width=True, hide_index=True)
+    except Exception as e:
+        st.error(f"Kesalahan WA Report: {e}")
+        
 # =====================================================================
 # HALAMAN 1: SOSIAL MEDIA
 # =====================================================================
