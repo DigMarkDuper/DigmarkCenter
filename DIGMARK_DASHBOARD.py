@@ -177,8 +177,6 @@ page = st.sidebar.radio(
 if st.sidebar.button("🔄 Force Global Refresh"):
     st.cache_data.clear()
     st.rerun()
-
-st.success("✅ Login Berhasil! Selamat bekerja, Tim Digmark.")
     
 # --- RUNNING TEXT NOTIFICATION ---
 st.markdown(f"""
