@@ -160,12 +160,20 @@ st.markdown(f"""
 # 5. NAVIGASI UTAMA
 # =====================================================================
 st.sidebar.markdown(f"<h1 style='color:{BRAND_BLUE};'>🚀 NAVIGATION</h1>", unsafe_allow_html=True)
-page = st.sidebar.radio("Pilih Proses Kerja:", ["📱 SOSIAL MEDIA", "🌐 WEBSITE AUDIT", "📈 INSIGHTS & ANALYTICS", "💬 WA ADMIN REPORT"])
+
+# Tambahkan "🏠 HOMEPAGE" di urutan pertama list ini
+page = st.sidebar.radio("Pilih Proses Kerja:", [
+    "🏠 HOMEPAGE", 
+    "📱 SOSIAL MEDIA", 
+    "🌐 WEBSITE AUDIT", 
+    "📈 INSIGHTS & ANALYTICS", 
+    "💬 WA ADMIN REPORT"
+])
 
 if st.sidebar.button("🔄 Force Global Refresh"):
     st.cache_data.clear()
     st.rerun()
-
+    
 # --- RUNNING TEXT NOTIFICATION ---
 st.markdown(f"""
     <div style="
@@ -189,6 +197,39 @@ st.markdown(f"""
 # 6. LOGIKA HALAMAN & GRAFIK LENGKAP
 # =====================================================================
 
+# --- HALAMAN 0: HOMEPAGE (TAMBAHAN BARU) ---
+if page == "🏠 HOMEPAGE":
+    # Header Utama
+    st.markdown(f"""
+        <div class="feature-header" style="text-align: center; font-size: 28px; margin-top: 0px;">
+            Pusat Kendali Digital Marketing
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # Sambutan Personal & Motivasi
+    st.markdown(f"""
+        <h2 style='text-align: center; color: {BRAND_BLUE};'>
+            Selamat Datang di Sistem Terintegrasi LPK Duta Persada
+        </h2>
+        <p style='text-align: center; font-size: 18px; color: gray; font-weight: 500;'>
+            Pilih modul kerja pada panel navigasi di sebelah kiri untuk memulai pemantauan data.<br>
+            Mari jaga sinergi kerja untuk mengamankan target konversi pendaftaran tahun ini.
+        </p>
+        <hr style='border: 1.5px solid {BRAND_YELLOW}; margin-bottom: 30px;'>
+    """, unsafe_allow_html=True)
+
+    # Kotak Pintasan (Penjelasan Menu)
+    st.markdown(f"<h3 style='color:{BRAND_BLUE};'>📋 Modul Tersedia:</h3>", unsafe_allow_html=True)
+    
+    c1, c2 = st.columns(2)
+    with c1:
+        st.info("📱 **SOSIAL MEDIA COMMAND CENTER**\nPantau jadwal tayang, realisasi produksi video/desain, dan hutang kerja dari masing-masing PIC.")
+        st.warning("📈 **INSIGHTS & ANALYTICS**\nAnalisis mendalam mengenai pertumbuhan audiens, interaksi, dan matriks klik profil (leads generation).")
+        
+    with c2:
+        st.success("🌐 **WEBSITE MANAGEMENT**\nMonitoring pilar konten web (Artikel, News, Gallery) dan status SEO dari masing-masing artikel.")
+        st.error("💬 **WA ADMIN & CLOSING REPORT**\nPelacakan *funneling* leads prospek secara real-time dari fase Follow-up hingga Sukses Closing.")
+        
 # --- HALAMAN 1: SOSIAL MEDIA ---
 if page == "📱 SOSIAL MEDIA":
     st.title("🚀 SOSMED COMMAND CENTER")
