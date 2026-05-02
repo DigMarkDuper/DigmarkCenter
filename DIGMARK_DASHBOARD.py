@@ -79,7 +79,7 @@ def init_connection():
         
         # 4. Membuka File (Gunakan try-except khusus untuk nama file)
         try:
-            spreadsheet = client.open("MASTER DATA DIGITAL MARKETING 2.0")
+            spreadsheet = client.open("MASTER DATA DIGITAL MARK 2.0")
             return spreadsheet
         except gspread.exceptions.SpreadsheetNotFound:
             st.error("❌ Google Sheets tidak ditemukan! Periksa kembali apakah ada spasi tersembunyi di judul file Mas.")
