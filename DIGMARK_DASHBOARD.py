@@ -236,7 +236,7 @@ if page != "🏠 HOMEPAGE":
 # --- HALAMAN 0: HOMEPAGE ---
 if page == "🏠 HOMEPAGE":
     # ==========================================================
-    # 1. GLOBAL CSS UNTUK SHADOW & RADIUS (MENAMBAHKAN EFEK BOX)
+    # 1. GLOBAL CSS UNTUK SHADOW & RADIUS (DIPERKUAT)
     # ==========================================================
     st.markdown(f"""
         <style>
@@ -245,7 +245,7 @@ if page == "🏠 HOMEPAGE":
             background-color: #FFFFFF;
             border-radius: 12px;
             padding: 18px 15px;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.08); /* Efek Shadow */
+            box-shadow: 0 12px 24px rgba(0,0,0,0.1) !important; /* Shadow dipertebal */
             border: 1px solid #F0F2F6;
             display: flex;
             align-items: center;
@@ -254,7 +254,7 @@ if page == "🏠 HOMEPAGE":
             transition: transform 0.3s ease;
         }}
         .kpi-card:hover {{
-            transform: translateY(-5px); /* Efek melayang saat hover */
+            transform: translateY(-5px);
         }}
         .kpi-icon-box {{
             background-color: #E8F4FC;
@@ -271,13 +271,15 @@ if page == "🏠 HOMEPAGE":
         .kpi-title {{ font-size: 13px; color: #737373; font-weight: 600; margin-bottom: 4px; }}
         .kpi-value {{ font-size: 20px; font-weight: 900; color: #111827; line-height: 1.1; }}
 
-        /* Shadow untuk seluruh st.container(border=True) - Termasuk Map, Chart & Navigasi */
-        div[data-testid="stVerticalBlockBorderWrapper"] {{
-            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+        /* MENERAPKAN SHADOW KE SEMUA st.container(border=True) */
+        /* Termasuk Map, Chart, dan Navigasi Bawah agar terlihat melayang */
+        [data-testid="stVerticalBlockBorderWrapper"] {{
+            box-shadow: 0 12px 28px rgba(0,0,0,0.12) !important; /* Efek shadow nyata */
             border-radius: 15px !important;
-            background-color: white;
+            background-color: white !important;
             border: 1px solid #F0F2F6 !important;
-            padding: 10px;
+            padding: 15px !important;
+            margin-bottom: 20px !important;
         }}
         </style>
     """, unsafe_allow_html=True)
