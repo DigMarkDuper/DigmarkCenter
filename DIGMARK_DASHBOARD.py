@@ -609,6 +609,7 @@ if page == "📱 SOSIAL MEDIA":
         filtered_df = df[mask]
 
         if not filtered_df.empty:
+            # --- LOGIKA PERHITUNGAN (TETAP SAMA) ---
             v_mask = filtered_df['Output'].str.contains('Video', case=False, na=False)
             v_total, v_done = len(filtered_df[v_mask]), len(filtered_df[v_mask & (filtered_df['PROSES'] == 'DONE')])
             d_total, d_done = len(filtered_df[~v_mask]), len(filtered_df[~v_mask & (filtered_df['PROSES'] == 'DONE')])
@@ -683,8 +684,45 @@ if page == "📱 SOSIAL MEDIA":
                 else:
                     st.success(f"✅ {name} - Clear!")
 
-            st.markdown('<div class="feature-header">📋 Master Production Pipeline</div>', unsafe_allow_html=True)
-            st.dataframe(filtered_df[['Kode Konten', 'Tanggal Deadline', 'Output', 'PIC', 'Judul Konten', 'PROSES', 'IG', 'YT', 'TIKTOK']], use_container_width=True, hide_index=True)
+            # --- BAGIAN UPDATE: LIVE EDITOR & SAVE BUTTON ---
+            st.markdown('<div class="feature-header">📋 Master Production Pipeline (Live Editor)</div>', unsafe_allow_html=True)
+            
+            # Mendefinisikan editor dengan konfigurasi kolom yang Mas butuhkan
+            edited_df = st.data_editor(
+                filtered_df[['Kode Konten', 'Tanggal Deadline', 'Output', 'PIC', 'Judul Konten', 'PROSES', 'IG', 'YT', 'TIKTOK']],
+                column_config={
+                    "IG": st.column_config.CheckboxColumn("IG"),
+                    "YT": st.column_config.CheckboxColumn("YT"),
+                    "TIKTOK": st.column_config.CheckboxColumn("TikTok"),
+                    "PROSES": st.column_config.SelectboxColumn("Status", options=["DONE", "PENDING", "ON PROGRESS"])
+                },
+                disabled=['Kode Konten', 'Tanggal Deadline', 'Output', 'PIC', 'Judul Konten'],
+                use_container_width=True,
+                hide_index=False, # Membantu sistem menemukan baris yang tepat di Sheet
+                key="editor_sosmed"
+            )
+
+            if st.button("💾 Simpan Semua Perubahan ke Google Sheets", use_container_width=True):
+                with st.spinner("Sinkronisasi database..."):
+                    updates = 0
+                    for idx in edited_df.index:
+                        for col in ["PROSES", "IG", "YT", "TIKTOK"]:
+                            if filtered_df.at[idx, col] != edited_df.at[idx, col]:
+                                # Format Boolean kembali ke 'V'
+                                val = "V" if (isinstance(edited_df.at[idx, col], bool) and edited_df.at[idx, col]) else (
+                                      "" if isinstance(edited_df.at[idx, col], bool) else edited_df.at[idx, col])
+                                
+                                # Fungsi update_sheet_cell yang Mas masukkan di bagian 3
+                                update_sheet_cell(0, idx, col, val)
+                                updates += 1
+                    
+                    if updates > 0:
+                        st.success(f"✅ Berhasil! {updates} perubahan tersimpan.")
+                        st.cache_data.clear()
+                        st.rerun()
+                    else:
+                        st.info("Tidak ada data baru untuk disimpan.")
+
     except Exception as e:
         st.error(f"Kesalahan Teknis Sosmed: {e}")
 
