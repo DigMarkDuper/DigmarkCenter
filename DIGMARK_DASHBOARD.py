@@ -274,15 +274,75 @@ if page == "🏠 HOMEPAGE":
         else:
             web_pending = 0
 
+        # --- CSS KHUSUS KARTU KPI (Desain Kotak Modern) ---
+        st.markdown(f"""
+            <style>
+            .kpi-card {{
+                background-color: #FFFFFF;
+                border-radius: 12px;
+                padding: 18px 15px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.04);
+                border: 1px solid #F0F2F6;
+                display: flex;
+                align-items: center;
+                gap: 15px;
+                margin-bottom: 15px;
+            }}
+            .kpi-icon-box {{
+                background-color: #E8F4FC; /* Warna pastel biru */
+                color: {BRAND_BLUE};
+                width: 48px;
+                height: 48px;
+                border-radius: 10px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                font-size: 24px;
+                flex-shrink: 0;
+            }}
+            .kpi-details {{
+                display: flex;
+                flex-direction: column;
+            }}
+            .kpi-title {{
+                font-size: 13px;
+                color: #737373;
+                font-weight: 600;
+                margin-bottom: 4px;
+            }}
+            .kpi-value {{
+                font-size: 20px;
+                font-weight: 900;
+                color: #111827;
+                line-height: 1.1;
+            }}
+            </style>
+        """, unsafe_allow_html=True)
+
+        # Fungsi pencetak HTML Kartu KPI
+        def create_kpi_card(icon, title, value):
+            return f"""
+                <div class="kpi-card">
+                    <div class="kpi-icon-box">{icon}</div>
+                    <div class="kpi-details">
+                        <div class="kpi-title">{title}</div>
+                        <div class="kpi-value">{value}</div>
+                    </div>
+                </div>
+            """
+
         # Render Visualisasi Executive Summary
-        st.markdown(f"<h3 style='color:{BRAND_BLUE}; font-size: 18px;'>📊 Executive Summary</h3>", unsafe_allow_html=True)
+        st.markdown(f"<h3 style='color:{BRAND_BLUE}; font-size: 18px; margin-bottom: 15px;'>📊 Executive Summary</h3>", unsafe_allow_html=True)
         
-        with st.container(border=True):
-            kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-            kpi1.metric("Closing / Leads Masuk 🎯", f"{total_closing} / {total_leads}")
-            kpi2.metric("Total Views & Reach 👀", f"{total_view:,.0f} / {total_reach:,.0f}")
-            kpi3.metric("Hutang Task Sosmed ⚠️", f"{sosmed_pending} Konten")
-            kpi4.metric("Hutang Task Website ⚠️", f"{web_pending} Halaman")
+        kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+        with kpi1:
+            st.markdown(create_kpi_card("🎯", "Closing / Leads", f"{total_closing} / {total_leads}"), unsafe_allow_html=True)
+        with kpi2:
+            st.markdown(create_kpi_card("👀", "Views / Reach", f"{total_view:,.0f} / {total_reach:,.0f}"), unsafe_allow_html=True)
+        with kpi3:
+            st.markdown(create_kpi_card("📱", "Hutang Sosmed", f"{sosmed_pending} Task"), unsafe_allow_html=True)
+        with kpi4:
+            st.markdown(create_kpi_card("🌐", "Hutang Website", f"{web_pending} Page"), unsafe_allow_html=True)
             
         st.markdown("<br>", unsafe_allow_html=True)
 
