@@ -256,7 +256,27 @@ if page == "🏠 HOMEPAGE":
         df_sos_home = load_sosmed()
         df_web_home = load_website()
 
-        # Kalkulasi Leads & Closing
+        # --- LOGIKA FILTER WAKTU OTOMATIS (BULAN INI) ---
+        import datetime
+        sekarang = datetime.datetime.now()
+        bulan_ini = sekarang.month
+        tahun_ini = sekarang.year
+
+        def filter_data_bulan_ini(df):
+            if df.empty: return df
+            # Mencari kolom tanggal/bulan secara otomatis
+            col_tgl = next((c for c in df.columns if any(k in str(c).lower() for k in ['tanggal', 'jadwal', 'bulan', 'date'])), None)
+            if col_tgl:
+                df_temp = df.copy()
+                # Standarisasi bulan Indonesia ke Inggris
+                df_temp['tgl_cleaned'] = df_temp[col_tgl].astype(str).str.lower().replace(
+                    {'januari':'jan', 'februari':'feb', 'maret':'mar', 'mei':'may', 'agustus':'aug', 'oktober':'oct', 'desember':'dec'}, regex=True
+                )
+                df_temp['tgl_parsed'] = pd.to_datetime(df_temp['tgl_cleaned'], errors='coerce')
+                return df_temp[(df_temp['tgl_parsed'].dt.month == bulan_ini) & (df_temp['tgl_parsed'].dt.year == tahun_ini)]
+            return df
+
+        # --- 1. Kalkulasi Leads & Closing (Tetap Akumulatif untuk Pantau Target 450) ---
         if not df_wa_home.empty:
             if 'Tanggal Masuk' in df_wa_home.columns:
                 df_wa_home = df_wa_home[df_wa_home['Tanggal Masuk'].astype(str).str.strip() != '']
@@ -270,13 +290,20 @@ if page == "🏠 HOMEPAGE":
         else:
             total_leads, total_closing = 0, 0
 
-        # Kalkulasi Views, Reach, Hutang
+        # --- 2. Kalkulasi Performa (Views & Reach Akumulatif) ---
         total_view = df_in_home['View'].sum() if not df_in_home.empty and 'View' in df_in_home.columns else 0
         total_reach = df_in_home['Reach'].sum() if not df_in_home.empty and 'Reach' in df_in_home.columns else 0
-        sosmed_pending = len(df_sos_home[df_sos_home['PROSES'].astype(str).str.upper() != 'DONE']) if not df_sos_home.empty and 'PROSES' in df_sos_home.columns else 0
-        done_kw = ['DONE', 'TRUE', 'V', '1', 'POSTED', 'SELESAI', 'UPLOAD', 'UPLOADED', 'SUDAH UPLOAD']
-        web_pending = len(df_web_home[~df_web_home['Status Post'].astype(str).str.upper().str.strip().isin(done_kw)]) if not df_web_home.empty and 'Status Post' in df_web_home.columns else 0
 
+        # --- 3. Kalkulasi Hutang (KHUSUS BULAN INI SAJA) ---
+        df_sos_now = filter_data_bulan_ini(df_sos_home)
+        df_web_now = filter_data_bulan_ini(df_web_home)
+
+        sosmed_pending = len(df_sos_now[df_sos_now['PROSES'].astype(str).str.upper() != 'DONE']) if not df_sos_now.empty and 'PROSES' in df_sos_now.columns else 0
+        
+        done_kw = ['DONE', 'TRUE', 'V', '1', 'POSTED', 'SELESAI', 'UPLOAD', 'UPLOADED', 'SUDAH UPLOAD']
+        web_pending = len(df_web_now[~df_web_now['Status Post'].astype(str).str.upper().str.strip().isin(done_kw)]) if not df_web_now.empty and 'Status Post' in df_web_now.columns else 0
+
+        # --- RENDER UI ---
         st.markdown(f"""
             <style>
             .kpi-card {{ background-color: #FFFFFF; border-radius: 12px; padding: 18px 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.04); border: 1px solid #F0F2F6; display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }}
@@ -293,8 +320,8 @@ if page == "🏠 HOMEPAGE":
         kpi1, kpi2, kpi3, kpi4 = st.columns(4)
         with kpi1: st.markdown(create_kpi_card("🎯", "Closing / Leads", f"{total_closing} / {total_leads}"), unsafe_allow_html=True)
         with kpi2: st.markdown(create_kpi_card("👀", "Views / Reach", f"{total_view:,.0f} / {total_reach:,.0f}"), unsafe_allow_html=True)
-        with kpi3: st.markdown(create_kpi_card("📱", "Hutang Sosmed", f"{sosmed_pending} Task"), unsafe_allow_html=True)
-        with kpi4: st.markdown(create_kpi_card("🌐", "Hutang Website", f"{web_pending} Page"), unsafe_allow_html=True)
+        with kpi3: st.markdown(create_kpi_card("📱", "Hutang Sosmed (Mei)", f"{sosmed_pending} Task"), unsafe_allow_html=True)
+        with kpi4: st.markdown(create_kpi_card("🌐", "Hutang Website (Mei)", f"{web_pending} Page"), unsafe_allow_html=True)
 
     except Exception as e:
         st.warning(f"⚠️ Gagal memuat Executive Summary: {e}")
