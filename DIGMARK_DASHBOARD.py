@@ -2,31 +2,29 @@ import streamlit as st
 import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-import plotly.express as px
-import plotly.graph_objects as go
 import json
 import re
+import plotly.express as px
+import plotly.graph_objects as go
 
 # =====================================================================
-# 0. KONFIGURASI ADMIN (GANTI DI SINI)
+# 1. IDENTITAS VISUAL & KONFIGURASI (WAJIB PALING ATAS)
 # =====================================================================
 ADMIN_PASSWORD = "DUTADUPER55" 
 LOGO_URL = "https://www.dutapersadajogja.com/assets/img/logo.png" 
 
-# =====================================================================
-# 1. IDENTITAS VISUAL & KONFIGURASI HALAMAN
-# =====================================================================
 BRAND_BLUE = "#005696"
 BRAND_YELLOW = "#FDB813"
+TEXT_BLACK = "#000000" 
+BG_WHITE = "#FFFFFF"
 
-st.set_page_config(page_title="Digmark Command Center", layout="wide")
+# Set page config HARUS menjadi perintah streamlit pertama
+st.set_page_config(page_title="Digmark Command Center", layout="wide", page_icon="🚀")
 
 # =====================================================================
 # 2. SISTEM KEAMANAN (PASSWORD)
 # =====================================================================
 def check_password():
-    """Mengembalikan True jika pengguna memasukkan password yang benar."""
-    
     def password_entered():
         if st.session_state["password"] == ADMIN_PASSWORD: 
             st.session_state["password_correct"] = True
@@ -34,231 +32,119 @@ def check_password():
         else:
             st.session_state["password_correct"] = False
 
-    # Jika sudah login, langsung izinkan akses tanpa merender form lagi
     if st.session_state.get("password_correct"):
         return True
 
-    # CSS Khusus untuk memaksa logo ke tengah secara mutlak
+    # Render Halaman Login
     st.markdown("""
         <style>
-        .login-box {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-        }
-        .centered-image {
-            display: block;
-            margin-left: auto;
-            margin-right: auto;
-            border-radius: 50%;
-            border: 3px solid #FDB813;
-        }
+        .login-box { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        .centered-image { display: block; margin-left: auto; margin-right: auto; border-radius: 50%; border: 3px solid #FDB813; }
         </style>
     """, unsafe_allow_html=True)
 
-    # --- TAMPILAN LOGIN ---
     _, col_mid, _ = st.columns([1, 2, 1])
-    
     with col_mid:
-        # Menampilkan Logo dengan HTML agar benar-benar Center
         st.markdown(f"""
             <div class="login-box">
                 <img src="{LOGO_URL}" class="centered-image" width="180">
-                <h2 style='color: {BRAND_BLUE}; margin-top: 15px;'>
-                    DIGITAL MARKETING COMMAND CENTER
-                </h2>
+                <h2 style='color: {BRAND_BLUE}; margin-top: 15px;'>DIGITAL MARKETING COMMAND CENTER</h2>
                 <p style='color: gray; margin-top: -10px;'>LPK Duta Persada Yogyakarta</p>
                 <hr style='border: 1px solid {BRAND_YELLOW}; width: 100%; margin-bottom: 25px;'>
             </div>
         """, unsafe_allow_html=True)
-
-        # Input password
-        st.text_input("Masukkan Password Akses:", type="password", 
-                     on_change=password_entered, key="password")
-
+        st.text_input("Masukkan Password Akses:", type="password", on_change=password_entered, key="password")
         if st.session_state.get("password_correct") == False:
             st.error("😕 Password salah. Silakan hubungi admin.")
-    
     return False
 
-# =====================================================================
-# GERBANG KEAMANAN MUTLAK (Posisikan Tepat di Sini)
-# =====================================================================
-# Jika belum login, script akan BERHENTI di sini. Kode di bawahnya tidak akan jalan.
+# GERBANG KEAMANAN MUTLAK
 if not check_password():
-    st.stop() 
+    st.stop()
 
 # =====================================================================
-# 3. ISI DASHBOARD (HANYA MUNCUL SETELAH LOGIN)
+# 3. KONEKSI & LOAD DATA (Hanya jalan jika login sukses)
 # =====================================================================
-# Notifikasi sukses dipindahkan ke SINI agar tidak muncul sebelum login
-st.success("✅ Akses Diterima. Selamat bekerja, Tim Digmark!")
-
-# Lanjutkan ke monitoring target 45 siswa Batch 51 dan data tim (Dea, Aziz, Hana)
-st.title("🚀 Monitoring Real-Time")
-# spreadsheet = init_connection() ...
-# --- HALAMAN UTAMA DIMULAI DI SINI ---
-st.success("✅ Akses Diterima. Selamat bekerja!")
-# =====================================================================
-# GERBANG KEAMANAN UTAMA
-# =====================================================================
-if not check_password():
-    st.stop()  # Menghentikan seluruh script agar isi dashboard tidak muncul
-
-# --- SELURUH KODE DASHBOARD MASUK DI BAWAH SINI ---
-st.success("✅ Login Berhasil!")
-# Lanjutkan dengan init_connection() dan visualisasi grafik...
-
-# =====================================================================
-# 3. FUNGSI KONEKSI DATABASE (GOOGLE SHEETS)
-# =====================================================================
-@st.cache_resource # Menghindari koneksi berulang yang bisa bikin lemot
+@st.cache_resource
 def init_connection():
     try:
         if "gcp_service_account" not in st.secrets:
-            st.error("Secrets 'gcp_service_account' tidak ditemukan di Dashboard Streamlit.")
+            st.error("Secrets 'gcp_service_account' tidak ditemukan.")
             return None
-        
-        # 1. Ambil data Secrets
         creds_info = dict(st.secrets["gcp_service_account"])
-        
-        # 2. Perbaikan Kunci Rahasia (Private Key)
-        # Kita pakai cara yang lebih aman untuk menangani karakter baris baru
         if "private_key" in creds_info:
-            pk = creds_info["private_key"]
-            # Pastikan \n terbaca sebagai baris baru asli
-            pk = pk.replace("\\n", "\n")
-            
-            # Jika kunci masih berantakan, kita bersihkan spasi di setiap barisnya
+            pk = creds_info["private_key"].replace("\\n", "\n")
             lines = pk.split("\n")
-            clean_lines = [line.strip() for line in lines if line.strip()]
-            pk = "\n".join(clean_lines)
-            
+            pk = "\n".join([line.strip() for line in lines if line.strip()])
             creds_info["private_key"] = pk
-
-        # 3. Inisialisasi Protokol Google
-        scope = [
-            "https://spreadsheets.google.com/feeds",
-            "https://www.googleapis.com/auth/drive"
-        ]
         
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_info, scope)
-        client = gspread.authorize(creds)
-        
-        # 4. Membuka File (Gunakan try-except khusus untuk nama file)
-        try:
-            spreadsheet = client.open("MASTER DATA DIGITAL MARK 2.0")
-            return spreadsheet
-        except gspread.exceptions.SpreadsheetNotFound:
-            st.error("❌ Google Sheets tidak ditemukan! Periksa kembali apakah ada spasi tersembunyi di judul file Mas.")
-            st.info(f"Pastikan sudah SHARE ke email ini: {creds_info.get('client_email')}")
-            return None
-
+        return gspread.authorize(creds)
     except Exception as e:
-        st.error(f"⚠️ Masalah Teknis Koneksi: {e}")
+        st.error(f"⚠️ Koneksi Gagal: {e}")
         return None
 
+# Fungsi Load Data dengan TTL 5 detik
+@st.cache_data(ttl=5)
+def load_data(sheet_index):
+    client = init_connection()
+    if client:
+        try:
+            spreadsheet = client.open("MASTER DATA DIGITAL MARK 2.0")
+            sheet = spreadsheet.get_worksheet(sheet_index)
+            df = pd.DataFrame(sheet.get_all_records())
+            return df
+        except Exception as e:
+            st.error(f"Gagal memuat tab {sheet_index}: {e}")
+    return pd.DataFrame()
+
 # =====================================================================
-# 4. ALUR UTAMA APLIKASI
+# 4. CSS CUSTOM (Menggunakan variabel global)
 # =====================================================================
-
-# LANGKAH 1: Cek Password
-if check_password():
-    # LANGKAH 2: Jika Password Benar, Bangun Koneksi
-    spreadsheet = init_connection()
-    
-    if spreadsheet:
-        st.success("✅ Berhasil Terkoneksi ke Database LPK Duta Persada!")
-        
-# 3. Fungsi Load Data
-@st.cache_data(ttl=5)
-def load_sosmed():
-    spreadsheet = init_connection()
-    sheet = spreadsheet.get_worksheet(0)
-    records = sheet.get_all_records()
-    df = pd.DataFrame(records)
-    df['Tanggal Deadline'] = pd.to_datetime(df['Tanggal Deadline'], dayfirst=True, errors='coerce')
-    df['Bulan-Deadline'] = df['Tanggal Deadline'].dt.strftime('%B %Y')
-    text_cols = ['PROSES', 'Output', 'PIC', 'Konten Pillar', 'Judul Konten', 'Kode Konten']
-    for col in text_cols:
-        if col in df.columns: df[col] = df[col].astype(str).str.strip()
-    df['PROSES'] = df['PROSES'].str.upper()
-    for col in ['IG', 'YT', 'TIKTOK']:
-        if col in df.columns: df[col] = df[col].apply(lambda x: True if str(x).upper() in ['TRUE', 'CHECKED', '1', 'YES', 'V'] else False)
-    return df
-
-@st.cache_data(ttl=5)
-def load_website():
-    spreadsheet = init_connection()
-    sheet = spreadsheet.get_worksheet(1) 
-    records = sheet.get_all_records()
-    df = pd.DataFrame(records)
-    if 'Deadline' in df.columns:
-        df['Tanggal Filter'] = pd.to_datetime(df['Deadline'], dayfirst=True, errors='coerce')
-        df['Bulan-Deadline'] = df['Tanggal Filter'].dt.strftime('%B %Y')
-    return df
-
-@st.cache_data(ttl=5)
-def load_insight():
-    spreadsheet = init_connection()
-    sheet = spreadsheet.get_worksheet(2) 
-    records = sheet.get_all_records()
-    df = pd.DataFrame(records)
-    numeric_cols = ['View', 'Reach', 'Interaction', 'Link Clicks', 'Profile Visit', 'Follow']
-    for col in numeric_cols:
-        if col in df.columns: df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-    return df
-
-@st.cache_data(ttl=5)
-def load_wa_admin():
-    spreadsheet = init_connection()
-    sheet = spreadsheet.get_worksheet(3) 
-    records = sheet.get_all_records()
-    df = pd.DataFrame(records)
-    if 'Tanggal Masuk' in df.columns:
-        df['Tanggal Filter'] = pd.to_datetime(df['Tanggal Masuk'], dayfirst=True, errors='coerce')
-        df['Bulan-Masuk'] = df['Tanggal Filter'].dt.strftime('%B %Y')
-    return df
-
-# 4. CSS: FORCED WHITE SIDEBAR & HIGH CONTRAST
-st.set_page_config(page_title="LPK Command Center", layout="wide", page_icon="🚀")
-
 st.markdown(f"""
     <style>
     .stApp {{ background-color: {BG_WHITE} !important; }}
     [data-testid="stSidebar"] {{ background-color: {BG_WHITE} !important; border-right: 3px solid {BRAND_BLUE}; }}
-    [data-testid="stSidebar"] div[data-baseweb="select"] > div,
-    [data-testid="stSidebar"] div[role="radiogroup"] {{
-        background-color: white !important; color: {TEXT_BLACK} !important; border: 2px solid {BRAND_BLUE} !important; border-radius: 8px; padding: 5px;
+    [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label {{ 
+        color: {BRAND_BLUE} !important; font-weight: 800 !important; 
     }}
-    [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label {{ color: {BRAND_BLUE} !important; font-weight: 800 !important; }}
     .feature-header {{
-        background-color: {BRAND_BLUE}; color: #FFFFFF !important; padding: 15px 25px; border-radius: 8px; border-left: 10px solid {BRAND_YELLOW};
-        font-size: 22px; font-weight: 800; margin-top: 30px; margin-bottom: 20px;
+        background-color: {BRAND_BLUE}; color: #FFFFFF !important; padding: 15px 25px; border-radius: 8px; 
+        border-left: 10px solid {BRAND_YELLOW}; font-size: 22px; font-weight: 800; margin-bottom: 20px;
     }}
-    p, span, label, li, .stMarkdown, .streamlit-expanderHeader p {{ color: {TEXT_BLACK} !important; font-weight: 700 !important; }}
-    [data-testid="stMetricLabel"] p {{ color: {BRAND_BLUE} !important; font-weight: 800 !important; }}
-    [data-testid="stMetricValue"] div {{ color: {TEXT_BLACK} !important; font-weight: 900 !important; }}
-    [data-testid="stMetricDelta"] > div {{ color: {TEXT_BLACK} !important; font-weight: 700 !important; }} 
-    [data-testid="stDataFrame"], [data-testid="stTable"] {{ background-color: white !important; color: {TEXT_BLACK} !important; }}
+    p, span, label, .stMarkdown {{ color: {TEXT_BLACK} !important; font-weight: 600; }}
     </style>
     """, unsafe_allow_html=True)
 
-# 5. Navigasi Sidebar
+# =====================================================================
+# 5. NAVIGASI & HALAMAN UTAMA
+# =====================================================================
 st.sidebar.markdown(f"<h1 style='color:{BRAND_BLUE}; font-size: 1.5rem;'>🚀 NAVIGATION</h1>", unsafe_allow_html=True)
 page = st.sidebar.radio("Pilih Proses Kerja:", [
-    "📱 SOSIAL MEDIA", 
-    "🌐 WEBSITE AUDIT", 
-    "📈 INSIGHTS & ANALYTICS",
-    "💬 WA ADMIN REPORT"
+    "📱 SOSIAL MEDIA", "🌐 WEBSITE AUDIT", "📈 INSIGHTS & ANALYTICS", "💬 WA ADMIN REPORT"
 ])
-st.sidebar.markdown("---")
 
 if st.sidebar.button("🔄 Force Global Refresh"):
     st.cache_data.clear()
     st.rerun()
+
+st.success("✅ Login Berhasil! Selamat bekerja, Tim Digmark.")
+
+# LOGIKA HALAMAN
+if page == "📱 SOSIAL MEDIA":
+    st.markdown('<div class="feature-header">📱 SOSIAL MEDIA COMMAND CENTER</div>', unsafe_allow_html=True)
+    df_sosmed = load_data(0)
+    if not df_sosmed.empty:
+        st.dataframe(df_sosmed)
+    else:
+        st.info("Menunggu data...")
+
+elif page == "🌐 WEBSITE AUDIT":
+    st.markdown('<div class="feature-header">🌐 WEBSITE AUDIT DASHBOARD</div>', unsafe_allow_html=True)
+    # df_web = load_data(1) ...
+
+# Dan seterusnya untuk menu lainnya...
 
 # =====================================================================
 # HALAMAN 1: SOSIAL MEDIA
