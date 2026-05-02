@@ -10,16 +10,14 @@ import re
 # =====================================================================
 # 0. KONFIGURASI ADMIN (GANTI DI SINI)
 # =====================================================================
-ADMIN_PASSWORD = "DUTADUPER55" # Ganti password akses di sini
-LOGO_URL = "https://www.dutapersadajogja.com/assets/img/logo.png" # Ganti dengan URL logo atau path file lokal
+ADMIN_PASSWORD = "DUTADUPER55" 
+LOGO_URL = "https://www.dutapersadajogja.com/assets/img/logo.png" 
 
 # =====================================================================
 # 1. IDENTITAS VISUAL & KONFIGURASI HALAMAN
 # =====================================================================
 BRAND_BLUE = "#005696"
 BRAND_YELLOW = "#FDB813"
-TEXT_BLACK = "#000000" 
-BG_WHITE = "#FFFFFF"
 
 st.set_page_config(page_title="Digmark Command Center", layout="wide")
 
@@ -29,26 +27,6 @@ st.set_page_config(page_title="Digmark Command Center", layout="wide")
 def check_password():
     """Mengembalikan True jika pengguna memasukkan password yang benar."""
     
-    # CSS Khusus untuk mematikan margin default Streamlit dan memposisikan elemen di tengah
-    st.markdown("""
-        <style>
-        /* Memaksa kontainer gambar ke tengah */
-        .centered-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            width: 100%;
-            margin-bottom: 20px;
-        }
-        /* Menghilangkan spasi tambahan dari Streamlit */
-        [data-testid="stVerticalBlock"] > div:has(div.centered-container) {
-            display: flex;
-            justify-content: center;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
     def password_entered():
         if st.session_state["password"] == ADMIN_PASSWORD: 
             st.session_state["password_correct"] = True
@@ -56,26 +34,44 @@ def check_password():
         else:
             st.session_state["password_correct"] = False
 
+    # Jika sudah login, langsung izinkan akses tanpa merender form lagi
     if st.session_state.get("password_correct"):
         return True
 
+    # CSS Khusus untuk memaksa logo ke tengah secara mutlak
+    st.markdown("""
+        <style>
+        .login-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        .centered-image {
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            border-radius: 50%;
+            border: 3px solid #FDB813;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
     # --- TAMPILAN LOGIN ---
-    # Gunakan kontainer tengah agar visual lebih seimbang
-    _, col_mid, _ = st.columns([1, 3, 1])
+    _, col_mid, _ = st.columns([1, 2, 1])
     
     with col_mid:
-        # Trik HTML untuk memaksa Gambar ke Tengah
+        # Menampilkan Logo dengan HTML agar benar-benar Center
         st.markdown(f"""
-            <div class="centered-container">
-                <img src="{LOGO_URL}" width="200" style="border-radius: 50%;">
+            <div class="login-box">
+                <img src="{LOGO_URL}" class="centered-image" width="180">
+                <h2 style='color: {BRAND_BLUE}; margin-top: 15px;'>
+                    DIGITAL MARKETING COMMAND CENTER
+                </h2>
+                <p style='color: gray; margin-top: -10px;'>LPK Duta Persada Yogyakarta</p>
+                <hr style='border: 1px solid {BRAND_YELLOW}; width: 100%; margin-bottom: 25px;'>
             </div>
-        """, unsafe_allow_html=True)
-
-        st.markdown(f"""
-            <h3 style='text-align: center; color: {BRAND_BLUE}; margin-top: 10px; font-family: sans-serif;'>
-                DIGITAL MARKETING COMMAND CENTER
-            </h3>
-            <hr style='border: 1px solid {BRAND_YELLOW}; margin-bottom: 30px;'>
         """, unsafe_allow_html=True)
 
         # Input password
@@ -86,6 +82,23 @@ def check_password():
             st.error("😕 Password salah. Silakan hubungi admin.")
     
     return False
+
+# =====================================================================
+# GERBANG KEAMANAN MUTLAK (Posisikan Tepat di Sini)
+# =====================================================================
+# Jika belum login, script akan BERHENTI di sini. Kode di bawahnya tidak akan jalan.
+if not check_password():
+    st.stop() 
+
+# =====================================================================
+# 3. ISI DASHBOARD (HANYA MUNCUL SETELAH LOGIN)
+# =====================================================================
+# Notifikasi sukses dipindahkan ke SINI agar tidak muncul sebelum login
+st.success("✅ Akses Diterima. Selamat bekerja, Tim Digmark!")
+
+# Lanjutkan ke monitoring target 45 siswa Batch 51 dan data tim (Dea, Aziz, Hana)
+st.title("🚀 Monitoring Real-Time")
+# spreadsheet = init_connection() ...
 # --- HALAMAN UTAMA DIMULAI DI SINI ---
 st.success("✅ Akses Diterima. Selamat bekerja!")
 # =====================================================================
