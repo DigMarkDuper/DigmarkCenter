@@ -42,17 +42,14 @@ BG_WHITE = "#FFFFFF"
 # 2. Setup Koneksi Google Sheets
 def init_connection():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    json_filename = "your_key_file.json" 
-    json_path = os.path.join(current_dir, json_filename)
     
-    if not os.path.exists(json_path):
-        st.error(f"⚠️ ERROR: File '{json_filename}' tidak ditemukan.")
-        st.stop()
-        
-    creds = ServiceAccountCredentials.from_json_keyfile_name(json_path, scope)
+    # Mengambil kredensial dari Streamlit Secrets (Aman untuk Cloud)
+    creds_dict = st.secrets["gcp_service_account"]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    
     client = gspread.authorize(creds)
-    spreadsheet = client.open("MASTER DATA DIGITAL MARK 2.0")
+    # Pastikan nama file di bawah ini persis sama dengan nama Google Sheets Anda
+    spreadsheet = client.open("MASTER DATA DIGITAL MARKETING 2.0") 
     return spreadsheet
 
 # 3. Fungsi Load Data
