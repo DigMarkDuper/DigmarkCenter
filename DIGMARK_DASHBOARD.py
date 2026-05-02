@@ -46,41 +46,35 @@ import json
 
 def init_connection():
     try:
+        # 1. Cek apakah Secrets terbaca
         if "gcp_service_account" not in st.secrets:
-            st.error("❌ Secrets tidak ditemukan.")
+            st.error("❌ ERROR: Data 'Secrets' di Dashboard Streamlit belum diisi atau salah ketik labelnya.")
             return None
         
-        # 1. Ambil data Secrets
         creds_info = dict(st.secrets["gcp_service_account"])
         
-        # 2. Perbaikan Karakter & Padding Private Key
+        # 2. Bersihkan Kunci Rahasia
         if "private_key" in creds_info:
-            pk = creds_info["private_key"]
-            
-            # Bersihkan karakter escape yang sering muncul saat copy-paste
-            pk = pk.replace("\\n", "\n").strip()
-            
-            # Fix Incorrect Padding secara manual jika kelipatan tidak pas
-            missing_padding = len(pk) % 4
-            if missing_padding:
-                pk += '=' * (4 - missing_padding)
-            
-            creds_info["private_key"] = pk
+            creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n").strip()
 
-        # 3. Inisialisasi Koneksi ke Google Sheets LPK
+        # 3. Setup Protokol
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_info, scope)
         client = gspread.authorize(creds)
         
-        # Pastikan nama file MASTER DATA DIGITAL MARKETING 2.0 benar
-        spreadsheet = client.open("MASTER DATA DIGITAL MARKETING 2.0") 
+        # 4. Cek Nama Spreadsheet (Sangat Sensitif Huruf Besar/Kecil)
+        # Pastikan namanya persis: MASTER DATA DIGITAL MARKETING 2.0
+        nama_file = "MASTER DATA DIGITAL MARKETING 2.0" 
+        spreadsheet = client.open(nama_file)
         return spreadsheet
 
-    except Exception as e:
-        # Menangkap error spesifik agar Mas tidak bingung
-        st.error(f"⚠️ Masalah Koneksi: {e}")
+    except gspread.exceptions.SpreadsheetNotFound:
+        st.error(f"❌ ERROR: File '{nama_file}' tidak ditemukan. Apakah Mas sudah SHARE file tersebut ke email service account?")
+        st.info(f"Email yang harus di-share: {creds_info.get('client_email')}")
         return None
-
+    except Exception as e:
+        st.error(f"⚠️ KESALAHAN SISTEM: {e}")
+        return None
 # Eksekusi koneksi
 spreadsheet = init_connection()
 
