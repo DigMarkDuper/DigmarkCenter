@@ -27,7 +27,18 @@ st.set_page_config(page_title="Digmark Command Center", layout="wide")
 # 2. SISTEM KEAMANAN (PASSWORD)
 # =====================================================================
 def check_password():
-    """Mengembalikan True jika pengguna memasukkan password yang benar."""
+    # --- Tambahkan CSS ini di awal fungsi agar logo otomatis ke tengah ---
+    st.markdown("""
+        <style>
+        /* Mencari elemen gambar dan memaksanya ke tengah */
+        [data-testid="stImage"] {
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
     def password_entered():
         if st.session_state["password"] == ADMIN_PASSWORD: 
             st.session_state["password_correct"] = True
@@ -39,15 +50,13 @@ def check_password():
         return True
 
     # --- Tampilan Halaman Login ---
-    # Membuat kolom agar logo & input berada di tengah
     _, col_mid, _ = st.columns([1, 2, 1])
     
     with col_mid:
-        # Menampilkan Logo
         try:
+            # Sekarang gambar ini akan otomatis rata tengah di dalam kolomnya
             st.image(LOGO_URL, width=250)
         except:
-            # Jika logo gagal dimuat, tampilkan teks sebagai cadangan
             st.markdown(f"<h1 style='text-align:center; color:{BRAND_BLUE};'>LPK DUTA PERSADA</h1>", unsafe_allow_html=True)
 
         st.markdown(f"""
@@ -57,16 +66,13 @@ def check_password():
             <hr style='border: 1px solid {BRAND_YELLOW};'>
         """, unsafe_allow_html=True)
 
-        # Input password
         st.text_input("Masukkan Password Akses:", type="password", 
                      on_change=password_entered, key="password")
 
-        # Notifikasi jika salah
         if st.session_state.get("password_correct") == False:
             st.error("😕 Password salah. Silakan hubungi admin.")
     
     return False
-
 # Jalankan Gerbang Keamanan
 if not check_password():
     st.stop()
