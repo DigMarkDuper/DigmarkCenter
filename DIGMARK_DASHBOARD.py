@@ -363,7 +363,87 @@ if page == "🏠 HOMEPAGE":
 
     except Exception as e:
         st.warning(f"⚠️ Gagal memuat Executive Summary: {e}")
+        
+        # ==========================================================
+        # HEATMAP PERSEBARAN LEADS (INDONESIA)
+        # ==========================================================
+        st.markdown(f"<h3 style='color:{BRAND_BLUE}; font-size: 18px; margin-bottom: 10px; margin-top: 15px;'>🗺️ Heatmap Asal Prospek</h3>", unsafe_allow_html=True)
+        
+        if 'Asal' in df_wa_home.columns:
+            # 1. Kamus Koordinat Cerdas (Bisa mendeteksi kata kunci)
+            indo_coords = {
+                'jakarta': [-6.2088, 106.8456], 'jkt': [-6.2088, 106.8456],
+                'jawa barat': [-6.9147, 107.6098], 'jabar': [-6.9147, 107.6098], 'bandung': [-6.9147, 107.6098],
+                'jawa tengah': [-7.1509, 110.1402], 'jateng': [-7.1509, 110.1402], 'semarang': [-6.9666, 110.4166],
+                'yogyakarta': [-7.7955, 110.3694], 'jogja': [-7.7955, 110.3694], 'diy': [-7.7955, 110.3694], 'sleman': [-7.7306, 110.3481], 'bantul': [-7.8887, 110.3289],
+                'jawa timur': [-7.2504, 112.7688], 'jatim': [-7.2504, 112.7688], 'surabaya': [-7.2504, 112.7688], 'malang': [-7.9797, 112.6304],
+                'banten': [-6.4058, 106.0640], 'tangerang': [-6.1702, 106.6403],
+                'bali': [-8.4095, 115.1889], 'denpasar': [-8.6500, 115.2167],
+                'sumatera utara': [-3.5951, 98.6722], 'sumut': [-3.5951, 98.6722], 'medan': [-3.5951, 98.6722],
+                'sumatera barat': [-0.9470, 100.4171], 'sumbar': [-0.9470, 100.4171], 'padang': [-0.9470, 100.4171],
+                'sumatera selatan': [-2.9909, 104.7565], 'sumsel': [-2.9909, 104.7565], 'palembang': [-2.9909, 104.7565],
+                'riau': [0.5070, 101.4477], 'pekanbaru': [0.5070, 101.4477],
+                'kalimantan barat': [-0.2787, 111.4752], 'kalbar': [-0.2787, 111.4752], 'pontianak': [-0.0226, 109.3301],
+                'kalimantan timur': [0.5386, 116.4193], 'kaltim': [0.5386, 116.4193], 'balikpapan': [-1.2379, 116.8528],
+                'kalimantan selatan': [-3.3166, 114.5901], 'kalsel': [-3.3166, 114.5901], 'banjarmasin': [-3.3166, 114.5901],
+                'sulawesi selatan': [-5.1476, 119.4327], 'sulsel': [-5.1476, 119.4327], 'makassar': [-5.1476, 119.4327],
+                'sulawesi utara': [1.4748, 124.8420], 'sulut': [1.4748, 124.8420], 'manado': [1.4748, 124.8420],
+                'nusa tenggara barat': [-8.5659, 116.3249], 'ntb': [-8.5659, 116.3249], 'mataram': [-8.5833, 116.1166],
+                'nusa tenggara timur': [-8.6225, 120.1065], 'ntt': [-8.6225, 120.1065], 'kupang': [-10.1771, 123.6070],
+                'papua': [-4.2699, 138.0803], 'jayapura': [-2.5337, 140.7186],
+                'lampung': [-5.4500, 105.2666], 'aceh': [4.6951, 96.7493]
+            }
 
+            # 2. Rekap jumlah asal prospek
+            asal_counts = df_wa_home['Asal'].value_counts().reset_index()
+            asal_counts.columns = ['Lokasi', 'Jumlah']
+            
+            # 3. Menerjemahkan teks lokasi menjadi Titik Koordinat Peta
+            lats, lons = [], []
+            for loc in asal_counts['Lokasi']:
+                loc_lower = str(loc).lower().strip()
+                matched = False
+                for key, coords in indo_coords.items():
+                    if key in loc_lower:
+                        lats.append(coords[0])
+                        lons.append(coords[1])
+                        matched = True
+                        break
+                if not matched:
+                    lats.append(None)
+                    lons.append(None)
+            
+            asal_counts['Lat'] = lats
+            asal_counts['Lon'] = lons
+            
+            # Buang data yang tidak masuk daftar kamus
+            map_data = asal_counts.dropna(subset=['Lat', 'Lon'])
+            
+            if not map_data.empty:
+                # 4. Membuat Visual Heatmap Merah Menyala
+                fig_map = px.density_mapbox(
+                    map_data, lat='Lat', lon='Lon', z='Jumlah', radius=35,
+                    center=dict(lat=-2.5, lon=118.0), zoom=3.8, # Fokus otomatis ke tengah Indonesia
+                    mapbox_style="carto-positron", # Style peta terang & modern
+                    color_continuous_scale="Reds", # Efek warna: Semakin banyak semakin merah
+                    hover_name="Lokasi", hover_data={"Lat":False, "Lon":False, "Jumlah":True}
+                )
+                
+                # Merapikan tampilan peta
+                fig_map.update_layout(
+                    margin={"r":0,"t":0,"l":0,"b":0},
+                    height=350,
+                    coloraxis_showscale=False, # Sembunyikan bar warna di samping agar lega
+                    paper_bgcolor='white'
+                )
+                
+                with st.container(border=True):
+                    st.plotly_chart(fig_map, use_container_width=True)
+            else:
+                st.info("Belum ada data lokasi yang dikenali untuk ditampilkan di Peta.")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
     # ==========================================================
     # FUNGSI PENCETAK KOTAK 1:1 (TOMBOL NAVIGASI)
     # ==========================================================
