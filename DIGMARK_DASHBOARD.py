@@ -39,34 +39,47 @@ TEXT_BLACK = "#000000"
 BG_WHITE = "#FFFFFF"
 
 # 2. Setup Koneksi Google Sheets
-import json # Tambahkan di baris paling atas file jika belum ada
+import json
+import streamlit as st
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
 def init_connection():
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    
-    # 1. Ambil data dari Secrets
-    creds_raw = st.secrets["gcp_service_account"]
-    
-    # 2. ANTI-ERROR: Pastikan formatnya adalah Dictionary (Tabel)
-    # Jika Mas menempel JSON sebagai satu teks panjang, kita paksa jadi dict
-    if isinstance(creds_raw, str):
-        creds_dict = json.loads(creds_raw)
-    else:
-        # Jika sudah berbentuk TOML/Tabel di Streamlit Secrets
+    try:
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        
+        # 1. Ambil data dari Secrets
+        if "gcp_service_account" not in st.secrets:
+            st.error("❌ Secrets 'gcp_service_account' tidak ditemukan di dashboard Streamlit.")
+            return None
+            
+        creds_raw = st.secrets["gcp_service_account"]
+        
+        # 2. Konversi ke Dictionary (Tabel)
         creds_dict = dict(creds_raw)
-    
-    # 3. PERBAIKAN PRIVATE KEY (Sangat Penting!)
-    # Streamlit Cloud sering salah baca tanda \n di kunci rahasia
-    if "private_key" in creds_dict:
-        creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
-    
-    # 4. Gunakan from_json_keyfile_dict (BUKAN from_json_keyfile_name)
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-    client = gspread.authorize(creds)
-    
-    # Pastikan Nama Spreadsheet Persis Sama
-    spreadsheet = client.open("MASTER DATA DIGITAL MARKETING 2.0") 
-    return spreadsheet
+        
+        # 3. Perbaikan Manual Karakter Newline pada Private Key
+        if "private_key" in creds_dict:
+            creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+            
+        # 4. Validasi Dasar: Cek apakah client_id ada sebelum diproses
+        required_keys = ["project_id", "private_key", "client_email", "client_id"]
+        for key in required_keys:
+            if key not in creds_dict:
+                st.error(f"❌ Kunci '{key}' hilang dari Secrets. Silakan cek kembali dashboard Streamlit.")
+                return None
+
+        # 5. Authorize
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        client = gspread.authorize(creds)
+        
+        # Ganti dengan nama Google Sheets Mas yang benar
+        spreadsheet = client.open("MASTER DATA DIGITAL MARKETING 2.0") 
+        return spreadsheet
+        
+    except Exception as e:
+        st.error(f"⚠️ Gagal menyambung ke Google Sheets: {e}")
+        return None
 # 3. Fungsi Load Data
 @st.cache_data(ttl=5)
 def load_sosmed():
