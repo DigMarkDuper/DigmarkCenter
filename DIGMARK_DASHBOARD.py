@@ -304,7 +304,7 @@ if page == "🏠 HOMEPAGE":
     # ==========================================================
     st.markdown(f"<h3 style='color:{BRAND_BLUE}; font-size: 18px; margin-bottom: 10px; margin-top: 15px;'>🗺️ Peta Persebaran & Top Asal Prospek</h3>", unsafe_allow_html=True)
     
-   try:
+       try:
         asal_col = next((col for col in df_wa_home.columns if 'Asal' in str(col)), None)
         if asal_col and not df_wa_home.empty:
             asal_counts = df_wa_home[asal_col].value_counts().reset_index()
