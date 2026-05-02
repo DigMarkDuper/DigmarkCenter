@@ -6,6 +6,42 @@ import plotly.express as px
 import plotly.graph_objects as go
 import sys
 from streamlit.web import cli as stcli
+import base64
+
+def get_base64(bin_file):
+    with open(bin_file, 'rb') as f:
+        data = f.read()
+    return base64.b64encode(data).decode()
+
+# Fungsi untuk menyuntikkan background ke CSS
+def set_bg_local(png_file):
+    bin_str = get_base64(png_file)
+    page_bg_img = f'''
+    <style>
+    [data-testid="stAppViewContainer"] {{
+        background-image: url("data:image/png;base64,{bin_str}");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+    }}
+    
+    /* Membuat header transparan agar tidak menutupi background */
+    [data-testid="stHeader"] {{
+        background: rgba(0,0,0,0);
+    }}
+
+    /* Menambahkan sedikit overlay gelap agar konten tetap menonjol */
+    [data-testid="stAppViewContainer"]::before {{
+        content: "";
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background-color: rgba(255, 255, 255, 0.4); /* Putih transparan agar kesan bersih tetap terjaga */
+        z-index: -1;
+    }}
+    </style>
+    '''
+    st.markdown(page_bg_img, unsafe_allow_html=True)
 
 # =====================================================================
 # 1. KONFIGURASI GLOBAL
@@ -195,6 +231,44 @@ st.markdown(f"""
             ✅ Login Berhasil! Selamat bekerja, Tim Digmark LPK Duta Persada. Tetap jaga sinergi dan ketangguhan tim, mari wujudkan target 450 pendaftaran siswa baru! 🚀
         </marquee>
     </div>
+""", unsafe_allow_html=True)
+# ==========================================================
+# KONFIGURASI TAMPILAN GLOBAL (SELURUH HALAMAN)
+# ==========================================================
+
+# 1. Panggil Background Global
+try:
+    # Pastikan file bg.png ada di root folder GitHub Mas
+    set_bg_local('bg.png')
+except:
+    pass
+
+# 2. Suntikkan CSS Global (Font & Shadow)
+st.markdown(f"""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;600;800&display=swap');
+
+    /* Terapkan Work Sans ke semua teks di semua halaman */
+    html, body, [data-testid="stAppViewContainer"], .main, .stMarkdown {{
+        font-family: 'Work Sans', sans-serif !important;
+    }}
+
+    /* Terapkan Shadow ke semua kontainer ber-border di semua modul */
+    [data-testid="stVerticalBlockBorderWrapper"] {{
+        box-shadow: 0 12px 28px rgba(0,0,0,0.12) !important;
+        border-radius: 15px !important;
+        background-color: white !important;
+        border: 1px solid #F0F2F6 !important;
+        padding: 15px !important;
+        margin-bottom: 20px !important;
+    }}
+
+    /* Styling Header Global */
+    h1, h2, h3, .feature-header {{
+        font-family: 'Work Sans', sans-serif !important;
+        font-weight: 800 !important;
+    }}
+    </style>
 """, unsafe_allow_html=True)
 
 # =====================================================================
