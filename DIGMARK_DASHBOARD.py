@@ -27,17 +27,27 @@ st.set_page_config(page_title="Digmark Command Center", layout="wide")
 # 2. SISTEM KEAMANAN (PASSWORD)
 # =====================================================================
 def check_password():
-    # --- Tambahkan CSS ini di awal fungsi agar logo otomatis ke tengah ---
+    """Mengembalikan True jika pengguna memasukkan password yang benar."""
+    
+    # CSS Khusus untuk mematikan margin default Streamlit dan memposisikan elemen di tengah
     st.markdown("""
         <style>
-        /* Mencari elemen gambar dan memaksanya ke tengah */
-        [data-testid="stImage"] {
-            display: block;
-            margin-left: auto;
-            margin-right: auto;
+        /* Memaksa kontainer gambar ke tengah */
+        .centered-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        /* Menghilangkan spasi tambahan dari Streamlit */
+        [data-testid="stVerticalBlock"] > div:has(div.centered-container) {
+            display: flex;
+            justify-content: center;
         }
         </style>
-        """, unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
     def password_entered():
         if st.session_state["password"] == ADMIN_PASSWORD: 
@@ -49,23 +59,26 @@ def check_password():
     if st.session_state.get("password_correct"):
         return True
 
-    # --- Tampilan Halaman Login ---
-    _, col_mid, _ = st.columns([1, 2, 1])
+    # --- TAMPILAN LOGIN ---
+    # Gunakan kontainer tengah agar visual lebih seimbang
+    _, col_mid, _ = st.columns([1, 3, 1])
     
     with col_mid:
-        try:
-            # Sekarang gambar ini akan otomatis rata tengah di dalam kolomnya
-            st.image(LOGO_URL, width=250)
-        except:
-            st.markdown(f"<h1 style='text-align:center; color:{BRAND_BLUE};'>LPK DUTA PERSADA</h1>", unsafe_allow_html=True)
-
+        # Trik HTML untuk memaksa Gambar ke Tengah
         st.markdown(f"""
-            <h3 style='text-align: center; color: {BRAND_BLUE}; margin-top: -10px;'>
-                DIGITAL MARKETING COMMAND CENTER
-            </h3>
-            <hr style='border: 1px solid {BRAND_YELLOW};'>
+            <div class="centered-container">
+                <img src="{LOGO_URL}" width="200" style="border-radius: 50%;">
+            </div>
         """, unsafe_allow_html=True)
 
+        st.markdown(f"""
+            <h3 style='text-align: center; color: {BRAND_BLUE}; margin-top: 10px; font-family: sans-serif;'>
+                DIGITAL MARKETING COMMAND CENTER
+            </h3>
+            <hr style='border: 1px solid {BRAND_YELLOW}; margin-bottom: 30px;'>
+        """, unsafe_allow_html=True)
+
+        # Input password
         st.text_input("Masukkan Password Akses:", type="password", 
                      on_change=password_entered, key="password")
 
@@ -73,10 +86,6 @@ def check_password():
             st.error("😕 Password salah. Silakan hubungi admin.")
     
     return False
-# Jalankan Gerbang Keamanan
-if not check_password():
-    st.stop()
-
 # --- HALAMAN UTAMA DIMULAI DI SINI ---
 st.success("✅ Akses Diterima. Selamat bekerja!")
 # =====================================================================
