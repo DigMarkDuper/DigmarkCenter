@@ -201,8 +201,11 @@ st.markdown(f"""
 # 6. LOGIKA HALAMAN & GRAFIK LENGKAP
 # =====================================================================
 
-# --- CSS KHUSUS UNTUK TOMBOL MASUK ---
-st.markdown(f"""
+# --- TOMBOL CEPAT POJOK KIRI ATAS (TANPA BUKA SIDEBAR) ---
+# Tombol ini hanya akan muncul jika user sedang TIDAK berada di Homepage
+if page != "🏠 HOMEPAGE":
+    st.button("⬅️ KEMBALI KE HOMEPAGE", key="btn_back_home", on_click=go_to_page, args=("🏠 HOMEPAGE",))
+    st.markdown("<br>", unsafe_allow_html=True)
     <style>
     /* Mengubah warna teks dan garis tombol menjadi Biru LPK */
     div[data-testid="stButton"] button p {{
@@ -244,7 +247,29 @@ if page == "🏠 HOMEPAGE":
                     <div style="font-size: 12px; color: #666; margin-top: 8px; min-height: 35px;">{subtitle}</div>
                 </div>
             """, unsafe_allow_html=True)
-            
+            st.markdown(f"""
+    <style>
+    div[data-testid="stButton"] button p {{
+        color: {BRAND_BLUE} !important;
+        font-weight: 800 !important;
+    }}
+    div[data-testid="stButton"] button {{
+        border-color: {BRAND_BLUE} !important;
+    }}
+    div[data-testid="stButton"] button:hover {{
+        background-color: {BRAND_BLUE} !important;
+    }}
+    div[data-testid="stButton"] button:hover p {{
+        color: #FFFFFF !important;
+    }}
+    
+    /* 👇 TAMBAHAN BARU: Sembunyikan Opsi Pertama (Homepage) dari Sidebar */
+    div[role="radiogroup"] > label:first-child {{
+        display: none !important;
+    }}
+    </style>
+""", unsafe_allow_html=True)
+
             # KUNCI PERBAIKAN: Menggunakan on_click dan args agar berpindah tanpa Error API
             st.button("Masuk ➔", key=button_key, use_container_width=True, on_click=go_to_page, args=(target_page,))
 
