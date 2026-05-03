@@ -941,6 +941,11 @@ elif page == "📈 INSIGHTS & ANALYTICS":
     except Exception as e:
         st.error(f"Kesalahan Teknis Insight: {e}")
 
+Siap, Mas. Pilihan yang bagus biar admin Mas makin disiplin mengisi data. Kalau ada yang kosong, langsung "tertoyo" dengan label "Belum Terupdate".
+
+Berikut adalah pembaruan kode untuk Halaman 4: WA ADMIN REPORT dengan penambahan logika penanganan data kosong tersebut:
+
+Python
 # --- HALAMAN 4: WA ADMIN REPORT ---
 elif page == "💬 WA ADMIN REPORT":
     st.title("💬 KINERJA WA ADMIN & CLOSING LPK")
@@ -952,10 +957,11 @@ elif page == "💬 WA ADMIN REPORT":
         status_col = next((col for col in df_wa.columns if 'Status' in str(col)), None)
         if status_col:
             df_wa.rename(columns={status_col: 'Status'}, inplace=True)
-            # Pastikan teks bersih agar cocok dengan kategori di gambar
+            # --- LOGIKA BARU: MASUKKAN KOSONG SEBAGAI 'BELUM TERUPDATE' ---
             df_wa['Status'] = df_wa['Status'].astype(str).str.strip()
+            df_wa['Status'] = df_wa['Status'].replace(['', 'nan', 'None', 'NaN'], 'Belum Terupdate')
         else:
-            df_wa['Status'] = "Lainnya"
+            df_wa['Status'] = "Belum Terupdate"
             
         if 'Mekari Tag' in df_wa.columns:
             df_wa = df_wa[~df_wa['Mekari Tag'].astype(str).str.contains('Partnership', case=False, na=False)]
@@ -987,27 +993,26 @@ elif page == "💬 WA ADMIN REPORT":
 
             st.markdown("---")
 
-            # 4. PENGELOMPOKAN SESUAI GAMBAR (MENGGUNAKAN KOLOM STATUS)
-            st.markdown('<div class="feature-header">📊 Distribusi Status Prospek (Berdasarkan Kolom Status)</div>', unsafe_allow_html=True)
+            # 4. DISTRIBUSI STATUS (TERMASUK BELUM TERUPDATE)
+            st.markdown('<div class="feature-header">📊 Distribusi Status Prospek</div>', unsafe_allow_html=True)
             
-            # Mendefinisikan urutan dan warna sesuai gambar yang Mas kirim
-            status_order = ["No Response", "Follow Up", "Daftar", "Interview", "Closing", "Lainnya", "Sales Progress", "Withdraw"]
+            # Update urutan dan warna dengan kategori 'Belum Terupdate'
+            status_order = ["Belum Terupdate", "No Response", "Follow Up", "Daftar", "Interview", "Closing", "Lainnya", "Sales Progress", "Withdraw"]
             color_map = {
-                "No Response": "#FDE68A",    # Kuning Krem
-                "Follow Up": "#BFDBFE",      # Biru Muda
-                "Daftar": "#BBF7D0",         # Hijau Muda
-                "Interview": "#E9D5FF",      # Ungu Muda
-                "Closing": "#FECACA",        # Merah Muda/Pink
-                "Lainnya": "#E5E7EB",        # Abu-abu
-                "Sales Progress": "#1D4ED8",  # Biru Tua
-                "Withdraw": "#B91C1C"        # Merah Tua
+                "Belum Terupdate": "#F3F4F6", # Abu-abu sangat terang
+                "No Response": "#FDE68A",    
+                "Follow Up": "#BFDBFE",      
+                "Daftar": "#BBF7D0",         
+                "Interview": "#E9D5FF",      
+                "Closing": "#FECACA",        
+                "Lainnya": "#D1D5DB",        
+                "Sales Progress": "#1D4ED8",  
+                "Withdraw": "#B91C1C"        
             }
 
-            # Hitung jumlah per status
             status_summary = df_wa['Status'].value_counts().reset_index()
             status_summary.columns = ['Status', 'Jumlah']
             
-            # Buat chart dengan urutan dan warna yang presisi
             fig_status = px.bar(
                 status_summary, 
                 x='Jumlah', 
@@ -1019,20 +1024,16 @@ elif page == "💬 WA ADMIN REPORT":
                 text_auto=True
             )
             fig_status.update_layout(
-                showlegend=False, 
-                height=450, 
-                paper_bgcolor='white', 
-                plot_bgcolor='white',
-                xaxis_title="Jumlah Prospek",
-                yaxis_title="",
-                font=dict(size=13)
+                showlegend=False, height=450, 
+                paper_bgcolor='white', plot_bgcolor='white',
+                xaxis_title="Jumlah Prospek", yaxis_title=""
             )
             fig_status.update_yaxes(tickfont=dict(family="Arial Black"))
             st.plotly_chart(fig_status, use_container_width=True)
 
             st.markdown("---")
             
-            # 5. FUNNEL & SUMBER (TETAP DIPERTAHANKAN)
+            # 5. FUNNEL & SUMBER
             c1, c2 = st.columns(2)
             with c1:
                 st.markdown('<div class="feature-header">📊 Funnel Konversi Prospek</div>', unsafe_allow_html=True)
@@ -1062,7 +1063,7 @@ elif page == "💬 WA ADMIN REPORT":
                     fig_sumber.update_traces(textinfo='label+percent')
                     st.plotly_chart(fig_sumber, use_container_width=True)
 
-            # 6. MAPPING ASAL & TAGGING (TETAP DIPERTAHANKAN)
+            # 6. MAPPING ASAL
             st.markdown('<div class="feature-header">📍 Mapping Persebaran Asal</div>', unsafe_allow_html=True)
             if 'Asal' in df_wa.columns:
                 asal_counts = df_wa['Asal'].value_counts().reset_index()
@@ -1071,7 +1072,7 @@ elif page == "💬 WA ADMIN REPORT":
                 fig_asal.update_layout(height=max(400, len(asal_counts)*20), yaxis={'categoryorder':'total ascending'})
                 st.plotly_chart(fig_asal, use_container_width=True)
 
-            st.markdown('<div class="feature-header">📋 Master Database WA Admin</div>', unsafe_allow_html=True)
+            st.markdown('<div class="feature-header">📋 Master Database WA Admin (Cek Baris Kosong di Sini)</div>', unsafe_allow_html=True)
             st.dataframe(df_wa, use_container_width=True, hide_index=True)
             
         else:
