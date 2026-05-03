@@ -908,77 +908,88 @@ elif page == "📂 DATABASE NOMOR":
     st.markdown("---")
     
     try:
-        # 1. Ambil Data Mentah
         df_crm = load_database_nomor()
         
         if not df_crm.empty:
-            # Fix tipe data No Hp agar tidak error saat diedit
+            # Pastikan No Hp tetap string agar tidak error integer
             df_crm['No Hp'] = df_crm['No Hp'].astype(str)
 
             # ==========================================================
-            # 1. SMART FILTERING SYSTEM (DI HALAMAN UTAMA)
+            # 1. NEW SMART FILTERING (SESUAI REQUEST MAS)
             # ==========================================================
-            # Menggunakan expander agar Mas bisa sembunyikan filter jika ingin fokus ke tabel
-            with st.expander("🔍 Filter & Pencarian Prospek (Klik untuk Membuka/Menutup)", expanded=True):
-                # Baris Pertama: Pencarian Nama/Nomor
-                search_crm = st.text_input("🔎 Cari Nama atau Nomor HP:", placeholder="Ketik di sini untuk mencari...")
+            with st.expander("🔍 Filter Strategis Database (Klik untuk Membuka/Menutup)", expanded=True):
+                search_crm = st.text_input("🔎 Cari Berdasarkan Nama/Nomor HP:", placeholder="Ketik di sini...")
 
-                # Baris Kedua: Pengelompokan Strategis (Dibuat 3 Kolom)
-                f1, f2, f3 = st.columns(3)
-                
-                with f1:
-                    st.markdown("🔥 **Suhu Prospek**")
-                    temp_options = ["PENDING", "INTERESTED", "REGISTERED", "NO RESPONSE"]
-                    temp_filter = st.multiselect("Pilih Status:", options=temp_options, default=temp_options, key="f_temp")
+                # Baris Filter 1: Kategori & Daerah
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.markdown("👥 **Kategori Subjek**")
+                    # Handle jika ada data selain Siswa/Orang Tua agar tidak error
+                    kat_options = ["Siswa", "Orang Tua"]
+                    sel_kategori = st.multiselect("Pilih Kategori:", options=kat_options, default=kat_options)
 
-                with f2:
-                    st.markdown("🗺️ **Zonasi Wilayah**")
-                    # Logika pengelompokan wilayah
-                    df_crm['Zonasi'] = df_crm['Domisili'].apply(lambda x: 
-                        'LOKAL (DIY)' if any(area in str(x).upper() for area in ['JOGJA', 'SLEMAN', 'BANTUL', 'KULON', 'GUNUNG']) else 'LUAR KOTA'
-                    )
-                    zona_filter = st.multiselect("Pilih Zona:", options=['LOKAL (DIY)', 'LUAR KOTA'], default=['LOKAL (DIY)', 'LUAR KOTA'], key="f_zona")
+                with c2:
+                    st.markdown("🗺️ **Wilayah (Domisili)**")
+                    # Mengambil daftar unik dari kolom Domisili yang ada di Sheets
+                    daerah_options = sorted(df_crm['Domisili'].unique().tolist()) if 'Domisili' in df_crm.columns else []
+                    sel_daerah = st.multiselect("Pilih Daerah:", options=daerah_options, default=daerah_options)
 
-                with f3:
-                    st.markdown("🎓 **Kategori Usia**")
-                    # Logika segmentasi usia
-                    def segment_usia(usia):
-                        try:
-                            u = int(usia)
-                            if u <= 21: return "Fresh Graduate (19-21)"
-                            elif u <= 26: return "Career Switcher (22-26)"
-                            else: return "Senior"
-                        except: return "N/A"
-                    df_crm['Segment Usia'] = df_crm['Usia'].apply(segment_usia)
-                    usia_filter = st.multiselect("Pilih Segmen Usia:", options=df_crm['Segment Usia'].unique(), default=df_crm['Segment Usia'].unique(), key="f_usia")
+                # Baris Filter 2: Status Form & Mekari Tag
+                c3, c4 = st.columns(2)
+                with c3:
+                    st.markdown("📝 **Keterangan Status Form**")
+                    form_options = ["Tidak Dibalas", "Sudah Interview", "Tidak Lanjut"]
+                    sel_form = st.multiselect("Pilih Status Form:", options=form_options, default=form_options)
 
-            # --- EKSEKUSI FILTER ---
-            mask = (
-                (df_crm['Status'].isin(temp_filter)) & 
-                (df_crm['Zonasi'].isin(zona_filter)) & 
-                (df_crm['Segment Usia'].isin(usia_filter))
-            )
+                with c4:
+                    st.markdown("🏷️ **Mekari Tag Status (Sesuai Gambar)**")
+                    # Daftar Tag sesuai gambar yang Mas kirim
+                    mekari_list = [
+                        "Hot Lead", "Warm Lead", "Cold Lead", 
+                        "Pending Form - L1", "Pending Form - L2", 
+                        "Re-engagement", "Future Prospect", "Form Submitted", 
+                        "Sales Progress", "Not Eligible", "Double Chat", 
+                        "Alumni", "Partnership", "Closed - Registered", "Closed - Not Interested"
+                    ]
+                    sel_mekari = st.multiselect("Pilih Tag Mekari:", options=mekari_list, default=mekari_list)
+
+            # --- EKSEKUSI LOGIKA FILTER ---
+            # Kita gunakan mask bertahap agar aman jika ada data kosong
+            mask = pd.Series([True] * len(df_crm))
+            
+            if 'Kategori' in df_crm.columns:
+                mask &= df_crm['Kategori'].isin(sel_kategori)
+            if 'Domisili' in df_crm.columns:
+                mask &= df_crm['Domisili'].isin(sel_daerah)
+            if 'Keterangan Setelah Isi Form' in df_crm.columns:
+                mask &= df_crm['Keterangan Setelah Isi Form'].isin(sel_form)
+            if 'Mekari Tag (Status Terakhir)' in df_crm.columns:
+                mask &= df_crm['Mekari Tag (Status Terakhir)'].isin(sel_mekari)
             
             if search_crm:
-                mask = mask & (df_crm['Nama'].str.contains(search_crm, case=False, na=False) | df_crm['No Hp'].str.contains(search_crm))
+                mask &= (df_crm['Nama'].str.contains(search_crm, case=False, na=False) | 
+                         df_crm['No Hp'].str.contains(search_crm))
             
             filtered_crm = df_crm[mask].copy()
 
             # ==========================================================
-            # 2. EXECUTIVE SUMMARY (METRIK DINAMIS)
+            # 2. METRIK DINAMIS BERDASARKAN FILTER
             # ==========================================================
             st.markdown('<div class="feature-header">📈 Lead Monitoring Dashboard</div>', unsafe_allow_html=True)
             m1, m2, m3, m4 = st.columns(4)
+            
             m1.metric("Prospek Terfilter", len(filtered_crm))
             
-            hot_count = len(filtered_crm[filtered_crm['Status'] == 'INTERESTED'])
-            m2.metric("Hot Leads 🔥", hot_count)
+            # Hot Lead dihitung dari Mekari Tag
+            hot_leads = len(filtered_crm[filtered_crm['Mekari Tag (Status Terakhir)'] == 'Hot Lead']) if 'Mekari Tag (Status Terakhir)' in filtered_crm.columns else 0
+            m2.metric("Hot Leads 🔥", hot_leads)
             
-            reg_seg = len(filtered_crm[filtered_crm['Status'] == 'REGISTERED'])
-            m3.metric("Closing Segmen", reg_seg)
+            # Closing dihitung dari Mekari Tag "Closed - Registered"
+            closing_count = len(filtered_crm[filtered_crm['Mekari Tag (Status Terakhir)'] == 'Closed - Registered']) if 'Mekari Tag (Status Terakhir)' in filtered_crm.columns else 0
+            m3.metric("Closed Registered ✅", closing_count)
             
-            conv = (reg_seg / len(filtered_crm) * 100) if len(filtered_crm) > 0 else 0
-            m4.metric("Conv. Rate", f"{conv:.1f}%")
+            conv_rate = (closing_count / len(filtered_crm) * 100) if len(filtered_crm) > 0 else 0
+            m4.metric("Conversion Rate", f"{conv_rate:.1f}%")
 
             st.markdown("---")
 
@@ -987,62 +998,54 @@ elif page == "📂 DATABASE NOMOR":
             # ==========================================================
             st.markdown('<div class="feature-header">📑 Management Database Kontak LPK</div>', unsafe_allow_html=True)
             
-            stat_map = {"PENDING": "⏳ PENDING", "INTERESTED": "🔥 INTERESTED", "REGISTERED": "✅ REGISTERED", "NO RESPONSE": "🧊 NO RESPONSE"}
-            tx_map = {"WA Chat": "💬 WA Chat", "Telepon": "📞 Telepon", "Konsultasi": "🏫 Konsultasi", "Broadcast": "📢 Broadcast"}
-
-            df_crm_disp = filtered_crm.copy()
-            df_crm_disp['Status'] = df_crm_disp['Status'].map(stat_map).fillna(df_crm_disp['Status'])
-
+            # Editor Tabel
             edited_crm = st.data_editor(
-                df_crm_disp,
+                filtered_crm,
                 column_config={
-                    "No Hp": st.column_config.TextColumn("WhatsApp", disabled=True), # Aman dari error integer[cite: 1]
-                    "Kategori": st.column_config.SelectboxColumn("Kategori", options=["Siswa", "Partnership", "Lainnya"]),
-                    "Tanggal Lahir": st.column_config.DateColumn("Tgl Lahir"),
-                    "Treatment 1": st.column_config.SelectboxColumn("Tx 1", options=list(tx_map.values())),
-                    "Treatment 2": st.column_config.SelectboxColumn("Tx 2", options=list(tx_map.values())),
-                    "Status": st.column_config.SelectboxColumn("Status", options=list(stat_map.values())),
-                    "Updated Status After Treatment": st.column_config.SelectboxColumn("Status Akhir", options=list(stat_map.values())),
+                    "No Hp": st.column_config.TextColumn("WhatsApp", disabled=True), 
+                    "Kategori": st.column_config.SelectboxColumn("Kategori", options=["Siswa", "Orang Tua"]),
+                    "Keterangan Setelah Isi Form": st.column_config.SelectboxColumn("Status Form", options=["Tidak Dibalas", "Sudah Interview", "Tidak Lanjut"]),
+                    "Mekari Tag (Status Terakhir)": st.column_config.SelectboxColumn("Mekari Tag", options=mekari_list),
+                    "Status": st.column_config.SelectboxColumn("Status Internal", options=["PENDING", "INTERESTED", "REGISTERED", "NO RESPONSE"]),
                 },
-                disabled=['No', 'Usia', 'Tanggal Masuk Database', 'Zonasi', 'Segment Usia'],
+                disabled=['No', 'Usia', 'Tanggal Masuk Database'],
                 use_container_width=True,
                 hide_index=True,
-                key="crm_detailed_editor"
+                key="crm_final_editor"
             )
 
             # ==========================================================
             # 4. LOGIKA SIMPAN
             # ==========================================================
             if st.button("💾 Simpan Perubahan Database", use_container_width=True):
-                with st.spinner("Sinkronisasi ke Google Sheets..."):
+                with st.spinner("Sinkronisasi ke Cloud..."):
                     updates = 0
-                    cols_sync = [
-                        'Domisili', 'Tanggal Lahir', 'Kategori', 'Keterangan Setelah Isi Form',
-                        'Treatment 1', 'Treatment 2', 'Tanggal Treatment 1', 'Tanggal Treatment 2',
+                    # Kolom-kolom yang boleh di-update ke Sheets
+                    cols_to_sync = [
+                        'Domisili', 'Kategori', 'Keterangan Setelah Isi Form', 
+                        'Mekari Tag (Status Terakhir)', 'Treatment 1', 'Treatment 2', 
                         'Status', 'Updated Status After Treatment', 'Catatan'
                     ]
                     
                     for idx in edited_crm.index:
                         for col in cols_sync:
-                            old_v = str(df_crm.at[idx, col]).strip()
-                            new_v_raw = edited_crm.at[idx, col]
-                            new_v = str(new_v_raw).split(" ", 1)[-1].strip() if " " in str(new_v_raw) else str(new_v_raw)
+                            if col in df_crm.columns:
+                                old_v = str(df_crm.at[idx, col]).strip()
+                                new_v = str(edited_crm.at[idx, col]).strip()
 
-                            if old_v != new_v and new_v != "None":
-                                update_sheet_cell(4, idx, col, new_v)
-                                updates += 1
+                                if old_v != new_v:
+                                    update_sheet_cell(4, idx, col, new_v)
+                                    updates += 1
                     
                     if updates > 0:
-                        st.success(f"✅ Berhasil memperbarui {updates} data!")
+                        st.success(f"✅ Berhasil! {updates} data diperbarui.")
                         st.cache_data.clear()
                         st.rerun()
         else:
-            st.warning("Database masih kosong. Cek data di Google Sheets Tab 5.")
+            st.warning("Database masih kosong. Cek Tab 5 di Google Sheets Mas.")
 
     except Exception as e:
         st.error(f"Gagal memuat CRM: {e}")
-    except Exception as e:
-        st.error(f"Gagal memuat Database Spesifik: {e}")
 if __name__ == "__main__":
     if not st.runtime.exists():
         sys.argv = ["streamlit", "run", sys.argv[0]]
