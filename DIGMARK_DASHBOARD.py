@@ -429,16 +429,37 @@ if page == "🏠 HOMEPAGE":
                 return df_t[(df_t['tgl_p'].dt.month == m) & (df_t['tgl_p'].dt.year == y)]
             return pd.DataFrame()
 
-        # --- A. Perhitungan Leads & Closing ---
-        total_leads, total_closing = 0, 0
-        if not df_wa_home.empty:
-            mekari_col = next((c for c in df_wa_home.columns if 'Mekari' in str(c)), None)
-            df_leads_only = df_wa_home[df_wa_home[mekari_col].astype(str).str.upper() != 'PARTNERSHIP'] if mekari_col else df_wa_home
-            total_leads = len(df_leads_only)
-            
-            status_col = next((c for c in df_leads_only.columns if 'Status' in str(c)), None)
-            if status_col:
-                total_closing = len(df_leads_only[df_leads_only[status_col].astype(str).str.contains('Closing', case=False, na=False)])
+ # --- A. Perhitungan Leads & Closing (DIPERKETAT) ---
+total_leads, total_closing = 0, 0
+
+if not df_wa_home.empty:
+    # 1. Bersihkan baris yang benar-benar kosong (biasanya ada di bawah sheet)
+    # Kita asumsikan kolom 'No Hp' atau 'Nama' harus ada isinya
+    df_clean = df_wa_home.dropna(subset=['No Hp']).copy()
+    df_clean = df_clean[df_clean['No Hp'].astype(str).str.strip() != ""]
+
+    # 2. Filter hanya untuk BULAN INI (Agar sinkron dengan dashboard bulanan)
+    sekarang = datetime.datetime.now()
+    df_bulan_ini = df_clean[
+        (pd.to_datetime(df_clean['Tanggal Masuk'], dayfirst=True, errors='coerce').dt.month == sekarang.month) & 
+        (pd.to_datetime(df_clean['Tanggal Masuk'], dayfirst=True, errors='coerce').dt.year == sekarang.year)
+    ]
+
+    # 3. Cari kolom Mekari & Status
+    mekari_col = next((c for c in df_bulan_ini.columns if 'Mekari' in str(c)), None)
+    status_col = next((c for c in df_bulan_ini.columns if 'Status' in str(c)), None)
+
+    # 4. Hitung Leads Murni (Bukan Partnership)
+    if mekari_col:
+        df_leads_only = df_bulan_ini[df_bulan_ini[mekari_col].astype(str).str.strip().str.upper() != 'PARTNERSHIP']
+    else:
+        df_leads_only = df_bulan_ini
+
+    total_leads = len(df_leads_only)
+
+    # 5. Hitung Closing dari Leads Murni tersebut
+    if status_col:
+        total_closing = len(df_leads_only[df_leads_only[status_col].astype(str).str.contains('Closing', case=False, na=False)])
 
         # --- B. Hutang Sosmed & Web ---
         df_sos_debt = filter_waktu_ketat(df_sos_home, bulan_lalu, tahun_bulan_lalu)
