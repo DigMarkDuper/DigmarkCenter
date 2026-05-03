@@ -4,111 +4,71 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import plotly.express as px
 import plotly.graph_objects as go
-import sys
-from streamlit.web import cli as stcli
 import base64
-
-def get_base64(bin_file):
-    with open(bin_file, 'rb') as f:
-        data = f.read()
-    return base64.b64encode(data).decode()
-
-# Fungsi untuk menyuntikkan background ke CSS
-def set_bg_local(png_file):
-    bin_str = get_base64(png_file)
-    page_bg_img = f'''
-    <style>
-    [data-testid="stAppViewContainer"] {{
-        background-image: url("data:image/png;base64,{bin_str}");
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
-        background-attachment: fixed;
-    }}
-    
-    /* Membuat header transparan agar tidak menutupi background */
-    [data-testid="stHeader"] {{
-        background: rgba(0,0,0,0);
-    }}
-
-    /* Menambahkan sedikit overlay gelap agar konten tetap menonjol */
-    [data-testid="stAppViewContainer"]::before {{
-        content: "";
-        position: absolute;
-        top: 0; left: 0; width: 100%; height: 100%;
-        background-color: rgba(255, 255, 255, 0.4); /* Putih transparan agar kesan bersih tetap terjaga */
-        z-index: -1;
-    }}
-    </style>
-    '''
-    st.markdown(page_bg_img, unsafe_allow_html=True)
+import datetime
+import sys
 
 # =====================================================================
-# 1. KONFIGURASI GLOBAL
+# 1. KONFIGURASI GLOBAL & NAVIGASI
 # =====================================================================
 st.set_page_config(page_title="Digmark Command Center", layout="wide", page_icon="🚀")
 
-LOGO_URL = "https://www.dutapersadajogja.com/assets/img/logo.png" 
+# Inisialisasi Session State Halaman agar navigasi lancar
+if 'page' not in st.session_state:
+    st.session_state.page = "🏠 HOMEPAGE"
 
+def go_to_page(page_name):
+    st.session_state.page = page_name
+
+page = st.session_state.page
+
+LOGO_URL = "https://www.dutapersadajogja.com/assets/img/logo.png" 
 BRAND_BLUE = "#005696"
 BRAND_YELLOW = "#FDB813"
 TEXT_BLACK = "#000000" 
 BG_WHITE = "#FFFFFF"
 
 # =====================================================================
-# 2. SISTEM KEAMANAN (USERNAME & PASSWORD)
+# 2. SISTEM KEAMANAN & BACKGROUND
 # =====================================================================
+def get_base64(bin_file):
+    with open(bin_file, 'rb') as f:
+        return base64.b64encode(f.read()).decode()
+
+def set_bg_local(png_file):
+    try:
+        bin_str = get_base64(png_file)
+        st.markdown(f'''
+            <style>
+            [data-testid="stAppViewContainer"] {{
+                background-image: url("data:image/png;base64,{bin_str}");
+                background-size: cover; background-attachment: fixed;
+            }}
+            [data-testid="stAppViewContainer"]::before {{
+                content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+                background-color: rgba(255, 255, 255, 0.4); z-index: -1;
+            }}
+            </style>
+        ''', unsafe_allow_html=True)
+    except: pass
+
 def check_password():
-    # Jika sudah berhasil login sebelumnya, langsung beri akses
-    if st.session_state.get("password_correct"):
-        return True
-
-    # CSS untuk merapikan logo dan kotak login
-    st.markdown(f"""
-        <style>
-        .login-box {{ display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }}
-        .centered-image {{ display: block; margin-left: auto; margin-right: auto; border-radius: 50%; border: 3px solid {BRAND_YELLOW}; }}
-        /* Sedikit styling tambahan untuk tombol Login agar senada dengan warna Brand */
-        [data-testid="stFormSubmitButton"] button {{ width: 100%; background-color: {BRAND_BLUE}; color: white; border-radius: 5px; }}
-        </style>
-    """, unsafe_allow_html=True)
-
+    if st.session_state.get("password_correct"): return True
     _, col_mid, _ = st.columns([1, 2, 1])
     with col_mid:
-        st.markdown(f"""
-            <div class="login-box">
-                <img src="{LOGO_URL}" class="centered-image" width="180">
-                <h2 style='color: {BRAND_BLUE}; margin-top: 15px;'>DIGITAL MARKETING COMMAND CENTER</h2>
-                <p style='color: gray; margin-top: -10px;'>LPK Duta Persada Yogyakarta</p>
-                <hr style='border: 1px solid {BRAND_YELLOW}; width: 100%; margin-bottom: 20px;'>
-            </div>
-        """, unsafe_allow_html=True)
-
-        # Membuat Form Login
+        st.markdown(f'<div style="text-align:center;"><img src="{LOGO_URL}" width="180"><h2>COMMAND CENTER</h2></div>', unsafe_allow_html=True)
         with st.form("login_form"):
-            input_username = st.text_input("Username:")
-            input_password = st.text_input("Password:", type="password")
-            submit_button = st.form_submit_button("Masuk ke Dashboard")
-
-            if submit_button:
-                # Membersihkan input dari spasi berlebih dan menjadikan huruf kecil
-                user = input_username.strip().lower()
-                
-                # Cek apakah blok [credentials] ada di Secrets
-                if "credentials" in st.secrets:
-                    # Validasi Username dan Password
-                    if user in st.secrets["credentials"] and st.secrets["credentials"][user] == input_password:
-                        st.session_state["password_correct"] = True
-                        st.session_state["current_user"] = user.capitalize() # Menyimpan nama user yang login
-                        st.rerun() # Refresh halaman untuk langsung masuk
-                    else:
-                        st.error("😕 Username atau Password salah.")
-                else:
-                    st.error("⚠️ Sistem Keamanan: Data kredensial tidak ditemukan di server.")
-
+            user = st.text_input("Username:").strip().lower()
+            pwd = st.text_input("Password:", type="password")
+            if st.form_submit_button("Masuk"):
+                if "credentials" in st.secrets and user in st.secrets["credentials"] and st.secrets["credentials"][user] == pwd:
+                    st.session_state["password_correct"] = True
+                    st.rerun()
+                else: st.error("Username/Password Salah")
     return False
 
-# GERBANG KEAMANAN MUTLAK
+if not check_password(): st.stop()
+set_bg_local('bg.png')
 if not check_password():
     st.stop()
 # =====================================================================
@@ -124,7 +84,7 @@ def init_connection():
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_info, scope)
         return gspread.authorize(creds)
     except Exception as e:
-        st.error(f"⚠️ Koneksi Gagal: {e}")
+        st.error(f"Koneksi Gagal: {e}")
         return None
 
 def get_raw_df(sheet_index):
@@ -134,23 +94,17 @@ def get_raw_df(sheet_index):
             spreadsheet = client.open("MASTER DATA DIGITAL MARKETING 2.0")
             sheet = spreadsheet.get_worksheet(sheet_index)
             return pd.DataFrame(sheet.get_all_records())
-        except Exception as e:
-            st.error(f"Gagal akses Tab {sheet_index}: {e}")
+        except: return pd.DataFrame()
     return pd.DataFrame()
 
 @st.cache_data(ttl=5)
 def load_sosmed():
     df = get_raw_df(0)
-    if not df.empty:
-        col = 'Tanggal Deadline'
-        if col in df.columns:
-            df[col] = pd.to_datetime(df[col], dayfirst=True, errors='coerce')
-            df['Bulan-Deadline'] = df[col].dt.strftime('%B %Y')
-        else:
-            df['Bulan-Deadline'] = "Unknown"
+    if not df.empty and 'Tanggal Deadline' in df.columns:
+        df['Tanggal Deadline'] = pd.to_datetime(df['Tanggal Deadline'], dayfirst=True, errors='coerce')
+        df['Bulan-Deadline'] = df['Tanggal Deadline'].dt.strftime('%B %Y')
         for c in ['IG', 'YT', 'TIKTOK']:
-            if c in df.columns:
-                df[c] = df[c].apply(lambda x: True if str(x).upper() in ['TRUE', 'V', '1', 'CHECKED'] else False)
+            if c in df.columns: df[c] = df[c].apply(lambda x: True if str(x).upper() in ['TRUE', 'V', '1'] else False)
     return df
 
 @st.cache_data(ttl=5)
@@ -164,9 +118,9 @@ def load_website():
 @st.cache_data(ttl=5)
 def load_insight():
     df = get_raw_df(2)
-    for col in ['View', 'Reach', 'Interaction', 'Link Clicks', 'Profile Visit', 'Follow']:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+    cols = ['View', 'Reach', 'Interaction', 'Link Clicks', 'Profile Visit', 'Follow']
+    for c in cols:
+        if not df.empty and c in df.columns: df[c] = pd.to_numeric(df[c], errors='coerce').fillna(0)
     return df
 
 @st.cache_data(ttl=5)
@@ -179,208 +133,183 @@ def load_wa_admin():
 
 @st.cache_data(ttl=5)
 def load_database_nomor():
-    df = get_raw_df(4) # Pastikan Tab Index 4 adalah Database Kontak
+    df = get_raw_df(4)
     if not df.empty:
-        # Konversi kolom tanggal agar formatnya seragam di Website
-        for col in ['Tanggal Lahir', 'Tanggal Masuk Database', 'Tanggal Treatment 1', 'Tanggal Treatment 2']:
-            if col in df.columns:
-                df[col] = pd.to_datetime(df[col], errors='coerce').dt.date
+        tgl_cols = ['Tanggal Lahir', 'Tanggal Masuk Database', 'Tanggal Treatment 1', 'Tanggal Treatment 2']
+        for c in tgl_cols:
+            if c in df.columns: df[c] = pd.to_datetime(df[c], errors='coerce').dt.date
     return df
 
 # =====================================================================
-# 4. FUNGSI WRITE-BACK & BATCH UPDATE
+# 4. FUNGSI WRITE-BACK (UPDATE & APPEND)
 # =====================================================================
-
 def update_sheet_cell(sheet_index, row_index, column_name, new_value):
-    """Update satu cell (untuk Live Editor)"""
     client = init_connection()
     if client:
         try:
-            spreadsheet = client.open("MASTER DATA DIGITAL MARKETING 2.0")
-            sheet = spreadsheet.get_worksheet(sheet_index)
+            ss = client.open("MASTER DATA DIGITAL MARKETING 2.0")
+            sheet = ss.get_worksheet(sheet_index)
             headers = sheet.row_values(1)
             if column_name in headers:
-                col_index = headers.index(column_name) + 1
-                sheet.update_cell(row_index + 2, col_index, str(new_value))
-                st.cache_data.clear() # Penting agar data terbaru langsung tampil
+                col_idx = headers.index(column_name) + 1
+                sheet.update_cell(row_index + 2, col_idx, str(new_value))
+                st.cache_data.clear()
                 return True
-        except Exception as e:
-            st.error(f"Gagal Update Cell: {e}")
+        except: return False
     return False
 
 def batch_append_rows(sheet_index, data_list):
-    """
-    Menambahkan banyak baris sekaligus (Batch Update).
-    Cocok untuk sinkronisasi Laporan WA ke Database Nomor.
-    data_list: List dari List (Contoh: [['2026-05-01', 'Budi', '0812...'], [...]])
-    """
-    if not data_list:
-        return False
-        
+    if not data_list: return False
     client = init_connection()
     if client:
         try:
-            spreadsheet = client.open("MASTER DATA DIGITAL MARKETING 2.0")
-            sheet = spreadsheet.get_worksheet(sheet_index)
-            # append_rows jauh lebih cepat daripada update_cell satu per satu
+            ss = client.open("MASTER DATA DIGITAL MARKETING 2.0")
+            sheet = ss.get_worksheet(sheet_index)
             sheet.append_rows(data_list)
             st.cache_data.clear()
             return True
-        except Exception as e:
-            st.error(f"Gagal Batch Update: {e}")
-    return False
-# =====================================================================
-# 4. FUNGSI UPDATE DATA (TARUH TEPAT DI BAWAH load_wa_admin)
-# =====================================================================
-def update_sheet_cell(sheet_index, row_index, column_name, new_value):
-    """
-    row_index: index dari dataframe (0-based)
-    column_name: nama kolom target di spreadsheet
-    """
-    client = init_connection()
-    if client:
-        try:
-            spreadsheet = client.open("MASTER DATA DIGITAL MARKETING 2.0")
-            sheet = spreadsheet.get_worksheet(sheet_index)
-            
-            # 1. Ambil header untuk mencari nomor kolom
-            headers = sheet.row_values(1)
-            if column_name in headers:
-                col_index = headers.index(column_name) + 1 # gspread itu 1-based
-                
-                # 2. Update cell (row_index + 2 karena: +1 index sheet, +1 ada header)
-                sheet.update_cell(row_index + 2, col_index, new_value)
-                
-                # 3. Clear cache agar data terbaru langsung ditarik setelah update
-                st.cache_data.clear()
-                return True
-        except Exception as e:
-            st.error(f"Gagal update data ke Cloud: {e}")
+        except: return False
     return False
 
 # =====================================================================
-# 4. STYLING CUSTOM
+# 5. GLOBAL STYLING
 # =====================================================================
 st.markdown(f"""
     <style>
-    .stApp {{ background-color: {BG_WHITE} !important; }}
-    [data-testid="stSidebar"] {{ background-color: {BG_WHITE} !important; border-right: 3px solid {BRAND_BLUE}; }}
+    @import url('https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;600;800&display=swap');
+    html, body, [data-testid="stAppViewContainer"], .stMarkdown {{ font-family: 'Work Sans', sans-serif !important; }}
     .feature-header {{
-        background-color: {BRAND_BLUE}; color: white !important; padding: 15px; border-radius: 8px; 
-        border-left: 10px solid {BRAND_YELLOW}; font-size: 22px; font-weight: 800; margin-top: 20px; margin-bottom: 20px;
+        background-color: {BRAND_BLUE}; color: white; padding: 15px; border-radius: 8px; 
+        border-left: 10px solid {BRAND_YELLOW}; font-size: 22px; font-weight: 800; margin-bottom: 20px;
     }}
-    p, span, label, li, .stMarkdown, .streamlit-expanderHeader p {{ color: {TEXT_BLACK} !important; font-weight: 700 !important; }}
+    [data-testid="stVerticalBlockBorderWrapper"] {{
+        box-shadow: 0 12px 28px rgba(0,0,0,0.1) !important; border-radius: 15px !important;
+        background-color: white !important; padding: 15px !important;
+    }}
     </style>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
-   # ==========================================================
-# 5. GRID NAVIGASI KOTAK BAWAH (UPDATED: 5 COLUMNS)
-# ==========================================================
 def create_square_card(icon, title, subtitle, target_page, button_key):
     with st.container(border=True):
         st.markdown(f"""
-            <div style="text-align: center; padding: 10px 0px 5px 0px;">
-                <div style="font-size: 70px; line-height: 1; margin-bottom: 15px;">{icon}</div>
-                <div style="font-size: 14px; font-weight: 900; color: {BRAND_BLUE}; text-transform: uppercase; line-height: 1.2;">{title}</div>
-                <div style="font-size: 12px; color: #666; margin-top: 8px; min-height: 35px;">{subtitle}</div>
+            <div style="text-align: center; padding: 10px 0px;">
+                <div style="font-size: 60px;">{icon}</div>
+                <div style="font-weight: 800; color: {BRAND_BLUE};">{title}</div>
+                <div style="font-size: 11px; color: #666; min-height:30px;">{subtitle}</div>
             </div>
         """, unsafe_allow_html=True)
-        # Pastikan fungsi go_to_page sudah terdefinisi di bagian atas skrip
         st.button("Masuk ➔", key=button_key, use_container_width=True, on_click=go_to_page, args=(target_page,))
-
-# Membuat 5 kolom sejajar
-c1, c2, c3, c4, c5 = st.columns(5)
-
-with c1: 
-    create_square_card("📱", "Sosial Media", "Jadwal Tayang & Hutang PIC", "📱 SOSIAL MEDIA", "btn_sos")
-
-with c2: 
-    create_square_card("🌐", "Website Audit", "Status Artikel & Pilar SEO", "🌐 WEBSITE AUDIT", "btn_web")
-
-with c3: 
-    create_square_card("📈", "Analytics", "Interaksi, Views & Leads", "📈 INSIGHTS & ANALYTICS", "btn_in")
-
-with c4: 
-    create_square_card("💬", "WA Report", "Funneling & Sukses Closing", "💬 WA ADMIN REPORT", "btn_wa")
-
-with c5: 
-    create_square_card("📂", "Database Nomor", "CRM & Detail Prospek Siswa", "📂 DATABASE NOMOR", "btn_db")
-
-st.markdown("<hr style='border: 1px solid #EEE; margin-top: 40px;'>", unsafe_allow_html=True)
-# ==========================================================
-# KONFIGURASI TAMPILAN GLOBAL (SELURUH HALAMAN)
-# ==========================================================
-
-# 1. Panggil Background Global
-try:
-    # Pastikan file bg.png ada di root folder GitHub Mas
-    set_bg_local('bg.png')
-except:
-    pass
-
-# 2. Suntikkan CSS Global (Font & Shadow)
-st.markdown(f"""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;600;800&display=swap');
-
-    /* Terapkan Work Sans ke semua teks di semua halaman */
-    html, body, [data-testid="stAppViewContainer"], .main, .stMarkdown {{
-        font-family: 'Work Sans', sans-serif !important;
-    }}
-
-    /* Terapkan Shadow ke semua kontainer ber-border di semua modul */
-    [data-testid="stVerticalBlockBorderWrapper"] {{
-        box-shadow: 0 12px 28px rgba(0,0,0,0.12) !important;
-        border-radius: 15px !important;
-        background-color: white !important;
-        border: 1px solid #F0F2F6 !important;
-        padding: 15px !important;
-        margin-bottom: 20px !important;
-    }}
-
-    /* Styling Header Global */
-    h1, h2, h3, .feature-header {{
-        font-family: 'Work Sans', sans-serif !important;
-        font-weight: 800 !important;
-    }}
-    </style>
-""", unsafe_allow_html=True)
-
 # =====================================================================
-# 6. LOGIKA HALAMAN & GRAFIK LENGKAP
+# 6. LOGIKA HALAMAN
 # =====================================================================
 
-# --- CSS KHUSUS TOMBOL & SIDEBAR (Disatukan di sini agar rapi dan tidak error) ---
-st.markdown(f"""
-    <style>
-    /* Mengubah warna teks dan garis tombol menjadi Biru LPK */
-    div[data-testid="stButton"] button p {{
-        color: {BRAND_BLUE} !important;
-        font-weight: 800 !important;
-    }}
-    div[data-testid="stButton"] button {{
-        border-color: {BRAND_BLUE} !important;
-    }}
-    /* Efek Hover: Tombol jadi biru penuh, teks jadi putih */
-    div[data-testid="stButton"] button:hover {{
-        background-color: {BRAND_BLUE} !important;
-    }}
-    div[data-testid="stButton"] button:hover p {{
-        color: #FFFFFF !important;
-    }}
-    
-    /* Sembunyikan Opsi Pertama (Homepage) dari Sidebar */
-    div[role="radiogroup"] > label:first-child {{
-        display: none !important;
-    }}
-    </style>
-""", unsafe_allow_html=True)
-
-# --- TOMBOL CEPAT POJOK KIRI ATAS (TANPA BUKA SIDEBAR) ---
-# Tombol ini hanya akan muncul jika user sedang TIDAK berada di Homepage
+# Tombol Kembali Global
 if page != "🏠 HOMEPAGE":
-    st.button("⬅️ KEMBALI KE HOMEPAGE", key="btn_back_home", on_click=go_to_page, args=("🏠 HOMEPAGE",))
-    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("⬅️ KEMBALI KE HOMEPAGE"):
+        go_to_page("🏠 HOMEPAGE")
+        st.rerun()
+
+if page == "🏠 HOMEPAGE":
+    st.markdown('<div class="feature-header" style="text-align:center;">DIGITAL MARKETING COMMAND CENTER</div>', unsafe_allow_html=True)
+    
+    # Grid 5 Kolom[cite: 1]
+    c1, c2, c3, c4, c5 = st.columns(5)
+    with c1: create_square_card("📱", "Sosial Media", "Jadwal & Hutang PIC", "📱 SOSIAL MEDIA", "h_sos")
+    with c2: create_square_card("🌐", "Website", "SEO & Status Artikel", "🌐 WEBSITE AUDIT", "h_web")
+    with c3: create_square_card("📈", "Analytics", "Views & Jangkauan", "📈 INSIGHTS & ANALYTICS", "h_in")
+    with c4: create_square_card("💬", "WA Report", "Closing & Funneling", "💬 WA ADMIN REPORT", "h_wa")
+    with c5: create_square_card("📂", "Database", "CRM & Detail Kontak", "📂 DATABASE NOMOR", "h_db")
+
+    # --- KPI SUMMARY ---
+    try:
+        df_wa_h = load_wa_admin()
+        df_in_h = load_insight()
+        st.markdown("---")
+        k1, k2, k3 = st.columns(3)
+        k1.metric("Total Leads WA", len(df_wa_h) if not df_wa_h.empty else 0)
+        k2.metric("Total Views Content", f"{df_in_h['View'].sum():,.0f}" if not df_in_h.empty else 0)
+        k3.metric("Target Closing 2026", "450 Siswa")
+    except: pass
+
+elif page == "📱 SOSIAL MEDIA":
+    st.title("🚀 SOSMED COMMAND CENTER")
+    try:
+        df = load_sosmed()
+        list_pic = ["Ejak", "Hana", "Abi", "Hanif"]
+        selected_pic = st.sidebar.multiselect("Pantau PIC:", list_pic, default=list_pic)
+        
+        filtered_df = df[df['PIC'].isin(selected_pic)].copy()
+        
+        # Layout Kanan-Kiri
+        col_vis, col_aud = st.columns([1.2, 1])
+        with col_vis:
+            st.markdown('<div class="feature-header">📊 Visualisasi Produksi</div>', unsafe_allow_html=True)
+            p_counts = filtered_df['Konten Pillar'].value_counts().reset_index()
+            fig = px.pie(p_counts, names='Konten Pillar', values='count', hole=0.3)
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col_aud:
+            st.markdown('<div class="feature-header">📝 Audit PIC</div>', unsafe_allow_html=True)
+            for pic in selected_pic:
+                with st.expander(f"Status {pic}"):
+                    st.write(f"Tugas Pending: {len(filtered_df[(filtered_df['PIC']==pic) & (filtered_df['PROSES']!='DONE')])}")
+
+        # Live Editor dengan Emoji[cite: 1]
+        st.markdown('<div class="feature-header">📋 Live Production Editor</div>', unsafe_allow_html=True)
+        pic_map = {"Ejak": "🔵 Ejak", "Hana": "🟢 Hana", "Abi": "🟡 Abi", "Hanif": "🟣 Hanif"}
+        df_disp = filtered_df.copy()
+        df_disp['PIC'] = df_disp['PIC'].map(pic_map).fillna(df_disp['PIC'])
+        
+        edited = st.data_editor(df_disp[['Kode Konten', 'PIC', 'Output', 'Judul Konten', 'PROSES', 'IG', 'YT', 'TIKTOK']], use_container_width=True)
+        
+        if st.button("💾 Simpan Perubahan Sosmed"):
+            for idx in edited.index:
+                for col in ["PIC", "PROSES", "IG", "YT", "TIKTOK"]:
+                    new_val = edited.at[idx, col]
+                    if " " in str(new_val): new_val = str(new_val).split(" ", 1)[-1]
+                    update_sheet_cell(0, idx, col, new_val)
+            st.success("Tersimpan!")
+    except: st.error("Gagal Load Sosmed")
+
+elif page == "💬 WA ADMIN REPORT":
+    st.title("💬 KINERJA WA ADMIN")
+    try:
+        df_wa = load_wa_admin()
+        # Fitur Sinkronisasi ke CRM[cite: 1]
+        if st.button("🚀 SYNC KE DATABASE CRM"):
+            df_crm = load_database_nomor()
+            existing = set(df_crm['No Hp'].astype(str).tolist()) if not df_crm.empty else set()
+            new_data = [[datetime.date.today().isoformat(), r['Nama'], r['Nomor HP'], "PENDING"] for _, r in df_wa.iterrows() if str(r['Nomor HP']) not in existing]
+            if batch_append_rows(4, new_data): st.success("Data unik berhasil dipindah!")
+        st.dataframe(df_wa, use_container_width=True)
+    except: st.error("Gagal Load WA")
+
+elif page == "📂 DATABASE NOMOR":
+    st.title("🗂️ CRM DATABASE (17 KOLOM)")
+    try:
+        df_crm = load_database_nomor()
+        st.markdown(f"**Total Prospek:** {len(df_crm)}")
+        
+        # CRM Live Editor Spesifik[cite: 1]
+        edited_crm = st.data_editor(
+            df_crm,
+            column_config={
+                "Status": st.column_config.SelectboxColumn("Status", options=["PENDING", "INTERESTED", "REGISTERED", "NO RESPONSE"]),
+                "Treatment 1": st.column_config.SelectboxColumn("Tx 1", options=["WA Chat", "Telepon", "Konsultasi"]),
+            },
+            disabled=['No', 'Usia', 'Tanggal Masuk Database'],
+            use_container_width=True
+        )
+        
+        if st.button("💾 Simpan Update CRM"):
+            updates = 0
+            cols_sync = ['Domisili', 'Kategori', 'Treatment 1', 'Treatment 2', 'Status', 'Catatan']
+            for idx in edited_crm.index:
+                for c in cols_sync:
+                    update_sheet_cell(4, idx, c, edited_crm.at[idx, c])
+                    updates += 1
+            st.success(f"Berhasil update {updates} data!")
+    except: st.error("Gagal Load CRM")
 
 # --- HALAMAN 0: HOMEPAGE ---
 if page == "🏠 HOMEPAGE":
