@@ -401,8 +401,8 @@ if page == "🏠 HOMEPAGE":
     with c5: create_square_card("📂", "Database", "CRM Kontak", "📂 DATABASE NOMOR", "btn_db")
 
     st.markdown("---") # Garis Pemisah
-     # ==========================================================
-        # 3. EXECUTIVE SUMMARY (OPTIMIZED & FILTERED)
+# ==========================================================
+        # 3. EXECUTIVE SUMMARY (RE-CALIBRATED)
         # ==========================================================
         try:
             df_wa_home = load_wa_admin()
@@ -416,78 +416,48 @@ if page == "🏠 HOMEPAGE":
             bulan_lalu = 12 if sekarang.month == 1 else sekarang.month - 1
             tahun_bulan_lalu = sekarang.year - 1 if sekarang.month == 1 else sekarang.year
 
-            # --- FUNGSI HELPER FILTER WAKTU (STRICT MODE) ---
+            # --- FUNGSI HELPER FILTER WAKTU ---
             def filter_waktu_ketat(df, m, y):
                 if df is None or df.empty: return pd.DataFrame()
-                
-                # Cari kolom tanggal secara dinamis
                 col_tgl = next((c for c in df.columns if any(k in str(c).lower() for k in ['tanggal', 'deadline', 'date'])), None)
-                
                 if col_tgl:
                     df_t = df.copy()
-                    bulan_indo = {
-                        'januari':'01', 'februari':'02', 'maret':'03', 'april':'04', 
-                        'mei':'05', 'juni':'06', 'juli':'07', 'agustus':'08', 
-                        'september':'09', 'oktober':'10', 'november':'11', 'desember':'12'
-                    }
-                    
-                    # Konversi ke datetime
+                    bulan_indo = {'januari':'01', 'februari':'02', 'maret':'03', 'april':'04', 'mei':'05', 'juni':'06', 'juli':'07', 'agustus':'08', 'september':'09', 'oktober':'10', 'november':'11', 'desember':'12'}
                     df_t['tgl_p'] = pd.to_datetime(df_t[col_tgl], errors='coerce', dayfirst=True)
-                    
-                    # Cek jika butuh konversi manual bulan Indo
                     if df_t['tgl_p'].isnull().any():
                         df_t['tgl_str'] = df_t[col_tgl].astype(str).str.lower()
                         for k, v in bulan_indo.items():
                             df_t['tgl_str'] = df_t['tgl_str'].str.replace(k, v)
                         df_t['tgl_p'] = pd.to_datetime(df_t['tgl_str'], errors='coerce', dayfirst=True)
-                    
                     return df_t[(df_t['tgl_p'].dt.month == m) & (df_t['tgl_p'].dt.year == y)]
                 return pd.DataFrame()
 
-            # 1. Kalkulasi Leads Murni (Tanpa Partnership)
+            # 1. Leads Murni (Tanpa Partnership)
             total_leads, total_closing = 0, 0
             if not df_wa_home.empty:
                 mekari_col = next((c for c in df_wa_home.columns if 'Mekari' in str(c)), None)
                 status_col = next((col for col in df_wa_home.columns if 'Status' in str(col)), None)
-                
-                # Filter: Buang Partnership
-                if mekari_col:
-                    df_leads_only = df_wa_home[df_wa_home[mekari_col].astype(str).str.strip().str.upper() != 'PARTNERSHIP']
-                else:
-                    df_leads_only = df_wa_home
-
+                df_leads_only = df_wa_home[df_wa_home[mekari_col].astype(str).str.strip().str.upper() != 'PARTNERSHIP'] if mekari_col else df_wa_home
                 total_leads = len(df_leads_only)
-                if status_col:
-                    total_closing = len(df_leads_only[df_leads_only[status_col].astype(str).str.contains('Closing', case=False, na=False)])
+                total_closing = len(df_leads_only[df_leads_only[status_col].astype(str).str.contains('Closing', case=False, na=False)]) if status_col else 0
 
             # 2. Performa Views & Reach
             total_view = df_in_home['View'].sum() if not df_in_home.empty else 0
             total_reach = df_in_home['Reach'].sum() if not df_in_home.empty else 0
 
-            # 3. Hutang Sosmed (April/Bulan Lalu)
+            # 3. Hutang Sosmed (April) & Web (Mei)
             df_sos_debt = filter_waktu_ketat(df_sos_home, bulan_lalu, tahun_bulan_lalu)
-            sos_pending = 0
-            if not df_sos_debt.empty:
-                sos_pending = len(df_sos_debt[df_sos_debt['PROSES'].astype(str).str.upper() != 'DONE'])
+            sos_pending = len(df_sos_debt[df_sos_debt['PROSES'].astype(str).str.upper() != 'DONE']) if not df_sos_debt.empty else 0
             
-            # 4. Hutang Web (Mei/Bulan Ini)
             df_web_now = filter_waktu_ketat(df_web_home, bulan_ini, tahun_ini)
             web_pending = 0
             if not df_web_now.empty:
                 done_kw = ['DONE', 'TRUE', 'V', '1', 'POSTED', 'SELESAI', 'UPLOAD', 'UPLOADED']
                 web_pending = len(df_web_now[~df_web_now['Status Post'].astype(str).str.upper().str.strip().isin(done_kw)])
 
-            # --- RENDER KOTAK KPI ---
+            # --- RENDER KPI ---
             def render_kpi(icon, title, value):
-                return f'''
-                <div class="kpi-card">
-                    <div>{icon}</div>
-                    <div>
-                        <div style="font-size:11px; color:gray;">{title}</div>
-                        <div style="font-size:16px; font-weight:bold;">{value}</div>
-                    </div>
-                </div>
-                '''
+                return f'<div class="kpi-card"><div>{icon}</div><div><div style="font-size:11px; color:gray;">{title}</div><div style="font-size:16px; font-weight:bold;">{value}</div></div></div>'
 
             k1, k2, k3, k4 = st.columns(4)
             with k1: st.markdown(render_kpi("🎯", "Closing / Leads (Murni)", f"{total_closing} / {total_leads}"), unsafe_allow_html=True)
@@ -497,6 +467,8 @@ if page == "🏠 HOMEPAGE":
 
         except Exception as e:
             st.error(f"Gagal memuat metrik summary: {e}")
+
+        st.markdown("---")
     # ==========================================================
     # 4. PETA PERSEBARAN & GRAFIK (FULL WIDTH & SHADOW)
     # ==========================================================
