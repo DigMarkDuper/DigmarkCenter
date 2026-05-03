@@ -310,23 +310,20 @@ elif page == "📂 DATABASE NOMOR":
                     updates += 1
             st.success(f"Berhasil update {updates} data!")
     except: st.error("Gagal Load CRM")
-
+        
 # --- HALAMAN 0: HOMEPAGE ---
 if page == "🏠 HOMEPAGE":
     # ==========================================================
-    # 1. GLOBAL CSS: FONT WORK SANS & SHADOW BOX (TARUH DI SINI)
+    # 1. GLOBAL CSS & FONT
     # ==========================================================
     st.markdown(f"""
         <style>
-        /* 1. Import Font Work Sans */
         @import url('https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;600;800&display=swap');
 
-        /* 2. Terapkan Font ke Seluruh Aplikasi */
         html, body, [data-testid="stAppViewContainer"], .main {{
             font-family: 'Work Sans', sans-serif !important;
         }}
 
-        /* 3. Shadow untuk Kartu KPI (HTML Custom) */
         .kpi-card {{
             background-color: #FFFFFF;
             border-radius: 12px;
@@ -338,11 +335,9 @@ if page == "🏠 HOMEPAGE":
             gap: 15px;
             margin-bottom: 15px;
             transition: transform 0.3s ease;
-            font-family: 'Work Sans', sans-serif !important;
         }}
         .kpi-card:hover {{ transform: translateY(-5px); }}
 
-        /* 4. Shadow untuk Kotak Peta, Grafik, & Navigasi (Streamlit Native) */
         [data-testid="stVerticalBlockBorderWrapper"] {{
             box-shadow: 0 12px 28px rgba(0,0,0,0.12) !important;
             border-radius: 15px !important;
@@ -352,7 +347,6 @@ if page == "🏠 HOMEPAGE":
             margin-bottom: 20px !important;
         }}
         
-        /* Font spesifik untuk judul */
         h1, h2, h3, .feature-header {{
             font-family: 'Work Sans', sans-serif !important;
             font-weight: 800 !important;
@@ -368,12 +362,12 @@ if page == "🏠 HOMEPAGE":
             Pusat Kendali Digital Marketing
         </div>
         <p style='text-align: center; font-size: 16px; color: gray; margin-bottom: 30px;'>
-            Pilih modul kerja di bawah ini untuk segera memulai pemantauan data.
+            Selamat datang kembali! Pilih modul kerja di bawah ini untuk memantau performa LPK.
         </p>
     """, unsafe_allow_html=True)
 
     # ==========================================================
-    # 3. EXECUTIVE SUMMARY DASHBOARD
+    # 3. EXECUTIVE SUMMARY DASHBOARD (4 Kartu KPI)
     # ==========================================================
     try:
         df_wa_home = load_wa_admin()
@@ -383,26 +377,12 @@ if page == "🏠 HOMEPAGE":
 
         import datetime
         sekarang = datetime.datetime.now()
-        
-        # Parameter Waktu
-        bulan_ini = sekarang.month
-        tahun_ini = sekarang.year
+        bulan_ini, tahun_ini = sekarang.month, sekarang.year
         bulan_lalu = 12 if sekarang.month == 1 else sekarang.month - 1
         tahun_bulan_lalu = sekarang.year - 1 if sekarang.month == 1 else sekarang.year
 
-        def filter_data_berdasarkan_waktu(df, target_month, target_year):
-            if df.empty: return df
-            col_tgl = next((c for c in df.columns if any(k in str(c).lower() for k in ['tanggal', 'jadwal', 'bulan', 'date'])), None)
-            if col_tgl:
-                df_temp = df.copy()
-                df_temp['tgl_cleaned'] = df_temp[col_tgl].astype(str).str.lower().replace(
-                    {'januari':'jan', 'februari':'feb', 'maret':'mar', 'mei':'may', 'agustus':'aug', 'oktober':'oct', 'desember':'dec'}, regex=True
-                )
-                df_temp['tgl_parsed'] = pd.to_datetime(df_temp['tgl_cleaned'], errors='coerce')
-                return df_temp[(df_temp['tgl_parsed'].dt.month == target_month) & (df_temp['tgl_parsed'].dt.year == target_year)]
-            return df
-
-        # Kalkulasi Leads & Closing
+        # Logika Kalkulasi Leads & Closing
+        total_leads, total_closing = 0, 0
         if not df_wa_home.empty:
             if 'Tanggal Masuk' in df_wa_home.columns:
                 df_wa_home = df_wa_home[df_wa_home['Tanggal Masuk'].astype(str).str.strip() != '']
@@ -411,35 +391,34 @@ if page == "🏠 HOMEPAGE":
             total_leads = len(df_wa_home)
             status_col = next((col for col in df_wa_home.columns if 'Status' in str(col)), None)
             total_closing = len(df_wa_home[df_wa_home[status_col].astype(str).str.contains('Closing', case=False, na=False)]) if status_col else 0
-        else:
-            total_leads, total_closing = 0, 0
 
-        # Performa Views & Reach
         total_view = df_in_home['View'].sum() if not df_in_home.empty and 'View' in df_in_home.columns else 0
         total_reach = df_in_home['Reach'].sum() if not df_in_home.empty and 'Reach' in df_in_home.columns else 0
 
-        # Hutang Sosmed (Bulan Lalu) & Website (Bulan Ini)
-        df_sos_debt = filter_data_berdasarkan_waktu(df_sos_home, bulan_lalu, tahun_bulan_lalu)
-        sosmed_pending = len(df_sos_debt[df_sos_debt['PROSES'].astype(str).str.upper() != 'DONE']) if not df_sos_debt.empty and 'PROSES' in df_sos_debt.columns else 0
-        
-        df_web_now = filter_data_berdasarkan_waktu(df_web_home, bulan_ini, tahun_ini)
-        done_kw = ['DONE', 'TRUE', 'V', '1', 'POSTED', 'SELESAI', 'UPLOAD', 'UPLOADED', 'SUDAH UPLOAD']
-        web_pending = len(df_web_now[~df_web_now['Status Post'].astype(str).str.upper().str.strip().isin(done_kw)]) if not df_web_now.empty and 'Status Post' in df_web_now.columns else 0
+        # Filter Hutang
+        def quick_filter(df, m, y):
+            if df.empty: return 0
+            col_tgl = next((c for c in df.columns if any(k in str(c).lower() for k in ['tanggal', 'deadline', 'date'])), None)
+            if col_tgl:
+                df_t = df.copy()
+                df_t['p'] = pd.to_datetime(df_t[col_tgl], errors='coerce')
+                return len(df_t[(df_t['p'].dt.month == m) & (df_t['p'].dt.year == y)])
+            return 0
+
+        sos_pending = quick_filter(df_sos_home[df_sos_home['PROSES'] != 'DONE'], bulan_lalu, tahun_bulan_lalu)
+        web_pending = quick_filter(df_web_home[~df_web_home['Status Post'].isin(['DONE', 'V', '1'])], bulan_ini, tahun_ini)
 
         def create_kpi_card(icon, title, value):
-            return f'<div class="kpi-card"><div class="kpi-icon-box">{icon}</div><div class="kpi-details"><div class="kpi-title">{title}</div><div class="kpi-value">{value}</div></div></div>'
+            return f'<div class="kpi-card"><div>{icon}</div><div><div style="font-size:12px; color:gray;">{title}</div><div style="font-size:18px; font-weight:bold;">{value}</div></div></div>'
 
-        kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-        nama_bulan_lalu = (sekarang.replace(day=1) - datetime.timedelta(days=1)).strftime('%B')
-        nama_bulan_ini = sekarang.strftime('%B')
-
-        with kpi1: st.markdown(create_kpi_card("🎯", "Closing / Leads", f"{total_closing} / {total_leads}"), unsafe_allow_html=True)
-        with kpi2: st.markdown(create_kpi_card("👀", "Views / Reach", f"{total_view:,.0f} / {total_reach:,.0f}"), unsafe_allow_html=True)
-        with kpi3: st.markdown(create_kpi_card("📱", f"Hutang Sosmed ({nama_bulan_lalu})", f"{sosmed_pending} Task"), unsafe_allow_html=True)
-        with kpi4: st.markdown(create_kpi_card("🌐", f"Hutang Website ({nama_bulan_ini})", f"{web_pending} Page"), unsafe_allow_html=True)
+        k1, k2, k3, k4 = st.columns(4)
+        with k1: st.markdown(create_kpi_card("🎯", "Closing / Leads", f"{total_closing} / {total_leads}"), unsafe_allow_html=True)
+        with k2: st.markdown(create_kpi_card("👀", "Views / Reach", f"{total_view:,.0f} / {total_reach:,.0f}"), unsafe_allow_html=True)
+        with k3: st.markdown(create_kpi_card("📱", "Hutang Sosmed", f"{sos_pending} Task"), unsafe_allow_html=True)
+        with k4: st.markdown(create_kpi_card("🌐", "Hutang Web", f"{web_pending} Page"), unsafe_allow_html=True)
 
     except Exception as e:
-        st.warning(f"⚠️ Gagal memuat Executive Summary: {e}")
+        st.warning(f"⚠️ Summary tertunda: {e}")
 
     # ==========================================================
     # 4. PETA PERSEBARAN & GRAFIK (FULL WIDTH & SHADOW)
