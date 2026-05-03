@@ -7,7 +7,56 @@ import plotly.graph_objects as go
 import base64
 import datetime
 import sys
+def sync_leads_to_crm():
+    try:
+        # 1. Tarik Data dari WA Admin & CRM
+        df_wa = load_wa_admin()  # Tab 4 (Index 3)
+        df_crm = load_database_nomor()  # Tab 5 (Index 4)
+        
+        if df_wa.empty:
+            st.warning("⚠️ Laporan WA Admin kosong.")
+            return
 
+        # --- LOGIKA STANDARISASI & DE-DUPLIKASI ---
+        def clean_phone(val):
+            num = str(val).strip().replace('+', '').replace(' ', '').replace('-', '')
+            if num.startswith('0'): return '62' + num[1:]
+            if num.startswith('8'): return '62' + num
+            return num
+
+        df_wa['No Hp'] = df_wa['No Hp'].apply(clean_phone)
+        df_wa = df_wa.drop_duplicates(subset=['No Hp'], keep='last')
+
+        # 2. Filter Mekari Tag sesuai Request Mas
+        valid_tags = ["Hot Lead", "Warm Lead", "Cold Lead", "Pending Form - L1", "Pending Form - L2", "Re-engagement", "Future Prospect", "Form Submitted", "Sales Progress"]
+        new_leads = df_wa[df_wa['Mekari Tag'].isin(valid_tags)].copy()
+        
+        # 3. Cek Terhadap Data CRM yang Sudah Ada (Anti-Double)
+        if not df_crm.empty:
+            existing_nos = df_crm['No Hp'].astype(str).tolist()
+            new_leads = new_leads[~new_leads['No Hp'].isin(existing_nos)]
+
+        if new_leads.empty:
+            st.info("ℹ️ Tidak ada data baru atau semua nomor sudah terdaftar di CRM.")
+            return
+
+        # 4. Proses Pemindahan
+        added_count = 0
+        for _, row in new_leads.iterrows():
+            data_to_append = [
+                len(df_crm) + added_count + 1, row.get('No Hp', ''), row.get('Nama', ''), row.get('Domisili', ''),
+                '', '', row.get('Kategori', 'Siswa'), '', datetime.datetime.now().strftime('%Y-%m-%d'),
+                row.get('Mekari Tag', ''), '', '', '', '', 'PENDING', '', ''
+            ]
+            append_sheet_row(4, data_to_append) 
+            added_count += 1
+        
+        if added_count > 0:
+            st.success(f"✅ Berhasil menarik {added_count} Prospek unik ke CRM!")
+            st.cache_data.clear()
+            st.rerun()
+    except Exception as e:
+        st.error(f"Gagal Sinkronisasi: {e}")
 # =====================================================================
 # 1. KONFIGURASI GLOBAL & NAVIGASI
 # =====================================================================
@@ -912,6 +961,15 @@ elif page == "💬 WA ADMIN REPORT":
 # --- HALAMAN 5: DATABASE NOMOR (CRM) ---
 elif page == "📂 DATABASE NOMOR":
     st.title("🗂️ CRM & DETAILED LEAD DATABASE")
+    
+    # ==========================================================
+    # TOMBOL SINKRONISASI (DITARUH DI SINI)
+    # ==========================================================
+    col_sync, _ = st.columns([1, 2])
+    with col_sync:
+        if st.button("🔄 Tarik Data Unik dari WA Admin", use_container_width=True):
+            sync_leads_to_crm()
+            
     st.markdown("---")
     
     try:
@@ -932,11 +990,9 @@ elif page == "📂 DATABASE NOMOR":
             df_crm['Tahap Progress'] = df_crm.apply(check_progress, axis=1)
 
             # ==========================================================
-            # 1. MAPPING EMOJI (VISUAL ASSET)
+            # 2. MAPPING EMOJI & FILTERING
             # ==========================================================
-            # Memetakan data asli ke tampilan ber-emoji
             form_map = {"": "⚪ Belum Diisi", "Tidak Dibalas": "🔇 Tidak Dibalas", "Sudah Interview": "🤝 Sudah Interview", "Tidak Lanjut": "🛑 Tidak Lanjut"}
-            
             mekari_map = {
                 "Hot Lead": "🔥 Hot Lead", "Warm Lead": "🌤️ Warm Lead", "Cold Lead": "❄️ Cold Lead",
                 "Pending Form - L1": "📝 Pending L1", "Pending Form - L2": "📝 Pending L2",
@@ -946,36 +1002,24 @@ elif page == "📂 DATABASE NOMOR":
                 "Alumni": "🎓 Alumni", "Partnership": "🤝 Partnership",
                 "Closed - Registered": "🏆 Registered", "Closed - Not Interested": "🚪 Not Interested", "": "⚪ Belum Ada Tag"
             }
-            
             tx_map = {"": "⚪ Kosong", "Blasting": "📢 Blasting", "WA Chat": "💬 WA Chat", "Telepon": "📞 Telepon"}
-            
             stat_map = {"PENDING": "⏳ PENDING", "INTERESTED": "🔥 INTERESTED", "REGISTERED": "✅ REGISTERED", "NO RESPONSE": "🧊 NO RESPONSE", "": "⚪ PENDING"}
 
-            # ==========================================================
-            # 2. SMART FILTERING SYSTEM
-            # ==========================================================
             with st.expander("🔍 Filter Strategis Database (Kosong = Tampilkan Semua)", expanded=True):
                 search_crm = st.text_input("🔎 Cari Nama/Nomor HP:", placeholder="Ketik di sini...")
                 c1, c2, c3 = st.columns(3)
-                
                 with c1:
-                    st.markdown("👥 **Kategori & Tahap**")
                     sel_kategori = st.multiselect("Subjek:", options=["Siswa", "Orang Tua", ""], format_func=lambda x: "⚪ Belum Diisi" if x == "" else x)
                     sel_progress = st.multiselect("Tahap Progress:", options=["Belum Ada Treatment", "Sudah Treatment 1", "Sudah Treatment 2"])
-                
                 with c2:
-                    st.markdown("📝 **Form & Mekari**")
                     sel_form = st.multiselect("Status Form:", options=list(form_map.keys()), format_func=lambda x: form_map[x])
                     sel_mekari = st.multiselect("Mekari Tag:", options=list(mekari_map.keys()), format_func=lambda x: mekari_map[x])
-                
                 with c3:
-                    st.markdown("🗺️ **Wilayah**")
                     daerah_opts = sorted(df_crm['Domisili'].unique().tolist())
                     sel_daerah = st.multiselect("Pilih Daerah:", options=daerah_opts, format_func=lambda x: "⚪ Belum Diisi" if x == "" else x)
 
             # --- EKSEKUSI FILTER ---
             mask = pd.Series([True] * len(df_crm))
-            # Otomatis sembunyikan yang sudah 'Form Submitted'
             if 'Updated Status After Treatment' in df_crm.columns:
                 mask &= (df_crm['Updated Status After Treatment'].astype(str).str.strip() != 'Form Submitted')
             
@@ -1002,11 +1046,9 @@ elif page == "📂 DATABASE NOMOR":
             st.markdown("---")
 
             # ==========================================================
-            # 4. LIVE CRM EDITOR (VISUAL ENHANCED)
+            # 4. LIVE CRM EDITOR
             # ==========================================================
             st.markdown('<div class="feature-header">📑 Management Database Prospek Aktif</div>', unsafe_allow_html=True)
-            
-            # Terapkan emoji pada dataframe display
             df_disp = filtered_crm.copy()
             df_disp['Keterangan Setelah Isi Form'] = df_disp['Keterangan Setelah Isi Form'].map(form_map).fillna(df_disp['Keterangan Setelah Isi Form'])
             df_disp['Mekari Tag (Status Terakhir)'] = df_disp['Mekari Tag (Status Terakhir)'].map(mekari_map).fillna(df_disp['Mekari Tag (Status Terakhir)'])
@@ -1032,24 +1074,17 @@ elif page == "📂 DATABASE NOMOR":
             )
 
             # ==========================================================
-            # 5. LOGIKA SIMPAN (MEMBERSIHKAN EMOJI SEBELUM KIRIM)
+            # 5. LOGIKA SIMPAN
             # ==========================================================
             if st.button("💾 Simpan Perubahan Database", use_container_width=True):
                 with st.spinner("Sinkronisasi ke Google Sheets..."):
                     updates = 0
-                    cols_sync = [
-                        'Domisili', 'Kategori', 'Keterangan Setelah Isi Form', 
-                        'Mekari Tag (Status Terakhir)', 'Treatment 1', 'Treatment 2', 
-                        'Tanggal Treatment 1', 'Tanggal Treatment 2', 'Status', 'Updated Status After Treatment'
-                    ]
-                    
+                    cols_sync = ['Domisili', 'Kategori', 'Keterangan Setelah Isi Form', 'Mekari Tag (Status Terakhir)', 'Treatment 1', 'Treatment 2', 'Tanggal Treatment 1', 'Tanggal Treatment 2', 'Status', 'Updated Status After Treatment']
                     for idx in edited_crm.index:
                         for col in cols_sync:
                             if col in df_crm.columns:
                                 old_v = str(df_crm.at[idx, col]).strip()
                                 new_v_raw = str(edited_crm.at[idx, col])
-                                
-                                # Membersihkan emoji (mengambil teks setelah spasi pertama)
                                 if " " in new_v_raw and any(icon in new_v_raw for icon in ["🔥", "🌤️", "❄️", "⏳", "📢", "💬", "📞", "🤝", "🛑", "🏆", "🚪", "⚪"]):
                                     new_v = new_v_raw.split(" ", 1)[-1].strip()
                                 else:
@@ -1060,12 +1095,11 @@ elif page == "📂 DATABASE NOMOR":
                                     updates += 1
                     
                     if updates > 0:
-                        st.success(f"✅ Berhasil! {updates} data diperbarui. Dashboard sudah bersih dari 'Form Submitted'.")
+                        st.success(f"✅ Berhasil! {updates} data diperbarui.")
                         st.cache_data.clear()
                         st.rerun()
         else:
             st.warning("Database masih kosong.")
-
     except Exception as e:
         st.error(f"Gagal memuat CRM: {e}")
 if __name__ == "__main__":
