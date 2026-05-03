@@ -401,7 +401,7 @@ if page == "🏠 HOMEPAGE":
     with c5: create_square_card("📂", "Database", "CRM Kontak", "📂 DATABASE NOMOR", "btn_db")
 
     st.markdown("---") # Garis Pemisah
-        # ==========================================================
+     # ==========================================================
         # 3. EXECUTIVE SUMMARY (OPTIMIZED & FILTERED)
         # ==========================================================
         try:
