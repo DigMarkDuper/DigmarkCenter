@@ -7,7 +7,104 @@ import plotly.graph_objects as go
 import base64
 import datetime
 import sys
+@st.cache_resource
+def init_connection():
+    """Membuka kunci akses ke Google Sheets menggunakan Secrets"""
+    try:
+        creds_info = dict(st.secrets["gcp_service_account"])
+        if "private_key" in creds_info:
+            creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n").strip()
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_info, scope)
+        return gspread.authorize(creds)
+    except Exception as e:
+        st.error(f"Koneksi Gagal: {e}")
+        return None
 
+def append_sheet_row(sheet_index, data_list):
+    """Menambah baris baru ke Spreadsheet (Digunakan oleh Sinkronisasi)"""
+    client = init_connection()
+    if client:
+        try:
+            spreadsheet = client.open("MASTER DATA DIGITAL MARKETING 2.0")
+            sheet = spreadsheet.get_worksheet(sheet_index)
+            sheet.append_row(data_list)
+        except Exception as e:
+            st.error(f"Gagal menulis baris baru: {e}")
+
+def sync_leads_to_crm():
+    """Mesin utama penarik data dari WA Admin ke CRM Database"""
+    try:
+        # 1. Tarik Data Mentah
+        df_wa = load_wa_admin()    # Tab 4
+        df_crm = load_database_nomor() # Tab 5
+        
+        if df_wa.empty:
+            st.warning("⚠️ Laporan WA Admin kosong.")
+            return
+
+        # 2. Standarisasi Nomor HP (Prefix 62)
+        def clean_phone(val):
+            num = str(val).strip().replace('+', '').replace(' ', '').replace('-', '')
+            if num.startswith('0'): return '62' + num[1:]
+            if num.startswith('8'): return '62' + num
+            return num
+
+        df_wa['No Hp'] = df_wa['No Hp'].apply(clean_phone)
+        df_wa = df_wa.drop_duplicates(subset=['No Hp'], keep='last')
+
+        # 3. Filter Mekari Tag Sesuai Kebutuhan LPK
+        valid_tags = [
+            "Hot Lead", "Warm Lead", "Cold Lead", "Pending Form - L1", 
+            "Pending Form - L2", "Re-engagement", "Future Prospect", 
+            "Form Submitted", "Sales Progress"
+        ]
+        
+        # Cari kolom Mekari secara dinamis
+        mekari_col = next((c for c in df_wa.columns if 'Mekari' in c), None)
+        if not mekari_col:
+            st.error("❌ Kolom Mekari Tag tidak ditemukan di WA Admin.")
+            return
+            
+        new_leads = df_wa[df_wa[mekari_col].isin(valid_tags)].copy()
+        
+        # 4. Anti-Double (Cek apakah nomor sudah ada di CRM)
+        if not df_crm.empty:
+            existing_nos = df_crm['No Hp'].astype(str).tolist()
+            new_leads = new_leads[~new_leads['No Hp'].isin(existing_nos)]
+
+        if new_leads.empty:
+            st.info("ℹ️ Tidak ada data baru atau semua nomor sudah terdaftar.")
+            return
+
+        # 5. Eksekusi Penulisan (Mapping 17 Kolom LPK)
+        added_count = 0
+        for _, row in new_leads.iterrows():
+            data_to_append = [
+                len(df_crm) + added_count + 1,      # 1. No
+                row.get('No Hp', ''),               # 2. No Hp
+                row.get('Nama', ''),                 # 3. Nama
+                row.get('Domisili', ''),             # 4. Domisili
+                '', '',                              # 5. Tgl Lahir, 6. Usia
+                row.get('Kategori', 'Siswa'),        # 7. Kategori
+                '',                                  # 8. Keterangan Status Form
+                datetime.datetime.now().strftime('%Y-%m-%d'), # 9. Tgl Masuk
+                row.get(mekari_col, ''),             # 10. Mekari Tag
+                '', '', '', '',                      # 11-14. Treatment 1&2
+                'PENDING',                           # 15. Status
+                '',                                  # 16. Updated Status
+                ''                                   # 17. Catatan
+            ]
+            append_sheet_row(4, data_to_append) 
+            added_count += 1
+        
+        if added_count > 0:
+            st.success(f"✅ Berhasil menarik {added_count} Prospek unik ke CRM!")
+            st.cache_data.clear()
+            st.rerun()
+            
+    except Exception as e:
+        st.error(f"Gagal Sinkronisasi: {e}")
 # =====================================================================
 # 1. KONFIGURASI GLOBAL & NAVIGASI
 # =====================================================================
@@ -938,14 +1035,10 @@ elif page == "💬 WA ADMIN REPORT":
 elif page == "📂 DATABASE NOMOR":
     st.title("🗂️ CRM & DETAILED LEAD DATABASE")
     
-    # ==========================================================
-    # TOMBOL SINKRONISASI (DITARUH DI SINI)
-    # ==========================================================
-    col_sync, _ = st.columns([1, 2])
-    with col_sync:
-        if st.button("🔄 Tarik Data Unik dari WA Admin", use_container_width=True):
-            sync_leads_to_crm()
-            
+    # Bungkus dalam tombol agar tidak berjalan otomatis (biar tidak NameError/Loop)
+    if st.button("🔄 Tarik Data Unik dari WA Admin", use_container_width=True):
+        sync_leads_to_crm()
+        
     st.markdown("---")
     
     try:
