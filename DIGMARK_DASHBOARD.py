@@ -905,72 +905,122 @@ elif page == "📂 DATABASE NOMOR":
         df_crm = load_database_nomor()
         
         if not df_crm.empty:
-            # --- 1. EXECUTIVE SUMMARY (METRIK) ---
+            # ==========================================================
+            # 1. SMART FILTERING SYSTEM (PENGELOMPOKAN STRATEGIS)
+            # ==========================================================
+            st.sidebar.markdown(f"<h2 style='color:{BRAND_BLUE};'>Smart Filter CRM</h2>", unsafe_allow_html=True)
+            
+            # --- A. Filter Suhu Prospek (Lead Temperature) ---
+            st.sidebar.markdown("🔥 **Suhu Prospek**")
+            temp_filter = st.sidebar.multiselect(
+                "Filter Status:",
+                options=["INTERESTED", "REGISTERED", "PENDING", "NO RESPONSE"],
+                default=["INTERESTED", "REGISTERED", "PENDING", "NO RESPONSE"],
+                key="temp_crm"
+            )
+
+            # --- B. Filter Zonasi Wilayah ---
+            st.sidebar.markdown("🗺️ **Zonasi Wilayah**")
+            # Logika pengelompokan wilayah
+            df_crm['Zonasi'] = df_crm['Domisili'].apply(lambda x: 
+                'LOKAL (DIY)' if any(area in str(x).upper() for area in ['JOGJA', 'SLEMAN', 'BANTUL', 'KULON', 'GUNUNG']) else 'LUAR KOTA'
+            )
+            zona_filter = st.sidebar.multiselect("Pilih Zona:", options=['LOKAL (DIY)', 'LUAR KOTA'], default=['LOKAL (DIY)', 'LUAR KOTA'])
+
+            # --- C. Filter Kategori Usia (Golden Age) ---
+            st.sidebar.markdown("🎓 **Kategori Usia**")
+            def segment_usia(usia):
+                try:
+                    u = int(usia)
+                    if u <= 21: return "Fresh Graduate (19-21)"
+                    elif u <= 26: return "Career Switcher (22-26)"
+                    else: return "Lainnya"
+                except: return "Tidak Diketahui"
+            
+            df_crm['Segment Usia'] = df_crm['Usia'].apply(segment_usia)
+            usia_filter = st.sidebar.multiselect("Pilih Segment:", options=df_crm['Segment Usia'].unique(), default=df_crm['Segment Usia'].unique())
+
+            # --- D. Pencarian Nama/Nomor ---
+            search_crm = st.sidebar.text_input("🔍 Cari Prospek:", placeholder="Ketik nama atau nomor HP...")
+
+            # --- PROSES FILTERING ---
+            mask = (
+                (df_crm['Status'].isin(temp_filter)) & 
+                (df_crm['Zonasi'].isin(zona_filter)) & 
+                (df_crm['Segment Usia'].isin(usia_filter))
+            )
+            
+            if search_crm:
+                mask = mask & (df_crm['Nama'].str.contains(search_crm, case=False, na=False) | df_crm['No Hp'].astype(str).str.contains(search_crm))
+            
+            filtered_crm = df_crm[mask].copy()
+
+            # ==========================================================
+            # 2. EXECUTIVE SUMMARY (METRIK)
+            # ==========================================================
             st.markdown('<div class="feature-header">📈 Lead Monitoring Dashboard</div>', unsafe_allow_html=True)
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Total Kontak", len(df_crm))
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Konten Terfilter", len(filtered_crm))
             
-            # Menghitung Closing dari Status Terakhir
-            reg_count = len(df_crm[df_crm['Status'].astype(str).str.contains('Registered|Closing', case=False, na=False)])
-            c2.metric("Target Closing 🎓", f"{reg_count} / 450") # Berdasarkan target 2026 Mas
+            # Hot Leads dari data terfilter
+            hot_count = len(filtered_crm[filtered_crm['Status'] == 'INTERESTED'])
+            m2.metric("Hot Leads 🔥", hot_count)
             
-            # Menghitung yang butuh Treatment ulang
-            needs_tx = len(df_crm[df_crm['Updated Status After Treatment'].astype(str).str.contains('Pending|Follow Up', case=False, na=False)])
-            c3.metric("Butuh Treatment 🔄", needs_tx)
+            # Closing rate di segmen ini
+            reg_seg = len(filtered_crm[filtered_crm['Status'] == 'REGISTERED'])
+            m3.metric("Closing di Segmen Ini", reg_seg)
             
-            c4.metric("Kategori Populer 🏆", df_crm['Kategori'].mode()[0] if not df_crm['Kategori'].empty else "-")
+            # Prosentase Closing
+            conv = (reg_seg / len(filtered_crm) * 100) if len(filtered_crm) > 0 else 0
+            m4.metric("Conv. Rate Segmen", f"{conv:.1f}%")
 
             st.markdown("---")
 
-            # --- 2. LIVE CRM EDITOR (SPECIFIC COLUMNS) ---
+            # ==========================================================
+            # 3. LIVE CRM EDITOR
+            # ==========================================================
             st.markdown('<div class="feature-header">📑 Management Database Kontak LPK</div>', unsafe_allow_html=True)
-            st.info("💡 **Gunakan Scroll Horizontal** untuk melihat semua kolom. Mas bisa langsung mengubah Treatment dan Status di sini.")
-
-            # Map Visual untuk Status & Treatment
+            
             stat_map = {"PENDING": "⏳ PENDING", "INTERESTED": "🔥 INTERESTED", "REGISTERED": "✅ REGISTERED", "NO RESPONSE": "🧊 NO RESPONSE"}
             tx_map = {"WA Chat": "💬 WA Chat", "Telepon": "📞 Telepon", "Konsultasi": "🏫 Konsultasi", "Broadcast": "📢 Broadcast"}
 
-            df_crm_disp = df_crm.copy()
-            # Terapkan emoji hanya untuk kolom tertentu agar tidak berat
+            df_crm_disp = filtered_crm.copy()
             df_crm_disp['Status'] = df_crm_disp['Status'].map(stat_map).fillna(df_crm_disp['Status'])
 
             edited_crm = st.data_editor(
                 df_crm_disp,
                 column_config={
                     "No Hp": st.column_config.TextColumn("WhatsApp"),
-                    "Kategori": st.column_config.SelectboxColumn("Kategori", options=["F&B Service", "Housekeeping", "Barista", "Culinary"]),
+                    "Kategori": st.column_config.SelectboxColumn("Kategori", options=["Siswa", "Partnership", "Lainnya"]),
                     "Tanggal Lahir": st.column_config.DateColumn("Tgl Lahir"),
-                    "Mekari Tag (Status Terakhir)": st.column_config.TextColumn("Tag Mekari", disabled=True),
                     "Treatment 1": st.column_config.SelectboxColumn("Tx 1", options=list(tx_map.values())),
                     "Treatment 2": st.column_config.SelectboxColumn("Tx 2", options=list(tx_map.values())),
-                    "Tanggal Treatment 1": st.column_config.DateColumn("Tgl Tx 1"),
-                    "Tanggal Treatment 2": st.column_config.DateColumn("Tgl Tx 2"),
                     "Status": st.column_config.SelectboxColumn("Status", options=list(stat_map.values())),
-                    "Updated Status After Treatment": st.column_config.SelectboxColumn("Status Akhir", options=list(stat_map.values())),
                 },
-                disabled=['No', 'Usia', 'Tanggal Masuk Database'], # Kolom otomatis tidak boleh diedit
+                disabled=['No', 'Usia', 'Tanggal Masuk Database', 'Zonasi', 'Segment Usia'],
                 use_container_width=True,
                 hide_index=True,
                 key="crm_detailed_editor"
             )
 
-            # --- 3. TOMBOL SIMPAN ---
+            # ==========================================================
+            # 4. TOMBOL SIMPAN
+            # ==========================================================
             if st.button("💾 Simpan Update Database CRM", use_container_width=True):
-                with st.spinner("Sinkronisasi data spesifik ke Cloud..."):
+                with st.spinner("Sinkronisasi data ke Cloud..."):
                     updates = 0
-                    # Daftar kolom yang ingin kita pantau perubahannya
                     cols_to_sync = [
                         'Domisili', 'Tanggal Lahir', 'Kategori', 'Keterangan Setelah Isi Form',
                         'Treatment 1', 'Treatment 2', 'Tanggal Treatment 1', 'Tanggal Treatment 2',
                         'Status', 'Updated Status After Treatment', 'Catatan'
                     ]
                     
+                    # Kita lakukan update menggunakan index asli dari df_crm agar tidak salah baris
                     for idx in edited_crm.index:
                         for col in cols_to_sync:
                             old_v = str(df_crm.at[idx, col]).strip()
                             new_v_raw = edited_crm.at[idx, col]
                             
-                            # Bersihkan Emoji sebelum simpan
                             new_v = str(new_v_raw).split(" ", 1)[-1].strip() if " " in str(new_v_raw) else str(new_v_raw)
 
                             if old_v != new_v and new_v != "None":
@@ -982,8 +1032,8 @@ elif page == "📂 DATABASE NOMOR":
                         st.cache_data.clear()
                         st.rerun()
 
-        else:
-            st.warning("Database Kontak Kosong. Silakan isi melalui Spreadsheet atau Sync dari WA Admin.")
+    except Exception as e:
+        st.error(f"Gagal memuat CRM: {e}")
 
     except Exception as e:
         st.error(f"Gagal memuat Database Spesifik: {e}")
