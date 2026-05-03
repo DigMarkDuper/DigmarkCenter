@@ -918,11 +918,11 @@ elif page == "📂 DATABASE NOMOR":
         df_crm = load_database_nomor()
         
         if not df_crm.empty:
-            # 1. PEMBERSIHAN & FORMATTING AWAL
+            # 1. PEMBERSIHAN & LOGIKA DASAR
             df_crm['No Hp'] = df_crm['No Hp'].astype(str)
             df_crm = df_crm.fillna('') 
 
-            # Logika Tahap Progress Treatment
+            # Logika Progress Treatment
             def check_progress(row):
                 t1 = str(row.get('Treatment 1', '')).strip()
                 t2 = str(row.get('Treatment 2', '')).strip()
@@ -932,107 +932,135 @@ elif page == "📂 DATABASE NOMOR":
             df_crm['Tahap Progress'] = df_crm.apply(check_progress, axis=1)
 
             # ==========================================================
-            # 1. SMART FILTERING (DENGAN EKSKLUSI OTOMATIS)
+            # 1. MAPPING EMOJI (VISUAL ASSET)
+            # ==========================================================
+            # Memetakan data asli ke tampilan ber-emoji
+            form_map = {"": "⚪ Belum Diisi", "Tidak Dibalas": "🔇 Tidak Dibalas", "Sudah Interview": "🤝 Sudah Interview", "Tidak Lanjut": "🛑 Tidak Lanjut"}
+            
+            mekari_map = {
+                "Hot Lead": "🔥 Hot Lead", "Warm Lead": "🌤️ Warm Lead", "Cold Lead": "❄️ Cold Lead",
+                "Pending Form - L1": "📝 Pending L1", "Pending Form - L2": "📝 Pending L2",
+                "Re-engagement": "🔄 Re-engagement", "Future Prospect": "📅 Future Prospect",
+                "Form Submitted": "✅ Form Submitted", "Sales Progress": "📈 Sales Progress",
+                "Not Eligible": "❌ Not Eligible", "Double Chat": "👥 Double Chat",
+                "Alumni": "🎓 Alumni", "Partnership": "🤝 Partnership",
+                "Closed - Registered": "🏆 Registered", "Closed - Not Interested": "🚪 Not Interested", "": "⚪ Belum Ada Tag"
+            }
+            
+            tx_map = {"": "⚪ Kosong", "Blasting": "📢 Blasting", "WA Chat": "💬 WA Chat", "Telepon": "📞 Telepon"}
+            
+            stat_map = {"PENDING": "⏳ PENDING", "INTERESTED": "🔥 INTERESTED", "REGISTERED": "✅ REGISTERED", "NO RESPONSE": "🧊 NO RESPONSE", "": "⚪ PENDING"}
+
+            # ==========================================================
+            # 2. SMART FILTERING SYSTEM
             # ==========================================================
             with st.expander("🔍 Filter Strategis Database (Kosong = Tampilkan Semua)", expanded=True):
                 search_crm = st.text_input("🔎 Cari Nama/Nomor HP:", placeholder="Ketik di sini...")
-
                 c1, c2, c3 = st.columns(3)
+                
                 with c1:
                     st.markdown("👥 **Kategori & Tahap**")
-                    sel_kategori = st.multiselect("Subjek:", options=["Siswa", "Orang Tua", ""], format_func=lambda x: "Belum Diisi" if x == "" else x)
-                    prog_opts = ["Belum Ada Treatment", "Sudah Treatment 1", "Sudah Treatment 2"]
-                    sel_progress = st.multiselect("Tahap Progress:", options=prog_opts, default=[])
-
+                    sel_kategori = st.multiselect("Subjek:", options=["Siswa", "Orang Tua", ""], format_func=lambda x: "⚪ Belum Diisi" if x == "" else x)
+                    sel_progress = st.multiselect("Tahap Progress:", options=["Belum Ada Treatment", "Sudah Treatment 1", "Sudah Treatment 2"])
+                
                 with c2:
-                    st.markdown("📝 **Status Form & Mekari**")
-                    form_opts = ["", "Tidak Dibalas", "Sudah Interview", "Tidak Lanjut"]
-                    sel_form = st.multiselect("Status Form:", options=form_opts, format_func=lambda x: "Belum Diisi" if x == "" else x)
-                    
-                    mekari_opts = ["", "Hot Lead", "Warm Lead", "Cold Lead", "Pending Form - L1", "Pending Form - L2", "Re-engagement", "Future Prospect", "Form Submitted", "Sales Progress", "Not Eligible", "Double Chat", "Alumni", "Partnership", "Closed - Registered", "Closed - Not Interested"]
-                    sel_mekari = st.multiselect("Mekari Tag:", options=mekari_opts, format_func=lambda x: "Belum Diisi" if x == "" else x)
-
+                    st.markdown("📝 **Form & Mekari**")
+                    sel_form = st.multiselect("Status Form:", options=list(form_map.keys()), format_func=lambda x: form_map[x])
+                    sel_mekari = st.multiselect("Mekari Tag:", options=list(mekari_map.keys()), format_func=lambda x: mekari_map[x])
+                
                 with c3:
                     st.markdown("🗺️ **Wilayah**")
                     daerah_opts = sorted(df_crm['Domisili'].unique().tolist())
-                    sel_daerah = st.multiselect("Pilih Daerah:", options=daerah_opts, format_func=lambda x: "Belum Diisi" if x == "" else x)
+                    sel_daerah = st.multiselect("Pilih Daerah:", options=daerah_opts, format_func=lambda x: "⚪ Belum Diisi" if x == "" else x)
 
             # --- EKSEKUSI FILTER ---
             mask = pd.Series([True] * len(df_crm))
-            
-            # --- LOGIKA EKSKLUSI: Hilangkan yang sudah Form Submitted ---
+            # Otomatis sembunyikan yang sudah 'Form Submitted'
             if 'Updated Status After Treatment' in df_crm.columns:
                 mask &= (df_crm['Updated Status After Treatment'].astype(str).str.strip() != 'Form Submitted')
             
-            # Filter User
             if sel_kategori: mask &= df_crm['Kategori'].isin(sel_kategori)
             if sel_progress: mask &= df_crm['Tahap Progress'].isin(sel_progress)
             if sel_form: mask &= df_crm['Keterangan Setelah Isi Form'].isin(sel_form)
             if sel_mekari: mask &= df_crm['Mekari Tag (Status Terakhir)'].isin(sel_mekari)
             if sel_daerah: mask &= df_crm['Domisili'].isin(sel_daerah)
-            
             if search_crm:
                 mask &= (df_crm['Nama'].str.contains(search_crm, case=False) | df_crm['No Hp'].str.contains(search_crm))
             
             filtered_crm = df_crm[mask].copy()
 
             # ==========================================================
-            # 2. METRIK DINAMIS (Hanya Prospek Aktif)
+            # 3. METRIK DINAMIS
             # ==========================================================
-            st.markdown('<div class="feature-header">📈 Lead Monitoring Dashboard (Prospek Aktif)</div>', unsafe_allow_html=True)
+            st.markdown('<div class="feature-header">📈 Lead Monitoring Dashboard</div>', unsafe_allow_html=True)
             m1, m2, m3, m4 = st.columns(4)
             m1.metric("Prospek Aktif", len(filtered_crm))
-            
-            h_leads = len(filtered_crm[filtered_crm['Mekari Tag (Status Terakhir)'] == 'Hot Lead'])
-            m2.metric("Hot Leads 🔥", h_leads)
-            
-            no_tx = len(filtered_crm[filtered_crm['Tahap Progress'] == 'Belum Ada Treatment'])
-            m3.metric("Belum Disentuh 🧊", no_tx)
-            
-            warm = len(filtered_crm[filtered_crm['Mekari Tag (Status Terakhir)'] == 'Warm Lead'])
-            m4.metric("Warm Leads ⚡", warm)
+            m2.metric("Hot Leads 🔥", len(filtered_crm[filtered_crm['Mekari Tag (Status Terakhir)'] == 'Hot Lead']))
+            m3.metric("Belum Disentuh 🧊", len(filtered_crm[filtered_crm['Tahap Progress'] == 'Belum Ada Treatment']))
+            m4.metric("Warm Leads 🌤️", len(filtered_crm[filtered_crm['Mekari Tag (Status Terakhir)'] == 'Warm Lead']))
 
             st.markdown("---")
 
             # ==========================================================
-            # 3. LIVE CRM EDITOR
+            # 4. LIVE CRM EDITOR (VISUAL ENHANCED)
             # ==========================================================
             st.markdown('<div class="feature-header">📑 Management Database Prospek Aktif</div>', unsafe_allow_html=True)
             
-            cols_to_show = [c for c in filtered_crm.columns if c not in ['Tahap Progress', 'tgl_p', 'tgl_clean']]
+            # Terapkan emoji pada dataframe display
+            df_disp = filtered_crm.copy()
+            df_disp['Keterangan Setelah Isi Form'] = df_disp['Keterangan Setelah Isi Form'].map(form_map).fillna(df_disp['Keterangan Setelah Isi Form'])
+            df_disp['Mekari Tag (Status Terakhir)'] = df_disp['Mekari Tag (Status Terakhir)'].map(mekari_map).fillna(df_disp['Mekari Tag (Status Terakhir)'])
+            df_disp['Treatment 1'] = df_disp['Treatment 1'].map(tx_map).fillna(df_disp['Treatment 1'])
+            df_disp['Treatment 2'] = df_disp['Treatment 2'].map(tx_map).fillna(df_disp['Treatment 2'])
+            df_disp['Status'] = df_disp['Status'].map(stat_map).fillna(df_disp['Status'])
 
             edited_crm = st.data_editor(
-                filtered_crm[cols_to_show],
+                df_disp,
                 column_config={
-                    "No Hp": st.column_config.TextColumn("WhatsApp", disabled=True), 
-                    "Kategori": st.column_config.SelectboxColumn("Kategori", options=["Siswa", "Orang Tua", ""]),
-                    "Updated Status After Treatment": st.column_config.SelectboxColumn("Ubah Status", options=["", "Form Submitted", "Follow Up", "No Response"]),
-                    "Mekari Tag (Status Terakhir)": st.column_config.SelectboxColumn("Mekari Tag", options=mekari_opts),
+                    "No Hp": st.column_config.TextColumn("WhatsApp", disabled=True),
+                    "Keterangan Setelah Isi Form": st.column_config.SelectboxColumn("📝 Status Form", options=list(form_map.values())),
+                    "Mekari Tag (Status Terakhir)": st.column_config.SelectboxColumn("🏷️ Mekari Tag", options=list(mekari_map.values())),
+                    "Treatment 1": st.column_config.SelectboxColumn("📢 Tx 1", options=list(tx_map.values())),
+                    "Treatment 2": st.column_config.SelectboxColumn("📢 Tx 2", options=list(tx_map.values())),
+                    "Status": st.column_config.SelectboxColumn("📊 Status", options=list(stat_map.values())),
+                    "Updated Status After Treatment": st.column_config.SelectboxColumn("🔄 Update", options=["", "Form Submitted", "Follow Up", "No Response"]),
                 },
-                disabled=['No', 'Usia', 'Tanggal Masuk Database'],
+                disabled=['No', 'Usia', 'Tanggal Masuk Database', 'Tahap Progress'], 
                 use_container_width=True,
                 hide_index=True,
                 key="crm_final_editor"
             )
 
             # ==========================================================
-            # 4. LOGIKA SIMPAN
+            # 5. LOGIKA SIMPAN (MEMBERSIHKAN EMOJI SEBELUM KIRIM)
             # ==========================================================
-            if st.button("💾 Simpan Perubahan & Update Database", use_container_width=True):
-                with st.spinner("Sinkronisasi data ke Cloud..."):
+            if st.button("💾 Simpan Perubahan Database", use_container_width=True):
+                with st.spinner("Sinkronisasi ke Google Sheets..."):
                     updates = 0
-                    cols_sync = ['Domisili', 'Kategori', 'Keterangan Setelah Isi Form', 'Mekari Tag (Status Terakhir)', 'Treatment 1', 'Treatment 2', 'Status', 'Updated Status After Treatment', 'Catatan']
+                    cols_sync = [
+                        'Domisili', 'Kategori', 'Keterangan Setelah Isi Form', 
+                        'Mekari Tag (Status Terakhir)', 'Treatment 1', 'Treatment 2', 
+                        'Tanggal Treatment 1', 'Tanggal Treatment 2', 'Status', 'Updated Status After Treatment'
+                    ]
+                    
                     for idx in edited_crm.index:
                         for col in cols_sync:
                             if col in df_crm.columns:
                                 old_v = str(df_crm.at[idx, col]).strip()
-                                new_v = str(edited_crm.at[idx, col]).strip()
-                                if old_v != new_v:
+                                new_v_raw = str(edited_crm.at[idx, col])
+                                
+                                # Membersihkan emoji (mengambil teks setelah spasi pertama)
+                                if " " in new_v_raw and any(icon in new_v_raw for icon in ["🔥", "🌤️", "❄️", "⏳", "📢", "💬", "📞", "🤝", "🛑", "🏆", "🚪", "⚪"]):
+                                    new_v = new_v_raw.split(" ", 1)[-1].strip()
+                                else:
+                                    new_v = new_v_raw.strip()
+
+                                if old_v != new_v and new_v != "Belum Diisi" and new_v != "Kosong":
                                     update_sheet_cell(4, idx, col, new_v)
                                     updates += 1
                     
                     if updates > 0:
-                        st.success(f"✅ Berhasil! Data diperbarui. Prospek 'Form Submitted' otomatis disembunyikan.")
+                        st.success(f"✅ Berhasil! {updates} data diperbarui. Dashboard sudah bersih dari 'Form Submitted'.")
                         st.cache_data.clear()
                         st.rerun()
         else:
