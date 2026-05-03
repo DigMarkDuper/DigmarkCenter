@@ -35,8 +35,8 @@ def append_sheet_rows(sheet_index, all_data_list):
             
 def sync_leads_to_crm():
     try:
-        df_wa = load_wa_admin()
-        df_crm = load_database_nomor()
+        df_wa = load_wa_admin()    # Tab 4
+        df_crm = load_database_nomor() # Tab 5
         
         if df_wa.empty:
             st.warning("⚠️ Laporan WA Admin kosong.")
@@ -52,17 +52,15 @@ def sync_leads_to_crm():
         df_wa['No Hp'] = df_wa['No Hp'].apply(clean_phone)
         df_wa = df_wa.drop_duplicates(subset=['No Hp'], keep='last')
 
-        # Filter Mekari Tag
         valid_tags = ["Hot Lead", "Warm Lead", "Cold Lead", "Pending Form - L1", "Pending Form - L2", "Re-engagement", "Future Prospect", "Form Submitted", "Sales Progress"]
         mekari_col = next((c for c in df_wa.columns if 'Mekari' in c), None)
         
         if not mekari_col:
-            st.error("❌ Kolom Mekari Tag tidak ditemukan.")
+            st.error("❌ Kolom Mekari Tag tidak ditemukan di WA Admin.")
             return
             
         new_leads = df_wa[df_wa[mekari_col].isin(valid_tags)].copy()
         
-        # Anti-Double
         if not df_crm.empty:
             existing_nos = df_crm['No Hp'].astype(str).tolist()
             new_leads = new_leads[~new_leads['No Hp'].isin(existing_nos)]
@@ -71,32 +69,34 @@ def sync_leads_to_crm():
             st.info("ℹ️ Tidak ada data baru untuk ditarik.")
             return
 
-        # --- PROSES PENGUMPULAN DATA (BATCHING) ---
-        all_new_rows = [] # List untuk menampung semua data baru
+        # --- PROSES BATCHING DENGAN MAPPING ASAL ---
+        all_new_rows = [] 
         current_crm_len = len(df_crm)
         
         for idx, row in new_leads.reset_index(drop=True).iterrows():
+            # MENGAMBIL 'Asal' UNTUK DIMASUKKAN KE 'Domisili'
+            asal_data = row.get('Asal', row.get('Domisili', '')) 
+            
             data_to_append = [
-                current_crm_len + idx + 1,          # 1. No
-                row.get('No Hp', ''),               # 2. No Hp
-                row.get('Nama', ''),                # 3. Nama
-                row.get('Domisili', ''),            # 4. Domisili
-                '', '',                             # 5. Tgl Lahir, 6. Usia
-                row.get('Kategori', 'Siswa'),       # 7. Kategori
-                '',                                 # 8. Keterangan Form
+                current_crm_len + idx + 1,      # 1. No
+                row.get('No Hp', ''),           # 2. No Hp
+                row.get('Nama', ''),             # 3. Nama
+                asal_data,                       # 4. Domisili (Diambil dari kolom Asal)
+                '', '',                          # 5. Tgl Lahir, 6. Usia
+                row.get('Kategori', 'Siswa'),    # 7. Kategori
+                '',                              # 8. Keterangan Form
                 datetime.datetime.now().strftime('%Y-%m-%d'), # 9. Tgl Masuk
-                row.get(mekari_col, ''),            # 10. Mekari Tag
-                '', '', '', '',                     # 11-14. Treatment
-                'PENDING',                          # 15. Status
-                '',                                 # 16. Updated Status
-                ''                                  # 17. Catatan
+                row.get(mekari_col, ''),         # 10. Mekari Tag
+                '', '', '', '',                  # 11-14. Treatment
+                'PENDING',                       # 15. Status
+                '',                              # 16. Updated Status
+                ''                               # 17. Catatan
             ]
-            all_new_rows.append(data_to_append) # Masukkan ke rombongan
+            all_new_rows.append(data_to_append)
 
-        # --- SATU KALI KIRIM UNTUK SEMUA DATA ---
         if all_new_rows:
-            append_sheet_rows(4, all_new_rows) # Panggil fungsi batch
-            st.success(f"✅ Berhasil menarik {len(all_new_rows)} Prospek sekaligus!")
+            append_sheet_rows(4, all_new_rows) 
+            st.success(f"✅ Berhasil menarik {len(all_new_rows)} Prospek (Mapping Asal ke Domisili Berhasil)!")
             st.cache_data.clear()
             st.rerun()
             
@@ -1031,6 +1031,28 @@ elif page == "💬 WA ADMIN REPORT":
 # --- HALAMAN 5: DATABASE NOMOR (CRM) ---
 elif page == "📂 DATABASE NOMOR":
     st.title("🗂️ CRM & DETAILED LEAD DATABASE")
+    # --- LOGIKA DOWNLOAD EXCEL UNTUK MEKARI ---
+import io
+
+st.markdown("### 📥 Export Data untuk Mekari")
+if not filtered_crm.empty:
+    # Kita siapkan data khusus yang biasanya dibutuhkan Mekari (Nama & No HP)
+    df_export = filtered_crm[['Nama', 'No Hp', 'Domisili', 'Mekari Tag (Status Terakhir)']].copy()
+    
+    # Buat buffer untuk Excel
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+        df_export.to_excel(writer, index=False, sheet_name='Leads_Mekari')
+        
+    st.download_button(
+        label="📥 Download Excel (Data Terfilter)",
+        data=buffer.getvalue(),
+        file_name=f"Mekari_Leads_{datetime.datetime.now().strftime('%d_%m_%Y')}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True
+    )
+else:
+    st.info("Filter data terlebih dahulu untuk men-download.")
     
     # Bungkus dalam tombol agar tidak berjalan otomatis (biar tidak NameError/Loop)
     if st.button("🔄 Tarik Data Unik dari WA Admin", use_container_width=True):
