@@ -7,6 +7,15 @@ import plotly.graph_objects as go
 import base64
 import datetime
 import sys
+def append_sheet_row(sheet_index, data_list):
+    """Fungsi pembantu untuk menulis baris baru ke Google Sheets"""
+    try:
+        # Pastikan nama file spreadsheet ini sama dengan yang Mas pakai
+        sh = client.open("MASTER DATA DIGITAL MARKETING 2.0")
+        sheet = sh.get_worksheet(sheet_index)
+        sheet.append_row(data_list)
+    except Exception as e:
+        st.error(f"Gagal menulis ke Google Sheets: {e}")
 def sync_leads_to_crm():
     try:
         # 1. Tarik Data dari WA Admin & CRM
@@ -19,20 +28,34 @@ def sync_leads_to_crm():
 
         # --- LOGIKA STANDARISASI & DE-DUPLIKASI ---
         def clean_phone(val):
+            # Bersihkan karakter aneh dan paksa awalan 62
             num = str(val).strip().replace('+', '').replace(' ', '').replace('-', '')
             if num.startswith('0'): return '62' + num[1:]
             if num.startswith('8'): return '62' + num
             return num
 
+        # Pastikan kolom No Hp ada di WA Admin
+        if 'No Hp' not in df_wa.columns:
+            st.error("❌ Kolom 'No Hp' tidak ditemukan di WA Admin.")
+            return
+
         df_wa['No Hp'] = df_wa['No Hp'].apply(clean_phone)
+        # Ambil data terbaru jika ada nomor ganda di WA Admin
         df_wa = df_wa.drop_duplicates(subset=['No Hp'], keep='last')
 
-        # 2. Filter Mekari Tag sesuai Request Mas
+        # 2. Filter Mekari Tag sesuai Request
         valid_tags = ["Hot Lead", "Warm Lead", "Cold Lead", "Pending Form - L1", "Pending Form - L2", "Re-engagement", "Future Prospect", "Form Submitted", "Sales Progress"]
-        new_leads = df_wa[df_wa['Mekari Tag'].isin(valid_tags)].copy()
+        
+        # Cari nama kolom yang mengandung 'Mekari'
+        mekari_col = next((c for c in df_wa.columns if 'Mekari' in c), None)
+        if not mekari_col:
+            st.error("❌ Kolom Mekari Tag tidak ditemukan.")
+            return
+            
+        new_leads = df_wa[df_wa[mekari_col].isin(valid_tags)].copy()
         
         # 3. Cek Terhadap Data CRM yang Sudah Ada (Anti-Double)
-        if not df_crm.empty:
+        if not df_crm.empty and 'No Hp' in df_crm.columns:
             existing_nos = df_crm['No Hp'].astype(str).tolist()
             new_leads = new_leads[~new_leads['No Hp'].isin(existing_nos)]
 
@@ -40,14 +63,28 @@ def sync_leads_to_crm():
             st.info("ℹ️ Tidak ada data baru atau semua nomor sudah terdaftar di CRM.")
             return
 
-        # 4. Proses Pemindahan
+        # 4. Proses Pemindahan (Mapping 17 Kolom)
         added_count = 0
         for _, row in new_leads.iterrows():
+            # Urutan harus sama persis dengan urutan kolom di Spreadsheet Mas
             data_to_append = [
-                len(df_crm) + added_count + 1, row.get('No Hp', ''), row.get('Nama', ''), row.get('Domisili', ''),
-                '', '', row.get('Kategori', 'Siswa'), '', datetime.datetime.now().strftime('%Y-%m-%d'),
-                row.get('Mekari Tag', ''), '', '', '', '', 'PENDING', '', ''
+                len(df_crm) + added_count + 1,      # 1. No
+                row.get('No Hp', ''),               # 2. No Hp
+                row.get('Nama', ''),                 # 3. Nama
+                row.get('Domisili', ''),             # 4. Domisili
+                '',                                  # 5. Tanggal Lahir
+                '',                                  # 6. Usia
+                row.get('Kategori', 'Siswa'),        # 7. Kategori
+                '',                                  # 8. Keterangan Setelah Isi Form
+                datetime.datetime.now().strftime('%Y-%m-%d'), # 9. Tanggal Masuk
+                row.get(mekari_col, ''),             # 10. Mekari Tag
+                '', '', '', '',                      # 11-14. Treatment & Tanggal Tx
+                'PENDING',                           # 15. Status
+                '',                                  # 16. Updated Status
+                ''                                   # 17. Catatan
             ]
+            
+            # Panggil fungsi helper yang kita buat di atas
             append_sheet_row(4, data_to_append) 
             added_count += 1
         
@@ -55,6 +92,7 @@ def sync_leads_to_crm():
             st.success(f"✅ Berhasil menarik {added_count} Prospek unik ke CRM!")
             st.cache_data.clear()
             st.rerun()
+            
     except Exception as e:
         st.error(f"Gagal Sinkronisasi: {e}")
 # =====================================================================
