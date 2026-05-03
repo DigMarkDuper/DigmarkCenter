@@ -941,11 +941,6 @@ elif page == "📈 INSIGHTS & ANALYTICS":
     except Exception as e:
         st.error(f"Kesalahan Teknis Insight: {e}")
 
-Siap, Mas. Pilihan yang bagus biar admin Mas makin disiplin mengisi data. Kalau ada yang kosong, langsung "tertoyo" dengan label "Belum Terupdate".
-
-Berikut adalah pembaruan kode untuk Halaman 4: WA ADMIN REPORT dengan penambahan logika penanganan data kosong tersebut:
-
-Python
 # --- HALAMAN 4: WA ADMIN REPORT ---
 elif page == "💬 WA ADMIN REPORT":
     st.title("💬 KINERJA WA ADMIN & CLOSING LPK")
