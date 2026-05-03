@@ -908,55 +908,64 @@ elif page == "📂 DATABASE NOMOR":
     st.markdown("---")
     
     try:
-        # 1. Ambil Data
+        # 1. Ambil Data Mentah
         df_crm = load_database_nomor()
         
         if not df_crm.empty:
-            # Fix tipe data No Hp agar bisa diedit (paksa jadi string)
+            # Fix tipe data No Hp agar tidak error saat diedit
             df_crm['No Hp'] = df_crm['No Hp'].astype(str)
 
             # ==========================================================
-            # 1. SMART FILTERING SYSTEM (SIDEBAR)
+            # 1. SMART FILTERING SYSTEM (DI HALAMAN UTAMA)
             # ==========================================================
-            st.sidebar.markdown(f"<h2 style='color:{BRAND_BLUE};'>Smart Filter CRM</h2>", unsafe_allow_html=True)
-            
-            # A. Suhu Prospek
-            temp_options = ["PENDING", "INTERESTED", "REGISTERED", "NO RESPONSE"]
-            temp_filter = st.sidebar.multiselect("Suhu Prospek:", options=temp_options, default=temp_options)
+            # Menggunakan expander agar Mas bisa sembunyikan filter jika ingin fokus ke tabel
+            with st.expander("🔍 Filter & Pencarian Prospek (Klik untuk Membuka/Menutup)", expanded=True):
+                # Baris Pertama: Pencarian Nama/Nomor
+                search_crm = st.text_input("🔎 Cari Nama atau Nomor HP:", placeholder="Ketik di sini untuk mencari...")
 
-            # B. Zonasi Wilayah
-            df_crm['Zonasi'] = df_crm['Domisili'].apply(lambda x: 
-                'LOKAL (DIY)' if any(area in str(x).upper() for area in ['JOGJA', 'SLEMAN', 'BANTUL', 'KULON', 'GUNUNG']) else 'LUAR KOTA'
-            )
-            zona_filter = st.sidebar.multiselect("Zonasi Wilayah:", options=['LOKAL (DIY)', 'LUAR KOTA'], default=['LOKAL (DIY)', 'LUAR KOTA'])
+                # Baris Kedua: Pengelompokan Strategis (Dibuat 3 Kolom)
+                f1, f2, f3 = st.columns(3)
+                
+                with f1:
+                    st.markdown("🔥 **Suhu Prospek**")
+                    temp_options = ["PENDING", "INTERESTED", "REGISTERED", "NO RESPONSE"]
+                    temp_filter = st.multiselect("Pilih Status:", options=temp_options, default=temp_options, key="f_temp")
 
-            # C. Segment Usia
-            def segment_usia(usia):
-                try:
-                    u = int(usia)
-                    if u <= 21: return "Fresh Graduate (19-21)"
-                    elif u <= 26: return "Career Switcher (22-26)"
-                    else: return "Senior"
-                except: return "N/A"
-            df_crm['Segment Usia'] = df_crm['Usia'].apply(segment_usia)
-            usia_filter = st.sidebar.multiselect("Segment Usia:", options=df_crm['Segment Usia'].unique(), default=df_crm['Segment Usia'].unique())
+                with f2:
+                    st.markdown("🗺️ **Zonasi Wilayah**")
+                    # Logika pengelompokan wilayah
+                    df_crm['Zonasi'] = df_crm['Domisili'].apply(lambda x: 
+                        'LOKAL (DIY)' if any(area in str(x).upper() for area in ['JOGJA', 'SLEMAN', 'BANTUL', 'KULON', 'GUNUNG']) else 'LUAR KOTA'
+                    )
+                    zona_filter = st.multiselect("Pilih Zona:", options=['LOKAL (DIY)', 'LUAR KOTA'], default=['LOKAL (DIY)', 'LUAR KOTA'], key="f_zona")
 
-            # D. Search
-            search_crm = st.sidebar.text_input("🔍 Cari Nama/Nomor:")
+                with f3:
+                    st.markdown("🎓 **Kategori Usia**")
+                    # Logika segmentasi usia
+                    def segment_usia(usia):
+                        try:
+                            u = int(usia)
+                            if u <= 21: return "Fresh Graduate (19-21)"
+                            elif u <= 26: return "Career Switcher (22-26)"
+                            else: return "Senior"
+                        except: return "N/A"
+                    df_crm['Segment Usia'] = df_crm['Usia'].apply(segment_usia)
+                    usia_filter = st.multiselect("Pilih Segmen Usia:", options=df_crm['Segment Usia'].unique(), default=df_crm['Segment Usia'].unique(), key="f_usia")
 
-            # EKSEKUSI FILTER
+            # --- EKSEKUSI FILTER ---
             mask = (
                 (df_crm['Status'].isin(temp_filter)) & 
                 (df_crm['Zonasi'].isin(zona_filter)) & 
                 (df_crm['Segment Usia'].isin(usia_filter))
             )
+            
             if search_crm:
-                mask = mask & (df_crm['Nama'].str.contains(search_crm, case=False) | df_crm['No Hp'].str.contains(search_crm))
+                mask = mask & (df_crm['Nama'].str.contains(search_crm, case=False, na=False) | df_crm['No Hp'].str.contains(search_crm))
             
             filtered_crm = df_crm[mask].copy()
 
             # ==========================================================
-            # 2. EXECUTIVE SUMMARY (METRIK)
+            # 2. EXECUTIVE SUMMARY (METRIK DINAMIS)
             # ==========================================================
             st.markdown('<div class="feature-header">📈 Lead Monitoring Dashboard</div>', unsafe_allow_html=True)
             m1, m2, m3, m4 = st.columns(4)
@@ -987,7 +996,7 @@ elif page == "📂 DATABASE NOMOR":
             edited_crm = st.data_editor(
                 df_crm_disp,
                 column_config={
-                    "No Hp": st.column_config.TextColumn("WhatsApp", disabled=True),
+                    "No Hp": st.column_config.TextColumn("WhatsApp", disabled=True), # Aman dari error integer[cite: 1]
                     "Kategori": st.column_config.SelectboxColumn("Kategori", options=["Siswa", "Partnership", "Lainnya"]),
                     "Tanggal Lahir": st.column_config.DateColumn("Tgl Lahir"),
                     "Treatment 1": st.column_config.SelectboxColumn("Tx 1", options=list(tx_map.values())),
@@ -1012,6 +1021,7 @@ elif page == "📂 DATABASE NOMOR":
                         'Treatment 1', 'Treatment 2', 'Tanggal Treatment 1', 'Tanggal Treatment 2',
                         'Status', 'Updated Status After Treatment', 'Catatan'
                     ]
+                    
                     for idx in edited_crm.index:
                         for col in cols_sync:
                             old_v = str(df_crm.at[idx, col]).strip()
@@ -1027,7 +1037,7 @@ elif page == "📂 DATABASE NOMOR":
                         st.cache_data.clear()
                         st.rerun()
         else:
-            st.warning("Database masih kosong.")
+            st.warning("Database masih kosong. Cek data di Google Sheets Tab 5.")
 
     except Exception as e:
         st.error(f"Gagal memuat CRM: {e}")
