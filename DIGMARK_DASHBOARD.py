@@ -179,8 +179,13 @@ def load_wa_admin():
 
 @st.cache_data(ttl=5)
 def load_database_nomor():
-    """Mengambil data dari tab Database CRM (Asumsi Index 4)"""
-    return get_raw_df(4)
+    df = get_raw_df(4) # Pastikan Tab Index 4 adalah Database Kontak
+    if not df.empty:
+        # Konversi kolom tanggal agar formatnya seragam di Website
+        for col in ['Tanggal Lahir', 'Tanggal Masuk Database', 'Tanggal Treatment 1', 'Tanggal Treatment 2']:
+            if col in df.columns:
+                df[col] = pd.to_datetime(df[col], errors='coerce').dt.date
+    return df
 
 # =====================================================================
 # 4. FUNGSI WRITE-BACK & BATCH UPDATE
