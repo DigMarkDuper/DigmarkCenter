@@ -948,16 +948,19 @@ elif page == "💬 WA ADMIN REPORT":
     try:
         df_wa = load_wa_admin()
         
+        # 1. IDENTIFIKASI & PEMBERSIHAN KOLOM STATUS
         status_col = next((col for col in df_wa.columns if 'Status' in str(col)), None)
         if status_col:
             df_wa.rename(columns={status_col: 'Status'}, inplace=True)
-            df_wa['Status'] = df_wa['Status'].astype(str).str.strip().str.title()
+            # Pastikan teks bersih agar cocok dengan kategori di gambar
+            df_wa['Status'] = df_wa['Status'].astype(str).str.strip()
         else:
-            df_wa['Status'] = ""
+            df_wa['Status'] = "Lainnya"
             
         if 'Mekari Tag' in df_wa.columns:
             df_wa = df_wa[~df_wa['Mekari Tag'].astype(str).str.contains('Partnership', case=False, na=False)]
         
+        # 2. SIDEBAR FILTER
         st.sidebar.markdown(f"<h2 style='color:{BRAND_BLUE};'>Filter & Search</h2>", unsafe_allow_html=True)
         
         if 'Bulan-Masuk' in df_wa.columns:
@@ -970,6 +973,7 @@ elif page == "💬 WA ADMIN REPORT":
             df_wa = df_wa[df_wa['Asal'].astype(str).str.contains(search_city, case=False, na=False)]
 
         if not df_wa.empty:
+            # 3. METRIK UTAMA
             total_leads = len(df_wa)
             total_closing = len(df_wa[df_wa['Status'].str.contains('Closing', case=False, na=False)])
             conversion_rate = (total_closing / total_leads * 100) if total_leads > 0 else 0
@@ -982,13 +986,58 @@ elif page == "💬 WA ADMIN REPORT":
             a4.metric("Unique Locations 📍", f"{df_wa['Asal'].nunique()}")
 
             st.markdown("---")
-            c1, c2 = st.columns(2)
+
+            # 4. PENGELOMPOKAN SESUAI GAMBAR (MENGGUNAKAN KOLOM STATUS)
+            st.markdown('<div class="feature-header">📊 Distribusi Status Prospek (Berdasarkan Kolom Status)</div>', unsafe_allow_html=True)
             
+            # Mendefinisikan urutan dan warna sesuai gambar yang Mas kirim
+            status_order = ["No Response", "Follow Up", "Daftar", "Interview", "Closing", "Lainnya", "Sales Progress", "Withdraw"]
+            color_map = {
+                "No Response": "#FDE68A",    # Kuning Krem
+                "Follow Up": "#BFDBFE",      # Biru Muda
+                "Daftar": "#BBF7D0",         # Hijau Muda
+                "Interview": "#E9D5FF",      # Ungu Muda
+                "Closing": "#FECACA",        # Merah Muda/Pink
+                "Lainnya": "#E5E7EB",        # Abu-abu
+                "Sales Progress": "#1D4ED8",  # Biru Tua
+                "Withdraw": "#B91C1C"        # Merah Tua
+            }
+
+            # Hitung jumlah per status
+            status_summary = df_wa['Status'].value_counts().reset_index()
+            status_summary.columns = ['Status', 'Jumlah']
+            
+            # Buat chart dengan urutan dan warna yang presisi
+            fig_status = px.bar(
+                status_summary, 
+                x='Jumlah', 
+                y='Status', 
+                orientation='h',
+                category_orders={"Status": status_order},
+                color='Status',
+                color_discrete_map=color_map,
+                text_auto=True
+            )
+            fig_status.update_layout(
+                showlegend=False, 
+                height=450, 
+                paper_bgcolor='white', 
+                plot_bgcolor='white',
+                xaxis_title="Jumlah Prospek",
+                yaxis_title="",
+                font=dict(size=13)
+            )
+            fig_status.update_yaxes(tickfont=dict(family="Arial Black"))
+            st.plotly_chart(fig_status, use_container_width=True)
+
+            st.markdown("---")
+            
+            # 5. FUNNEL & SUMBER (TETAP DIPERTAHANKAN)
+            c1, c2 = st.columns(2)
             with c1:
                 st.markdown('<div class="feature-header">📊 Funnel Konversi Prospek</div>', unsafe_allow_html=True)
                 funnel_order = ["Follow Up", "Daftar", "Interview", "Closing"]
-                funnel_data = []
-                funnel_data.append(dict(Tahap="Total Leads", Jumlah=total_leads))
+                funnel_data = [dict(Tahap="Total Leads", Jumlah=total_leads)]
                 for tahap in funnel_order:
                     count = len(df_wa[df_wa['Status'].str.contains(tahap, case=False, na=False)])
                     funnel_data.append(dict(Tahap=tahap, Jumlah=count))
@@ -1001,13 +1050,7 @@ elif page == "💬 WA ADMIN REPORT":
                     text=df_f.apply(lambda r: f"{r['Jumlah']} ({r['Pct']}%)", axis=1),
                     color='Tahap', color_discrete_sequence=[BRAND_BLUE, "#006bbd", "#0080e0", BRAND_YELLOW, "#32CD32"]
                 )
-                fig_funnel.update_layout(
-                    paper_bgcolor='white', plot_bgcolor='white', showlegend=False,
-                    xaxis_title="", yaxis_title="", yaxis={'categoryorder':'total descending'},
-                    font=dict(color="#000000", size=14)
-                )
-                fig_funnel.update_yaxes(tickfont=dict(color="#000000", family="Arial Black"))
-                fig_funnel.update_traces(textposition='outside', cliponaxis=False, textfont=dict(color="#000000", family="Arial Black"))
+                fig_funnel.update_layout(paper_bgcolor='white', plot_bgcolor='white', showlegend=False, yaxis={'categoryorder':'total descending'})
                 st.plotly_chart(fig_funnel, use_container_width=True)
 
             with c2:
@@ -1016,48 +1059,23 @@ elif page == "💬 WA ADMIN REPORT":
                     sumber_counts = df_wa['Sumber (Ads/Organik/Sales)'].value_counts().reset_index()
                     sumber_counts.columns = ['Sumber', 'Jumlah']
                     fig_sumber = px.pie(sumber_counts, names='Sumber', values='Jumlah', hole=0.4, color_discrete_sequence=[BRAND_BLUE, BRAND_YELLOW, "#003A66"])
-                    fig_sumber.update_traces(textinfo='label+percent', textfont_color="#000000")
-                    fig_sumber.update_layout(paper_bgcolor='white', font=dict(color="#000000"))
+                    fig_sumber.update_traces(textinfo='label+percent')
                     st.plotly_chart(fig_sumber, use_container_width=True)
 
-            st.markdown('<div class="feature-header">📍 Mapping Persebaran Asal (Seluruh Data)</div>', unsafe_allow_html=True)
+            # 6. MAPPING ASAL & TAGGING (TETAP DIPERTAHANKAN)
+            st.markdown('<div class="feature-header">📍 Mapping Persebaran Asal</div>', unsafe_allow_html=True)
             if 'Asal' in df_wa.columns:
                 asal_counts = df_wa['Asal'].value_counts().reset_index()
                 asal_counts.columns = ['Asal', 'Jumlah']
-                asal_counts = asal_counts[asal_counts['Asal'].str.strip() != '']
-                dynamic_height = max(400, len(asal_counts) * 25)
-                
-                fig_asal = px.bar(asal_counts, y='Asal', x='Jumlah', text_auto=True, orientation='h', color_discrete_sequence=[BRAND_BLUE])
-                fig_asal.update_layout(
-                    paper_bgcolor='white', plot_bgcolor='white', height=dynamic_height,
-                    xaxis_title="Jumlah Leads", yaxis_title="", yaxis={'categoryorder':'total ascending'},
-                    font=dict(color="#000000", size=12)
-                )
-                fig_asal.update_yaxes(tickfont=dict(color="#000000", family="Arial Black"))
-                fig_asal.update_traces(textfont=dict(color="#000000"), textposition='outside', cliponaxis=False)
+                fig_asal = px.bar(asal_counts[asal_counts['Asal'] != ''], y='Asal', x='Jumlah', text_auto=True, orientation='h', color_discrete_sequence=[BRAND_BLUE])
+                fig_asal.update_layout(height=max(400, len(asal_counts)*20), yaxis={'categoryorder':'total ascending'})
                 st.plotly_chart(fig_asal, use_container_width=True)
 
-            st.markdown('<div class="feature-header">🏷️ Tagging & Kategori</div>', unsafe_allow_html=True)
-            t1, t2 = st.columns(2)
-            with t1:
-                if 'Mekari Tag' in df_wa.columns:
-                    tag_counts = df_wa['Mekari Tag'].value_counts().reset_index()
-                    fig_tag = px.bar(tag_counts, y='Mekari Tag', x='count', text_auto=True, orientation='h', color_discrete_sequence=[BRAND_YELLOW])
-                    fig_tag.update_layout(paper_bgcolor='white', plot_bgcolor='white', yaxis={'categoryorder':'total ascending'}, font=dict(color="#000000"))
-                    fig_tag.update_yaxes(tickfont=dict(color="#000000", family="Arial Black"))
-                    st.plotly_chart(fig_tag, use_container_width=True)
-            with t2:
-                if 'Kategori (Persyaratan/Biaya/Pendaftaran/Loker/dll)' in df_wa.columns:
-                    kat_counts = df_wa['Kategori (Persyaratan/Biaya/Pendaftaran/Loker/dll)'].value_counts().reset_index()
-                    fig_kat = px.bar(kat_counts, x='Kategori (Persyaratan/Biaya/Pendaftaran/Loker/dll)', y='count', text_auto=True, color_discrete_sequence=[BRAND_BLUE])
-                    fig_kat.update_layout(paper_bgcolor='white', plot_bgcolor='white', font=dict(color="#000000"))
-                    st.plotly_chart(fig_kat, use_container_width=True)
-
-            st.markdown('<div class="feature-header">📋 Master Database WA Admin (Cek Data Mentah)</div>', unsafe_allow_html=True)
+            st.markdown('<div class="feature-header">📋 Master Database WA Admin</div>', unsafe_allow_html=True)
             st.dataframe(df_wa, use_container_width=True, hide_index=True)
             
         else:
-            st.warning("⚠️ Data tidak ditemukan. Cek filter atau pastikan data sudah diinput di Tab 4.")
+            st.warning("⚠️ Data tidak ditemukan.")
     except Exception as e:
         st.error(f"Kesalahan Teknis: {e}")
 
