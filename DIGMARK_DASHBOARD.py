@@ -273,40 +273,40 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
-    # ==========================================================
-    # 5. GRID NAVIGASI KOTAK BAWAH (UPDATED: 5 COLUMNS)
-    # ==========================================================
-    def create_square_card(icon, title, subtitle, target_page, button_key):
-        with st.container(border=True):
-            st.markdown(f"""
-                <div style="text-align: center; padding: 10px 0px 5px 0px;">
-                    <div style="font-size: 70px; line-height: 1; margin-bottom: 15px;">{icon}</div>
-                    <div style="font-size: 14px; font-weight: 900; color: {BRAND_BLUE}; text-transform: uppercase; line-height: 1.2;">{title}</div>
-                    <div style="font-size: 12px; color: #666; margin-top: 8px; min-height: 35px;">{subtitle}</div>
-                </div>
-            """, unsafe_allow_html=True)
-            st.button("Masuk ➔", key=button_key, use_container_width=True, on_click=go_to_page, args=(target_page,))
+   # ==========================================================
+# 5. GRID NAVIGASI KOTAK BAWAH (UPDATED: 5 COLUMNS)
+# ==========================================================
+def create_square_card(icon, title, subtitle, target_page, button_key):
+    with st.container(border=True):
+        st.markdown(f"""
+            <div style="text-align: center; padding: 10px 0px 5px 0px;">
+                <div style="font-size: 70px; line-height: 1; margin-bottom: 15px;">{icon}</div>
+                <div style="font-size: 14px; font-weight: 900; color: {BRAND_BLUE}; text-transform: uppercase; line-height: 1.2;">{title}</div>
+                <div style="font-size: 12px; color: #666; margin-top: 8px; min-height: 35px;">{subtitle}</div>
+            </div>
+        """, unsafe_allow_html=True)
+        # Pastikan fungsi go_to_page sudah terdefinisi di bagian atas skrip
+        st.button("Masuk ➔", key=button_key, use_container_width=True, on_click=go_to_page, args=(target_page,))
 
-    # Kita ubah menjadi 5 kolom
-    c1, c2, c3, c4, c5 = st.columns(5)
-    
-    with c1: 
-        create_square_card("📱", "Sosial Media", "Jadwal Tayang & Hutang PIC", "📱 SOSIAL MEDIA", "btn_sos")
-    
-    with c2: 
-        create_square_card("🌐", "Website Audit", "Status Artikel & Pilar SEO", "🌐 WEBSITE AUDIT", "btn_web")
-    
-    with c3: 
-        create_square_card("📈", "Analytics", "Interaksi, Views & Leads", "📈 INSIGHTS & ANALYTICS", "btn_in")
-    
-    with c4: 
-        create_square_card("💬", "WA Report", "Funneling & Sukses Closing", "💬 WA ADMIN REPORT", "btn_wa")
-    
-    # Fitur Baru: Database Nomor
-    with c5: 
-        create_square_card("📂", "Database Nomor", "CRM & Detail Prospek Siswa", "📂 DATABASE NOMOR", "btn_db")
+# Membuat 5 kolom sejajar
+c1, c2, c3, c4, c5 = st.columns(5)
 
-    st.markdown("<hr style='border: 1px solid #EEE; margin-top: 40px;'>", unsafe_allow_html=True)
+with c1: 
+    create_square_card("📱", "Sosial Media", "Jadwal Tayang & Hutang PIC", "📱 SOSIAL MEDIA", "btn_sos")
+
+with c2: 
+    create_square_card("🌐", "Website Audit", "Status Artikel & Pilar SEO", "🌐 WEBSITE AUDIT", "btn_web")
+
+with c3: 
+    create_square_card("📈", "Analytics", "Interaksi, Views & Leads", "📈 INSIGHTS & ANALYTICS", "btn_in")
+
+with c4: 
+    create_square_card("💬", "WA Report", "Funneling & Sukses Closing", "💬 WA ADMIN REPORT", "btn_wa")
+
+with c5: 
+    create_square_card("📂", "Database Nomor", "CRM & Detail Prospek Siswa", "📂 DATABASE NOMOR", "btn_db")
+
+st.markdown("<hr style='border: 1px solid #EEE; margin-top: 40px;'>", unsafe_allow_html=True)
 # ==========================================================
 # KONFIGURASI TAMPILAN GLOBAL (SELURUH HALAMAN)
 # ==========================================================
