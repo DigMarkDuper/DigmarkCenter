@@ -1107,29 +1107,36 @@ elif page == "📂 DATABASE NOMOR":
             m4.metric("Warm Leads 🌤️", len(filtered_crm[filtered_crm['Mekari Tag (Status Terakhir)'] == 'Warm Lead']))
 
             # ==========================================================
-            # 5. FITUR DOWNLOAD EXCEL (DITARUH SETELAH FILTERED_CRM ADA)
+            # 5. FITUR DOWNLOAD EXCEL (FORMAT KHUSUS MEKARI)
             # ==========================================================
             import io
             st.markdown("### 📥 Export Data untuk Mekari")
+            
             if not filtered_crm.empty:
-                # Siapkan data khusus untuk Mekari
-                df_export = filtered_crm[['Nama', 'No Hp', 'Domisili', 'Mekari Tag (Status Terakhir)']].copy()
+                # --- PROSES MAPPING KOLOM SESUAI REQUEST ---
+                df_mekari = pd.DataFrame()
                 
+                # Pastikan phone_number bersih dan berawalan 62
+                df_mekari['phone_number'] = filtered_crm['No Hp'].astype(str)
+                df_mekari['full_name'] = filtered_crm['Nama']
+                df_mekari['customer_name'] = filtered_crm['Nama']
+                df_mekari['company'] = filtered_crm['Kategori']
+                
+                # Buat buffer untuk Excel
                 buffer = io.BytesIO()
                 with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-                    df_export.to_excel(writer, index=False, sheet_name='Leads_Mekari')
+                    df_mekari.to_excel(writer, index=False, sheet_name='Import_Mekari')
                     
                 st.download_button(
-                    label="📥 Download Excel (Data Terfilter)",
+                    label="🚀 Download Excel untuk Import Mekari",
                     data=buffer.getvalue(),
-                    file_name=f"Mekari_Leads_{datetime.datetime.now().strftime('%d_%m_%Y')}.xlsx",
+                    file_name=f"Import_Mekari_{datetime.datetime.now().strftime('%d_%m_%Y')}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True
+                    use_container_width=True,
+                    help="Format kolom: phone_number, full_name, customer_name, company"
                 )
             else:
-                st.info("Filter data terlebih dahulu untuk mengaktifkan tombol download.")
-
-            st.markdown("---")
+                st.info("Silakan filter data terlebih dahulu untuk men-download.")
 
             # 6. LIVE CRM EDITOR
             st.markdown('<div class="feature-header">📑 Management Database Prospek Aktif</div>', unsafe_allow_html=True)
