@@ -355,18 +355,6 @@ if page == "🏠 HOMEPAGE":
     """, unsafe_allow_html=True)
 
     # ==========================================================
-    # 2. HEADER UTAMA
-    # ==========================================================
-    st.markdown(f"""
-        <div class="feature-header" style="text-align: center; font-size: 28px; margin-top: 0px;">
-            Pusat Kendali Digital Marketing
-        </div>
-        <p style='text-align: center; font-size: 16px; color: gray; margin-bottom: 30px;'>
-            Selamat datang kembali! Pilih modul kerja di bawah ini untuk memantau performa LPK.
-        </p>
-    """, unsafe_allow_html=True)
-
-    # ==========================================================
     # 3. EXECUTIVE SUMMARY DASHBOARD (4 Kartu KPI)
     # ==========================================================
     try:
