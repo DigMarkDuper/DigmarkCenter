@@ -403,68 +403,98 @@ if page == "🏠 HOMEPAGE":
     st.markdown("---") # Garis Pemisah
 
    # ==========================================================
-    # 3. EXECUTIVE SUMMARY (4 KOTAK KPI BERBAYANG - FIXED)
-    # ==========================================================
-    try:
-        df_wa_home = load_wa_admin()
-        df_in_home = load_insight()
-        df_sos_home = load_sosmed()
-        df_web_home = load_website()
+# 3. EXECUTIVE SUMMARY (OPTIMIZED & FILTERED)
+# ==========================================================
+try:
+    df_wa_home = load_wa_admin()
+    df_in_home = load_insight()
+    df_sos_home = load_sosmed()
+    df_web_home = load_website()
 
-        import datetime
-        sekarang = datetime.datetime.now()
-        bulan_ini, tahun_ini = sekarang.month, sekarang.year
-        bulan_lalu = 12 if sekarang.month == 1 else sekarang.month - 1
-        tahun_bulan_lalu = sekarang.year - 1 if sekarang.month == 1 else sekarang.year
+    import datetime
+    sekarang = datetime.datetime.now()
+    bulan_ini, tahun_ini = sekarang.month, sekarang.year
+    bulan_lalu = 12 if sekarang.month == 1 else sekarang.month - 1
+    tahun_bulan_lalu = sekarang.year - 1 if sekarang.month == 1 else sekarang.year
 
-        # --- FUNGSI HELPER FILTER WAKTU ---
-        def filter_waktu(df, m, y):
-            if df.empty: return df
-            # Mencari kolom tanggal secara otomatis
-            col_tgl = next((c for c in df.columns if any(k in str(c).lower() for k in ['tanggal', 'deadline', 'date'])), None)
-            if col_tgl:
-                df_t = df.copy()
-                # Konversi manual bulan Indonesia ke Inggris agar terbaca sistem
-                df_t['tgl_clean'] = df_t[col_tgl].astype(str).str.lower().replace(
-                    {'januari':'jan', 'februari':'feb', 'maret':'mar', 'mei':'may', 'agustus':'aug', 'oktober':'oct', 'desember':'dec'}, regex=True
-                )
-                df_t['tgl_p'] = pd.to_datetime(df_t['tgl_clean'], errors='coerce')
-                return df_t[(df_t['tgl_p'].dt.month == m) & (df_t['tgl_p'].dt.year == y)]
-            return df
-
-        # 1. Kalkulasi Leads & Closing
-        total_leads, total_closing = 0, 0
-        if not df_wa_home.empty:
-            total_leads = len(df_wa_home)
-            status_col = next((col for col in df_wa_home.columns if 'Status' in str(col)), None)
-            total_closing = len(df_wa_home[df_wa_home[status_col].astype(str).str.contains('Closing', case=False, na=False)]) if status_col else 0
-
-        # 2. Performa Views & Reach
-        total_view = df_in_home['View'].sum() if not df_in_home.empty else 0
-        total_reach = df_in_home['Reach'].sum() if not df_in_home.empty else 0
-
-        # 3. Hitung Hutang Sosmed (Bulan Lalu)
-        df_sos_debt = filter_waktu(df_sos_home, bulan_lalu, tahun_bulan_lalu)
-        sos_pending = len(df_sos_debt[df_sos_debt['PROSES'].astype(str).str.upper() != 'DONE']) if not df_sos_debt.empty else 0
+    # --- FUNGSI HELPER FILTER WAKTU (STRICT MODE) ---
+    def filter_waktu_ketat(df, m, y):
+        if df.empty: return df
+        # Cari kolom tanggal (Tanggal Masuk, Deadline, dll)
+        col_tgl = next((c for c in df.columns if any(k in str(c).lower() for k in ['tanggal', 'deadline', 'date'])), None)
         
-        # 4. Hitung Hutang Web (Bulan Ini)
-        df_web_now = filter_waktu(df_web_home, bulan_ini, tahun_ini)
+        if col_tgl:
+            df_t = df.copy()
+            # Pembersihan string bulan Indonesia yang lebih robust
+            bulan_indo = {
+                'januari':'01', 'februari':'02', 'maret':'03', 'april':'04', 
+                'mei':'05', 'juni':'06', 'juli':'07', 'agustus':'08', 
+                'september':'09', 'oktober':'10', 'november':'11', 'desember':'12'
+            }
+            
+            # Pastikan kolom menjadi datetime
+            df_t['tgl_p'] = pd.to_datetime(df_t[col_tgl], errors='coerce', dayfirst=True)
+            
+            # Jika konversi datetime gagal (karena teks bulan Indo), pakai cara manual
+            if df_t['tgl_p'].isnull().any():
+                df_t['tgl_str'] = df_t[col_tgl].astype(str).str.lower()
+                for k, v in bulan_indo.items():
+                    df_t['tgl_str'] = df_t['tgl_str'].str.replace(k, v)
+                df_t['tgl_p'] = pd.to_datetime(df_t['tgl_str'], errors='coerce', dayfirst=True)
+            
+            # Filter sangat ketat hanya pada bulan dan tahun yang diminta
+            return df_t[(df_t['tgl_p'].dt.month == m) & (df_t['tgl_p'].dt.year == y)]
+        return pd.DataFrame() # Kembalikan df kosong jika kolom tgl tidak ada
+
+    # 1. Kalkulasi Leads (Murni Tanpa Partnership) & Closing
+    total_leads, total_closing = 0, 0
+    if not df_wa_home.empty:
+        # Cari kolom Mekari Tag secara dinamis
+        mekari_col = next((c for c in df_wa_home.columns if 'Mekari' in str(c)), None)
+        status_col = next((col for col in df_wa_home.columns if 'Status' in str(col)), None)
+        
+        # FILTER: Buang Partnership dari perhitungan Leads utama
+        if mekari_col:
+            df_leads_only = df_wa_home[df_wa_home[mekari_col].astype(str).str.strip().str.upper() != 'PARTNERSHIP']
+        else:
+            df_leads_only = df_wa_home
+
+        total_leads = len(df_leads_only)
+        if status_col:
+            total_closing = len(df_leads_only[df_leads_only[status_col].astype(str).str.contains('Closing', case=False, na=False)])
+
+    # 2. Performa Views & Reach
+    total_view = df_in_home['View'].sum() if not df_in_home.empty else 0
+    total_reach = df_in_home['Reach'].sum() if not df_in_home.empty else 0
+
+    # 3. Hutang Sosmed (Deadline Bulan Lalu / April)
+    # Mencari tugas yang belum DONE di bulan lalu
+    df_sos_debt = filter_waktu_ketat(df_sos_home, bulan_lalu, tahun_bulan_lalu)
+    sos_pending = 0
+    if not df_sos_debt.empty:
+        # Kolom 'PROSES' biasanya berisi status pengerjaan
+        sos_pending = len(df_sos_debt[df_sos_debt['PROSES'].astype(str).str.upper() != 'DONE'])
+    
+    # 4. Hutang Web (Hanya Bulan Ini / Mei)
+    # Memastikan data bulan lalu tidak bocor ke sini
+    df_web_now = filter_waktu_ketat(df_web_home, bulan_ini, tahun_ini)
+    web_pending = 0
+    if not df_web_now.empty:
         done_kw = ['DONE', 'TRUE', 'V', '1', 'POSTED', 'SELESAI', 'UPLOAD', 'UPLOADED']
-        web_pending = len(df_web_now[~df_web_now['Status Post'].astype(str).str.upper().str.strip().isin(done_kw)]) if not df_web_now.empty else 0
+        web_pending = len(df_web_now[~df_web_now['Status Post'].astype(str).str.upper().str.strip().isin(done_kw)])
 
-        # --- RENDER KOTAK KPI ---
-        def render_kpi(icon, title, value):
-            return f'<div class="kpi-card"><div>{icon}</div><div><div style="font-size:11px; color:gray;">{title}</div><div style="font-size:16px; font-weight:bold;">{value}</div></div></div>'
+    # --- RENDER KOTAK KPI ---
+    def render_kpi(icon, title, value):
+        return f'<div class="kpi-card"><div>{icon}</div><div><div style="font-size:11px; color:gray;">{title}</div><div style="font-size:16px; font-weight:bold;">{value}</div></div></div>'
 
-        k1, k2, k3, k4 = st.columns(4)
-        with k1: st.markdown(render_kpi("🎯", "Closing / Leads", f"{total_closing} / {total_leads}"), unsafe_allow_html=True)
-        with k2: st.markdown(render_kpi("👀", "Views / Reach", f"{total_view:,.0f} / {total_reach:,.0f}"), unsafe_allow_html=True)
-        # Sekarang menggunakan variabel sos_pending dan web_pending
-        with k3: st.markdown(render_kpi("📱", f"Hutang Sosmed ({bulan_lalu})", f"{sos_pending} Task"), unsafe_allow_html=True)
-        with k4: st.markdown(render_kpi("🌐", f"Hutang Web ({bulan_ini})", f"{web_pending} Page"), unsafe_allow_html=True)
+    k1, k2, k3, k4 = st.columns(4)
+    with k1: st.markdown(render_kpi("🎯", "Closing / Leads (Murni)", f"{total_closing} / {total_leads}"), unsafe_allow_html=True)
+    with k2: st.markdown(render_kpi("👀", "Views / Reach", f"{total_view:,.0f} / {total_reach:,.0f}"), unsafe_allow_html=True)
+    with k3: st.markdown(render_kpi("📱", f"Utang Sosmed ({bulan_lalu})", f"{sos_pending} Task"), unsafe_allow_html=True)
+    with k4: st.markdown(render_kpi("🌐", f"Utang Web ({bulan_ini})", f"{web_pending} Page"), unsafe_allow_html=True)
 
-    except Exception as e:
-        st.error(f"Gagal memuat metrik: {e}")
+except Exception as e:
+    st.error(f"Gagal memuat metrik: {e}")
 
     # ==========================================================
     # 4. PETA PERSEBARAN & GRAFIK (FULL WIDTH & SHADOW)
