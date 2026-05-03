@@ -342,7 +342,7 @@ if page != "🏠 HOMEPAGE":
 
 # --- HALAMAN 0: HOMEPAGE ---
 if page == "🏠 HOMEPAGE":
-    # 1. CSS CUSTOM (Dikelompokkan agar rapi)
+    # 1. CSS CUSTOM (Tetap rapi dan modern)
     st.markdown("""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;600;800&display=swap');
@@ -351,7 +351,6 @@ if page == "🏠 HOMEPAGE":
             font-family: 'Work Sans', sans-serif !important;
         }
 
-        /* Desain Card KPI */
         .kpi-card {
             background-color: #FFFFFF;
             border-radius: 12px;
@@ -368,7 +367,6 @@ if page == "🏠 HOMEPAGE":
             box-shadow: 0 8px 25px rgba(0,0,0,0.1);
         }
         
-        /* Container Navigasi */
         [data-testid="stVerticalBlockBorderWrapper"] {
             box-shadow: 0 10px 30px rgba(0,0,0,0.08) !important;
             border-radius: 15px !important;
@@ -379,8 +377,7 @@ if page == "🏠 HOMEPAGE":
     """, unsafe_allow_html=True)
 
     # 2. HEADER & NAVIGASI 5 KOTAK
-    st.markdown('<div class="feature-header" style="text-align: center; margin-bottom:20px;">'
-                '🚀 DIGITAL MARKETING COMMAND CENTER</div>', unsafe_allow_html=True)
+    st.markdown('<div class="feature-header" style="text-align: center; margin-bottom:20px;">🚀 DIGITAL MARKETING COMMAND CENTER</div>', unsafe_allow_html=True)
     
     def create_square_card(icon, title, subtitle, target_page, button_key):
         with st.container(border=True):
@@ -407,57 +404,57 @@ if page == "🏠 HOMEPAGE":
 
     st.markdown("---")
 
-    # 3. EXECUTIVE SUMMARY (Optimized Logic)
+    # 3. EXECUTIVE SUMMARY (MENGGUNAKAN NAMA VARIABEL ASLI MAS)
     try:
-        # Load Data
-        df_wa = load_wa_admin()
-        df_in = load_insight()
-        df_sos = load_sosmed()
-        df_web = load_website()
+        # Load Data dengan nama variabel asli Mas
+        df_wa_home = load_wa_admin()
+        df_in_home = load_insight()
+        df_sos_home = load_sosmed()
+        df_web_home = load_website()
 
         # Konfigurasi Waktu
-        now = datetime.datetime.now()
-        curr_month, curr_year = now.month, now.year
+        sekarang = datetime.datetime.now()
+        bulan_ini, tahun_ini = sekarang.month, sekarang.year
         
-        last_month_date = now.replace(day=1) - datetime.timedelta(days=1)
-        prev_month, prev_year = last_month_date.month, last_month_date.year
+        last_month_date = sekarang.replace(day=1) - datetime.timedelta(days=1)
+        bulan_lalu, tahun_bulan_lalu = last_month_date.month, last_month_date.year
 
-        # Fungsi Helper Filter Waktu yang Lebih Ringkas
-        def get_monthly_data(df, m, y):
+        # Helper Filter Waktu (Support variabel _home)
+        def filter_waktu_ketat(df, m, y):
             if df is None or df.empty: return pd.DataFrame()
-            # Mencari kolom tanggal secara otomatis
-            col = next((c for c in df.columns if any(k in str(c).lower() for k in ['tanggal', 'deadline', 'date'])), None)
-            if col:
-                temp_df = df.copy()
-                temp_df['dt_temp'] = pd.to_datetime(temp_df[col], errors='coerce', dayfirst=True)
-                return temp_df[(temp_df['dt_temp'].dt.month == m) & (temp_df['dt_temp'].dt.year == y)]
+            col_tgl = next((c for c in df.columns if any(k in str(c).lower() for k in ['tanggal', 'deadline', 'date'])), None)
+            if col_tgl:
+                df_t = df.copy()
+                df_t['tgl_p'] = pd.to_datetime(df_t[col_tgl], errors='coerce', dayfirst=True)
+                return df_t[(df_t['tgl_p'].dt.month == m) & (df_t['tgl_p'].dt.year == y)]
             return pd.DataFrame()
 
         # --- A. Perhitungan Leads & Closing ---
         total_leads, total_closing = 0, 0
-        if not df_wa.empty:
-            # Filter bukan partnership
-            mekari_col = next((c for c in df_wa.columns if 'Mekari' in str(c)), None)
-            df_leads = df_wa[df_wa[mekari_col].astype(str).str.upper() != 'PARTNERSHIP'] if mekari_col else df_wa
+        if not df_wa_home.empty:
+            mekari_col = next((c for c in df_wa_home.columns if 'Mekari' in str(c)), None)
+            df_leads_only = df_wa_home[df_wa_home[mekari_col].astype(str).str.upper() != 'PARTNERSHIP'] if mekari_col else df_wa_home
+            total_leads = len(df_leads_only)
             
-            total_leads = len(df_leads)
-            status_col = next((c for c in df_leads.columns if 'Status' in str(c)), None)
+            status_col = next((c for c in df_leads_only.columns if 'Status' in str(c)), None)
             if status_col:
-                total_closing = len(df_leads[df_leads[status_col].astype(str).str.contains('Closing', case=False, na=False)])
+                total_closing = len(df_leads_only[df_leads_only[status_col].astype(str).str.contains('Closing', case=False, na=False)])
 
         # --- B. Hutang Sosmed & Web ---
-        # Hutang Sosmed (Bulan Lalu)
-        df_sos_prev = get_monthly_data(df_sos, prev_month, prev_year)
-        sos_debt = len(df_sos_prev[df_sos_prev['PROSES'].astype(str).str.upper() != 'DONE']) if not df_sos_prev.empty else 0
+        df_sos_debt = filter_waktu_ketat(df_sos_home, bulan_lalu, tahun_bulan_lalu)
+        sos_pending = len(df_sos_debt[df_sos_debt['PROSES'].astype(str).str.upper() != 'DONE']) if not df_sos_debt.empty else 0
         
-        # Hutang Web (Bulan Ini)
-        df_web_curr = get_monthly_data(df_web, curr_month, curr_year)
-        web_debt = 0
-        if not df_web_curr.empty:
-            done_vals = ['DONE', 'TRUE', 'V', '1', 'POSTED', 'SELESAI', 'UPLOADED']
-            web_debt = len(df_web_curr[~df_web_curr['Status Post'].astype(str).str.upper().isin(done_vals)])
+        df_web_now = filter_waktu_ketat(df_web_home, bulan_ini, tahun_ini)
+        web_pending = 0
+        if not df_web_now.empty:
+            done_kw = ['DONE', 'TRUE', 'V', '1', 'POSTED', 'SELESAI', 'UPLOADED']
+            web_pending = len(df_web_now[~df_web_now['Status Post'].astype(str).str.upper().isin(done_kw)])
 
-        # --- C. Render KPI ---
+        # --- C. Performa Views & Reach ---
+        total_view = df_in_home['View'].sum() if not df_in_home.empty else 0
+        total_reach = df_in_home['Reach'].sum() if not df_in_home.empty else 0
+
+        # --- D. Render KPI ---
         def render_kpi(icon, title, value):
             st.markdown(f"""
                 <div class="kpi-card">
@@ -472,16 +469,13 @@ if page == "🏠 HOMEPAGE":
         st.markdown('<div style="font-weight: 800; margin-bottom: 15px;">📊 RINGKASAN PERFORMA</div>', unsafe_allow_html=True)
         k1, k2, k3, k4 = st.columns(4)
         
-        with k1: render_kpi("🎯", "Closing / Leads", f"{total_closing} / {total_leads}")
-        with k2: 
-            t_view = df_in['View'].sum() if not df_in.empty else 0
-            t_reach = df_in['Reach'].sum() if not df_in.empty else 0
-            render_kpi("👀", "Views / Reach", f"{t_view:,.0f} / {t_reach:,.0f}")
-        with k3: render_kpi("📱", f"Utang Sosmed ({prev_month})", f"{sos_debt} Task")
-        with k4: render_kpi("🌐", f"Utang Web ({curr_month})", f"{web_debt} Page")
+        with k1: render_kpi("🎯", "Closing / Leads ", f"{total_closing} / {total_leads}")
+        with k2: render_kpi("👀", "Views / Reach", f"{total_view:,.0f} / {total_reach:,.0f}")
+        with k3: render_kpi("📱", f"Utang Sosmed ({bulan_lalu})", f"{sos_pending} Task")
+        with k4: render_kpi("🌐", f"Utang Web ({bulan_ini})", f"{web_pending} Page")
 
     except Exception as e:
-        st.error(f"⚠️ Gagal memuat ringkasan: {e}")
+        st.error(f"⚠️ Gagal memuat metrik: {e}")
 
     st.markdown("---")
     # ==========================================================
