@@ -918,24 +918,21 @@ elif page == "📂 DATABASE NOMOR":
         df_crm = load_database_nomor()
         
         if not df_crm.empty:
-            # 1. PEMBERSIHAN DATA AWAL
+            # 1. PEMBERSIHAN & FORMATTING AWAL
             df_crm['No Hp'] = df_crm['No Hp'].astype(str)
-            # Isi kolom kosong dengan string kosong agar filter 'Belum Diisi' bisa jalan
             df_crm = df_crm.fillna('') 
 
-            # 2. LOGIKA TAHAP TREATMENT (Status Progress)
+            # Logika Tahap Progress Treatment
             def check_progress(row):
                 t1 = str(row.get('Treatment 1', '')).strip()
                 t2 = str(row.get('Treatment 2', '')).strip()
                 if not t1 and not t2: return "Belum Ada Treatment"
                 if t1 and not t2: return "Sudah Treatment 1"
-                if t1 and t2: return "Sudah Treatment 2"
-                return "Belum Ada Treatment"
-
+                return "Sudah Treatment 2"
             df_crm['Tahap Progress'] = df_crm.apply(check_progress, axis=1)
 
             # ==========================================================
-            # 1. SMART FILTERING (MENDUKUNG DATA KOSONG)
+            # 1. SMART FILTERING (DENGAN EKSKLUSI OTOMATIS)
             # ==========================================================
             with st.expander("🔍 Filter Strategis Database (Kosong = Tampilkan Semua)", expanded=True):
                 search_crm = st.text_input("🔎 Cari Nama/Nomor HP:", placeholder="Ketik di sini...")
@@ -944,7 +941,6 @@ elif page == "📂 DATABASE NOMOR":
                 with c1:
                     st.markdown("👥 **Kategori & Tahap**")
                     sel_kategori = st.multiselect("Subjek:", options=["Siswa", "Orang Tua", ""], format_func=lambda x: "Belum Diisi" if x == "" else x)
-                    # Filter Baru: Tahap Progress Treatment
                     prog_opts = ["Belum Ada Treatment", "Sudah Treatment 1", "Sudah Treatment 2"]
                     sel_progress = st.multiselect("Tahap Progress:", options=prog_opts, default=[])
 
@@ -964,6 +960,11 @@ elif page == "📂 DATABASE NOMOR":
             # --- EKSEKUSI FILTER ---
             mask = pd.Series([True] * len(df_crm))
             
+            # --- LOGIKA EKSKLUSI: Hilangkan yang sudah Form Submitted ---
+            if 'Updated Status After Treatment' in df_crm.columns:
+                mask &= (df_crm['Updated Status After Treatment'].astype(str).str.strip() != 'Form Submitted')
+            
+            # Filter User
             if sel_kategori: mask &= df_crm['Kategori'].isin(sel_kategori)
             if sel_progress: mask &= df_crm['Tahap Progress'].isin(sel_progress)
             if sel_form: mask &= df_crm['Keterangan Setelah Isi Form'].isin(sel_form)
@@ -976,32 +977,28 @@ elif page == "📂 DATABASE NOMOR":
             filtered_crm = df_crm[mask].copy()
 
             # ==========================================================
-            # 2. METRIK DINAMIS
+            # 2. METRIK DINAMIS (Hanya Prospek Aktif)
             # ==========================================================
-            st.markdown('<div class="feature-header">📈 Lead Monitoring Dashboard</div>', unsafe_allow_html=True)
+            st.markdown('<div class="feature-header">📈 Lead Monitoring Dashboard (Prospek Aktif)</div>', unsafe_allow_html=True)
             m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Prospek Tampil", len(filtered_crm))
+            m1.metric("Prospek Aktif", len(filtered_crm))
             
-            # Hitung Hot Leads
             h_leads = len(filtered_crm[filtered_crm['Mekari Tag (Status Terakhir)'] == 'Hot Lead'])
             m2.metric("Hot Leads 🔥", h_leads)
             
-            # Hitung yang BELUM Treatment sama sekali
             no_tx = len(filtered_crm[filtered_crm['Tahap Progress'] == 'Belum Ada Treatment'])
-            m3.metric("Belum Treatment 🧊", no_tx)
+            m3.metric("Belum Disentuh 🧊", no_tx)
             
-            # Hitung Closing
-            c_reg = len(filtered_crm[filtered_crm['Mekari Tag (Status Terakhir)'] == 'Closed - Registered'])
-            m4.metric("Registered ✅", c_reg)
+            warm = len(filtered_crm[filtered_crm['Mekari Tag (Status Terakhir)'] == 'Warm Lead'])
+            m4.metric("Warm Leads ⚡", warm)
 
             st.markdown("---")
 
             # ==========================================================
             # 3. LIVE CRM EDITOR
             # ==========================================================
-            st.markdown('<div class="feature-header">📑 Management Database Kontak LPK</div>', unsafe_allow_html=True)
+            st.markdown('<div class="feature-header">📑 Management Database Prospek Aktif</div>', unsafe_allow_html=True)
             
-            # Menghilangkan kolom bantu 'Zonasi' dll agar tidak mengganggu tampilan
             cols_to_show = [c for c in filtered_crm.columns if c not in ['Tahap Progress', 'tgl_p', 'tgl_clean']]
 
             edited_crm = st.data_editor(
@@ -1009,10 +1006,8 @@ elif page == "📂 DATABASE NOMOR":
                 column_config={
                     "No Hp": st.column_config.TextColumn("WhatsApp", disabled=True), 
                     "Kategori": st.column_config.SelectboxColumn("Kategori", options=["Siswa", "Orang Tua", ""]),
-                    "Keterangan Setelah Isi Form": st.column_config.SelectboxColumn("Status Form", options=["", "Tidak Dibalas", "Sudah Interview", "Tidak Lanjut"]),
+                    "Updated Status After Treatment": st.column_config.SelectboxColumn("Ubah Status", options=["", "Form Submitted", "Follow Up", "No Response"]),
                     "Mekari Tag (Status Terakhir)": st.column_config.SelectboxColumn("Mekari Tag", options=mekari_opts),
-                    "Treatment 1": st.column_config.SelectboxColumn("Tx 1", options=["", "Blasting", "WA Chat", "Telepon"]),
-                    "Treatment 2": st.column_config.SelectboxColumn("Tx 2", options=["", "Blasting", "WA Chat", "Telepon"]),
                 },
                 disabled=['No', 'Usia', 'Tanggal Masuk Database'],
                 use_container_width=True,
@@ -1023,10 +1018,10 @@ elif page == "📂 DATABASE NOMOR":
             # ==========================================================
             # 4. LOGIKA SIMPAN
             # ==========================================================
-            if st.button("💾 Simpan Perubahan Database", use_container_width=True):
-                with st.spinner("Sinkronisasi ke Cloud..."):
+            if st.button("💾 Simpan Perubahan & Update Database", use_container_width=True):
+                with st.spinner("Sinkronisasi data ke Cloud..."):
                     updates = 0
-                    cols_sync = ['Domisili', 'Kategori', 'Keterangan Setelah Isi Form', 'Mekari Tag (Status Terakhir)', 'Treatment 1', 'Treatment 2', 'Status', 'Catatan']
+                    cols_sync = ['Domisili', 'Kategori', 'Keterangan Setelah Isi Form', 'Mekari Tag (Status Terakhir)', 'Treatment 1', 'Treatment 2', 'Status', 'Updated Status After Treatment', 'Catatan']
                     for idx in edited_crm.index:
                         for col in cols_sync:
                             if col in df_crm.columns:
@@ -1037,11 +1032,11 @@ elif page == "📂 DATABASE NOMOR":
                                     updates += 1
                     
                     if updates > 0:
-                        st.success(f"✅ Berhasil! {updates} data diperbarui.")
+                        st.success(f"✅ Berhasil! Data diperbarui. Prospek 'Form Submitted' otomatis disembunyikan.")
                         st.cache_data.clear()
                         st.rerun()
         else:
-            st.warning("Database masih kosong. Cek Tab 5 di Google Sheets Mas.")
+            st.warning("Database masih kosong.")
 
     except Exception as e:
         st.error(f"Gagal memuat CRM: {e}")
