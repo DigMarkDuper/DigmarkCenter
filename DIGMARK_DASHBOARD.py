@@ -1000,7 +1000,7 @@ elif page == "📂 DATABASE NOMOR":
             # ==========================================================
             # 2. EXECUTIVE SUMMARY (METRIK)
             # ==========================================================
-            st.markdown('<div class="feature-header">📈 Lead Monitoring Dashboard</div>', unsafe_allow_html=True)
+        st.markdown('<div class="feature-header">📈 Lead Monitoring Dashboard</div>', unsafe_allow_html=True)
             m1, m2, m3, m4 = st.columns(4)
             m1.metric("Konten Terfilter", len(filtered_crm))
             
