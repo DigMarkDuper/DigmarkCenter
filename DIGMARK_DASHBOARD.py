@@ -1031,44 +1031,23 @@ elif page == "💬 WA ADMIN REPORT":
 # --- HALAMAN 5: DATABASE NOMOR (CRM) ---
 elif page == "📂 DATABASE NOMOR":
     st.title("🗂️ CRM & DETAILED LEAD DATABASE")
-    # --- LOGIKA DOWNLOAD EXCEL UNTUK MEKARI ---
-import io
-
-st.markdown("### 📥 Export Data untuk Mekari")
-if not filtered_crm.empty:
-    # Kita siapkan data khusus yang biasanya dibutuhkan Mekari (Nama & No HP)
-    df_export = filtered_crm[['Nama', 'No Hp', 'Domisili', 'Mekari Tag (Status Terakhir)']].copy()
     
-    # Buat buffer untuk Excel
-    buffer = io.BytesIO()
-    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-        df_export.to_excel(writer, index=False, sheet_name='Leads_Mekari')
-        
-    st.download_button(
-        label="📥 Download Excel (Data Terfilter)",
-        data=buffer.getvalue(),
-        file_name=f"Mekari_Leads_{datetime.datetime.now().strftime('%d_%m_%Y')}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True
-    )
-else:
-    st.info("Filter data terlebih dahulu untuk men-download.")
-    
-    # Bungkus dalam tombol agar tidak berjalan otomatis (biar tidak NameError/Loop)
-    if st.button("🔄 Tarik Data Unik dari WA Admin", use_container_width=True):
-        sync_leads_to_crm()
-        
+    # 1. TOMBOL SINKRONISASI (Mapping Asal -> Domisili otomatis ada di dalam fungsi sync ini)
+    c_sync, _ = st.columns([1, 2])
+    with c_sync:
+        if st.button("🔄 Tarik Data Unik dari WA Admin", use_container_width=True):
+            sync_leads_to_crm() # Pastikan fungsi sync yang terbaru (yang pakai mapping Asal) sudah Mas pasang di atas
+            
     st.markdown("---")
     
     try:
         df_crm = load_database_nomor()
         
         if not df_crm.empty:
-            # 1. PEMBERSIHAN & LOGIKA DASAR
+            # --- LOGIKA DASAR & EMOJI ---
             df_crm['No Hp'] = df_crm['No Hp'].astype(str)
             df_crm = df_crm.fillna('') 
 
-            # Logika Progress Treatment
             def check_progress(row):
                 t1 = str(row.get('Treatment 1', '')).strip()
                 t2 = str(row.get('Treatment 2', '')).strip()
@@ -1077,9 +1056,6 @@ else:
                 return "Sudah Treatment 2"
             df_crm['Tahap Progress'] = df_crm.apply(check_progress, axis=1)
 
-            # ==========================================================
-            # 2. MAPPING EMOJI & FILTERING
-            # ==========================================================
             form_map = {"": "⚪ Belum Diisi", "Tidak Dibalas": "🔇 Tidak Dibalas", "Sudah Interview": "🤝 Sudah Interview", "Tidak Lanjut": "🛑 Tidak Lanjut"}
             mekari_map = {
                 "Hot Lead": "🔥 Hot Lead", "Warm Lead": "🌤️ Warm Lead", "Cold Lead": "❄️ Cold Lead",
@@ -1093,6 +1069,7 @@ else:
             tx_map = {"": "⚪ Kosong", "Blasting": "📢 Blasting", "WA Chat": "💬 WA Chat", "Telepon": "📞 Telepon"}
             stat_map = {"PENDING": "⏳ PENDING", "INTERESTED": "🔥 INTERESTED", "REGISTERED": "✅ REGISTERED", "NO RESPONSE": "🧊 NO RESPONSE", "": "⚪ PENDING"}
 
+            # 2. FILTER SYSTEM
             with st.expander("🔍 Filter Strategis Database (Kosong = Tampilkan Semua)", expanded=True):
                 search_crm = st.text_input("🔎 Cari Nama/Nomor HP:", placeholder="Ketik di sini...")
                 c1, c2, c3 = st.columns(3)
@@ -1106,7 +1083,7 @@ else:
                     daerah_opts = sorted(df_crm['Domisili'].unique().tolist())
                     sel_daerah = st.multiselect("Pilih Daerah:", options=daerah_opts, format_func=lambda x: "⚪ Belum Diisi" if x == "" else x)
 
-            # --- EKSEKUSI FILTER ---
+            # 3. EKSEKUSI FILTER (Penting: Letakkan sebelum tombol download)
             mask = pd.Series([True] * len(df_crm))
             if 'Updated Status After Treatment' in df_crm.columns:
                 mask &= (df_crm['Updated Status After Treatment'].astype(str).str.strip() != 'Form Submitted')
@@ -1121,9 +1098,7 @@ else:
             
             filtered_crm = df_crm[mask].copy()
 
-            # ==========================================================
-            # 3. METRIK DINAMIS
-            # ==========================================================
+            # 4. METRIK DINAMIS
             st.markdown('<div class="feature-header">📈 Lead Monitoring Dashboard</div>', unsafe_allow_html=True)
             m1, m2, m3, m4 = st.columns(4)
             m1.metric("Prospek Aktif", len(filtered_crm))
@@ -1131,11 +1106,32 @@ else:
             m3.metric("Belum Disentuh 🧊", len(filtered_crm[filtered_crm['Tahap Progress'] == 'Belum Ada Treatment']))
             m4.metric("Warm Leads 🌤️", len(filtered_crm[filtered_crm['Mekari Tag (Status Terakhir)'] == 'Warm Lead']))
 
+            # ==========================================================
+            # 5. FITUR DOWNLOAD EXCEL (DITARUH SETELAH FILTERED_CRM ADA)
+            # ==========================================================
+            import io
+            st.markdown("### 📥 Export Data untuk Mekari")
+            if not filtered_crm.empty:
+                # Siapkan data khusus untuk Mekari
+                df_export = filtered_crm[['Nama', 'No Hp', 'Domisili', 'Mekari Tag (Status Terakhir)']].copy()
+                
+                buffer = io.BytesIO()
+                with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                    df_export.to_excel(writer, index=False, sheet_name='Leads_Mekari')
+                    
+                st.download_button(
+                    label="📥 Download Excel (Data Terfilter)",
+                    data=buffer.getvalue(),
+                    file_name=f"Mekari_Leads_{datetime.datetime.now().strftime('%d_%m_%Y')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+            else:
+                st.info("Filter data terlebih dahulu untuk mengaktifkan tombol download.")
+
             st.markdown("---")
 
-            # ==========================================================
-            # 4. LIVE CRM EDITOR
-            # ==========================================================
+            # 6. LIVE CRM EDITOR
             st.markdown('<div class="feature-header">📑 Management Database Prospek Aktif</div>', unsafe_allow_html=True)
             df_disp = filtered_crm.copy()
             df_disp['Keterangan Setelah Isi Form'] = df_disp['Keterangan Setelah Isi Form'].map(form_map).fillna(df_disp['Keterangan Setelah Isi Form'])
@@ -1156,14 +1152,10 @@ else:
                     "Updated Status After Treatment": st.column_config.SelectboxColumn("🔄 Update", options=["", "Form Submitted", "Follow Up", "No Response"]),
                 },
                 disabled=['No', 'Usia', 'Tanggal Masuk Database', 'Tahap Progress'], 
-                use_container_width=True,
-                hide_index=True,
-                key="crm_final_editor"
+                use_container_width=True, hide_index=True, key="crm_final_editor"
             )
 
-            # ==========================================================
-            # 5. LOGIKA SIMPAN
-            # ==========================================================
+            # 7. LOGIKA SIMPAN
             if st.button("💾 Simpan Perubahan Database", use_container_width=True):
                 with st.spinner("Sinkronisasi ke Google Sheets..."):
                     updates = 0
@@ -1181,7 +1173,6 @@ else:
                                 if old_v != new_v and new_v != "Belum Diisi" and new_v != "Kosong":
                                     update_sheet_cell(4, idx, col, new_v)
                                     updates += 1
-                    
                     if updates > 0:
                         st.success(f"✅ Berhasil! {updates} data diperbarui.")
                         st.cache_data.clear()
