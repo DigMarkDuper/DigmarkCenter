@@ -1068,8 +1068,18 @@ elif page == "📂 DATABASE NOMOR":
             # ==========================================================
             st.markdown('<div class="feature-header">📑 Management Database Kontak LPK</div>', unsafe_allow_html=True)
             
-            stat_map = {"PENDING": "⏳ PENDING", "INTERESTED": "🔥 INTERESTED", "REGISTERED": "✅ REGISTERED", "NO RESPONSE": "🧊 NO RESPONSE"}
-            tx_map = {"WA Chat": "💬 WA Chat", "Telepon": "📞 Telepon", "Konsultasi": "🏫 Konsultasi", "Broadcast": "📢 Broadcast"}
+            stat_map = {
+                "PENDING": "⏳ PENDING", 
+                "INTERESTED": "🔥 INTERESTED", 
+                "REGISTERED": "✅ REGISTERED", 
+                "NO RESPONSE": "🧊 NO RESPONSE"
+            }
+            tx_map = {
+                "WA Chat": "💬 WA Chat", 
+                "Telepon": "📞 Telepon", 
+                "Konsultasi": "🏫 Konsultasi", 
+                "Broadcast": "📢 Broadcast"
+            }
 
             df_crm_disp = filtered_crm.copy()
             df_crm_disp['Status'] = df_crm_disp['Status'].map(stat_map).fillna(df_crm_disp['Status'])
@@ -1089,7 +1099,6 @@ elif page == "📂 DATABASE NOMOR":
                 hide_index=True,
                 key="crm_detailed_editor"
             )
-
             # ==========================================================
             # 4. TOMBOL SIMPAN
             # ==========================================================
