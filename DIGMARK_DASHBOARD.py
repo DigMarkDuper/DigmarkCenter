@@ -271,8 +271,8 @@ if page == "🏠 HOMEPAGE":
 
     st.markdown("---") # Garis Pemisah
 
-    # ==========================================================
-    # 3. EXECUTIVE SUMMARY (4 KOTAK KPI BERBAYANG)
+   # ==========================================================
+    # 3. EXECUTIVE SUMMARY (4 KOTAK KPI BERBAYANG - FIXED)
     # ==========================================================
     try:
         df_wa_home = load_wa_admin()
@@ -286,34 +286,55 @@ if page == "🏠 HOMEPAGE":
         bulan_lalu = 12 if sekarang.month == 1 else sekarang.month - 1
         tahun_bulan_lalu = sekarang.year - 1 if sekarang.month == 1 else sekarang.year
 
-        # Kalkulasi Data (Hanya Perhitungan)
+        # --- FUNGSI HELPER FILTER WAKTU ---
+        def filter_waktu(df, m, y):
+            if df.empty: return df
+            # Mencari kolom tanggal secara otomatis
+            col_tgl = next((c for c in df.columns if any(k in str(c).lower() for k in ['tanggal', 'deadline', 'date'])), None)
+            if col_tgl:
+                df_t = df.copy()
+                # Konversi manual bulan Indonesia ke Inggris agar terbaca sistem
+                df_t['tgl_clean'] = df_t[col_tgl].astype(str).str.lower().replace(
+                    {'januari':'jan', 'februari':'feb', 'maret':'mar', 'mei':'may', 'agustus':'aug', 'oktober':'oct', 'desember':'dec'}, regex=True
+                )
+                df_t['tgl_p'] = pd.to_datetime(df_t['tgl_clean'], errors='coerce')
+                return df_t[(df_t['tgl_p'].dt.month == m) & (df_t['tgl_p'].dt.year == y)]
+            return df
+
+        # 1. Kalkulasi Leads & Closing
         total_leads, total_closing = 0, 0
         if not df_wa_home.empty:
             total_leads = len(df_wa_home)
             status_col = next((col for col in df_wa_home.columns if 'Status' in str(col)), None)
             total_closing = len(df_wa_home[df_wa_home[status_col].astype(str).str.contains('Closing', case=False, na=False)]) if status_col else 0
 
+        # 2. Performa Views & Reach
         total_view = df_in_home['View'].sum() if not df_in_home.empty else 0
         total_reach = df_in_home['Reach'].sum() if not df_in_home.empty else 0
 
-        # Logika Render Kotak KPI
+        # 3. Hitung Hutang Sosmed (Bulan Lalu)
+        df_sos_debt = filter_waktu(df_sos_home, bulan_lalu, tahun_bulan_lalu)
+        sos_pending = len(df_sos_debt[df_sos_debt['PROSES'].astype(str).str.upper() != 'DONE']) if not df_sos_debt.empty else 0
+        
+        # 4. Hitung Hutang Web (Bulan Ini)
+        df_web_now = filter_waktu(df_web_home, bulan_ini, tahun_ini)
+        done_kw = ['DONE', 'TRUE', 'V', '1', 'POSTED', 'SELESAI', 'UPLOAD', 'UPLOADED']
+        web_pending = len(df_web_now[~df_web_now['Status Post'].astype(str).str.upper().str.strip().isin(done_kw)]) if not df_web_now.empty else 0
+
+        # --- RENDER KOTAK KPI ---
         def render_kpi(icon, title, value):
             return f'<div class="kpi-card"><div>{icon}</div><div><div style="font-size:11px; color:gray;">{title}</div><div style="font-size:16px; font-weight:bold;">{value}</div></div></div>'
 
         k1, k2, k3, k4 = st.columns(4)
         with k1: st.markdown(render_kpi("🎯", "Closing / Leads", f"{total_closing} / {total_leads}"), unsafe_allow_html=True)
         with k2: st.markdown(render_kpi("👀", "Views / Reach", f"{total_view:,.0f} / {total_reach:,.0f}"), unsafe_allow_html=True)
-        # Hutang Sosmed & Web (Metrik sederhana)
-        with k3: st.markdown(render_kpi("📱", "Hutang Sosmed", "Cek Modul"), unsafe_allow_html=True)
-        with k4: st.markdown(render_kpi("🌐", "Hutang Web", "Cek Modul"), unsafe_allow_html=True)
+        # Sekarang menggunakan variabel sos_pending dan web_pending
+        with k3: st.markdown(render_kpi("📱", f"Hutang Sosmed ({bulan_lalu})", f"{sos_pending} Task"), unsafe_allow_html=True)
+        with k4: st.markdown(render_kpi("🌐", f"Hutang Web ({bulan_ini})", f"{web_pending} Page"), unsafe_allow_html=True)
 
     except Exception as e:
         st.error(f"Gagal memuat metrik: {e}")
 
-    # ==========================================================
-    # 4. LANJUT KE PETA PERSEBARAN (SAMA SEPERTI KODE LAMA MAS)
-    # ==========================================================
-    st.markdown(f"<h3 style='color:{BRAND_BLUE}; font-size: 18px; margin-top: 15px;'>🗺️ Peta Persebaran & Top Asal Prospek</h3>", unsafe_allow_html=True)
     # ==========================================================
     # 4. PETA PERSEBARAN & GRAFIK (FULL WIDTH & SHADOW)
     # ==========================================================
