@@ -901,82 +901,37 @@ elif page == "💬 WA ADMIN REPORT":
             st.warning("⚠️ Data tidak ditemukan. Cek filter atau pastikan data sudah diinput di Tab 4.")
     except Exception as e:
         st.error(f"Kesalahan Teknis: {e}")
-# --- HALAMAN 5: DATABASE NOMOR (CRM) ---
+
 # --- HALAMAN 5: DATABASE NOMOR (CRM) ---
 elif page == "📂 DATABASE NOMOR":
     st.title("🗂️ CRM & DETAILED LEAD DATABASE")
     st.markdown("---")
     
     try:
-        # Load data mentah
         df_crm = load_database_nomor()
         
         if not df_crm.empty:
-            # --- FIX TIPE DATA: Paksa No Hp jadi String agar tidak error saat diedit ---
-            df_crm['No Hp'] = df_crm['No Hp'].astype(str)
+            # (Pastikan kode filtering Anda ada di sini sebelum Section 2)
+            # filtered_crm = ... 
 
             # ==========================================================
-            # 1. SMART FILTERING SYSTEM (PENGELOMPOKAN STRATEGIS)
-            # ==========================================================
-            st.sidebar.markdown(f"<h2 style='color:{BRAND_BLUE};'>Smart Filter CRM</h2>", unsafe_allow_html=True)
-            
-            # --- A. Filter Suhu Prospek (Lead Temperature) ---
-            st.sidebar.markdown("🔥 **Suhu Prospek**")
-            # Pastikan status konsisten dengan isi spreadsheet Mas
-            temp_options = ["PENDING", "INTERESTED", "REGISTERED", "NO RESPONSE"]
-            temp_filter = st.sidebar.multiselect("Filter Status:", options=temp_options, default=temp_options)
-
-            # --- B. Filter Zonasi Wilayah ---
-            st.sidebar.markdown("🗺️ **Zonasi Wilayah**")
-            df_crm['Zonasi'] = df_crm['Domisili'].apply(lambda x: 
-                'LOKAL (DIY)' if any(area in str(x).upper() for area in ['JOGJA', 'SLEMAN', 'BANTUL', 'KULON', 'GUNUNG']) else 'LUAR KOTA'
-            )
-            zona_filter = st.sidebar.multiselect("Pilih Zona:", options=['LOKAL (DIY)', 'LUAR KOTA'], default=['LOKAL (DIY)', 'LUAR KOTA'])
-
-            # --- C. Filter Kategori Usia (Golden Age) ---
-            st.sidebar.markdown("🎓 **Kategori Usia**")
-            def segment_usia(usia):
-                try:
-                    u = int(usia)
-                    if u <= 21: return "Fresh Graduate (19-21)"
-                    elif u <= 26: return "Career Switcher (22-26)"
-                    else: return "Senior"
-                except: return "N/A"
-            
-            df_crm['Segment Usia'] = df_crm['Usia'].apply(segment_usia)
-            seg_options = df_crm['Segment Usia'].unique().tolist()
-            usia_filter = st.sidebar.multiselect("Pilih Segment Usia:", options=seg_options, default=seg_options)
-
-            # --- D. Pencarian Nama/Nomor ---
-            search_crm = st.sidebar.text_input("🔍 Cari Prospek:", placeholder="Nama atau Nomor HP...")
-
-            # --- EKSEKUSI FILTER ---
-            mask = (
-                (df_crm['Status'].isin(temp_filter)) & 
-                (df_crm['Zonasi'].isin(zona_filter)) & 
-                (df_crm['Segment Usia'].isin(usia_filter))
-            )
-            
-            if search_crm:
-                mask = mask & (df_crm['Nama'].str.contains(search_crm, case=False, na=False) | df_crm['No Hp'].str.contains(search_crm))
-            
-            filtered_crm = df_crm[mask].copy()
-
-            # ==========================================================
-            # 2. EXECUTIVE SUMMARY (METRIK DINAMIS)
+            # 2. EXECUTIVE SUMMARY (METRIK)
             # ==========================================================
             st.markdown('<div class="feature-header">📈 Lead Monitoring Dashboard</div>', unsafe_allow_html=True)
             m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Prospek Terfilter", len(filtered_crm))
+            m1.metric("Konten Terfilter", len(filtered_crm))
             
-            hot_leads = len(filtered_crm[filtered_crm['Status'] == 'INTERESTED'])
-            m2.metric("Hot Leads 🔥", hot_leads)
+            # Hot Leads dari data terfilter
+            hot_count = len(filtered_crm[filtered_crm['Status'] == 'INTERESTED'])
+            m2.metric("Hot Leads 🔥", hot_count)
             
-            closing = len(filtered_crm[filtered_crm['Status'] == 'REGISTERED'])
-            m3.metric("Closing ✅", closing)
+            # Closing rate di segmen ini
+            reg_seg = len(filtered_crm[filtered_crm['Status'] == 'REGISTERED'])
+            m3.metric("Closing di Segmen Ini", reg_seg)
             
-            rate = (closing / len(filtered_crm) * 100) if len(filtered_crm) > 0 else 0
-            m4.metric("Conv. Rate", f"{rate:.1f}%")
+            # Prosentase Closing
+            conv = (reg_seg / len(filtered_crm) * 100) if len(filtered_crm) > 0 else 0
+            m4.metric("Conv. Rate Segmen", f"{conv:.1f}%")
 
             st.markdown("---")
 
@@ -995,7 +950,7 @@ elif page == "📂 DATABASE NOMOR":
             edited_crm = st.data_editor(
                 df_crm_disp,
                 column_config={
-                    "No Hp": st.column_config.TextColumn("WhatsApp", disabled=True), # Tetap string, aman dari error integer
+                    "No Hp": st.column_config.TextColumn("WhatsApp", disabled=True), 
                     "Kategori": st.column_config.SelectboxColumn("Kategori", options=["Siswa", "Partnership", "Lainnya"]),
                     "Tanggal Lahir": st.column_config.DateColumn("Tgl Lahir"),
                     "Treatment 1": st.column_config.SelectboxColumn("Tx 1", options=list(tx_map.values())),
@@ -1026,11 +981,9 @@ elif page == "📂 DATABASE NOMOR":
                             old_val = str(df_crm.at[idx, col]).strip()
                             new_val_raw = edited_crm.at[idx, col]
                             
-                            # Pembersihan emoji sebelum masuk ke spreadsheet
                             new_val = str(new_val_raw).split(" ", 1)[-1].strip() if " " in str(new_val_raw) else str(new_val_raw)
 
                             if old_val != new_val and new_val != "None":
-                                # Tab 4 adalah Database Kontak
                                 update_sheet_cell(4, idx, col, new_val)
                                 updates += 1
                     
@@ -1038,6 +991,8 @@ elif page == "📂 DATABASE NOMOR":
                         st.success(f"✅ Berhasil memperbarui {updates} data!")
                         st.cache_data.clear()
                         st.rerun()
+        else:
+            st.warning("Database masih kosong.")
 
     except Exception as e:
         st.error(f"Gagal memuat CRM: {e}")
