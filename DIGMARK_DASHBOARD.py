@@ -209,112 +209,10 @@ if page != "🏠 HOMEPAGE":
         go_to_page("🏠 HOMEPAGE")
         st.rerun()
 
-if page == "🏠 HOMEPAGE":
-    st.markdown('<div class="feature-header" style="text-align:center;">DIGITAL MARKETING COMMAND CENTER</div>', unsafe_allow_html=True)
-    
-    # Grid 5 Kolom[cite: 1]
-    c1, c2, c3, c4, c5 = st.columns(5)
-    with c1: create_square_card("📱", "Sosial Media", "Jadwal & Hutang PIC", "📱 SOSIAL MEDIA", "h_sos")
-    with c2: create_square_card("🌐", "Website", "SEO & Status Artikel", "🌐 WEBSITE AUDIT", "h_web")
-    with c3: create_square_card("📈", "Analytics", "Views & Jangkauan", "📈 INSIGHTS & ANALYTICS", "h_in")
-    with c4: create_square_card("💬", "WA Report", "Closing & Funneling", "💬 WA ADMIN REPORT", "h_wa")
-    with c5: create_square_card("📂", "Database", "CRM & Detail Kontak", "📂 DATABASE NOMOR", "h_db")
-
-    # --- KPI SUMMARY ---
-    try:
-        df_wa_h = load_wa_admin()
-        df_in_h = load_insight()
-        st.markdown("---")
-        k1, k2, k3 = st.columns(3)
-        k1.metric("Total Leads WA", len(df_wa_h) if not df_wa_h.empty else 0)
-        k2.metric("Total Views Content", f"{df_in_h['View'].sum():,.0f}" if not df_in_h.empty else 0)
-        k3.metric("Target Closing 2026", "450 Siswa")
-    except: pass
-
-elif page == "📱 SOSIAL MEDIA":
-    st.title("🚀 SOSMED COMMAND CENTER")
-    try:
-        df = load_sosmed()
-        list_pic = ["Ejak", "Hana", "Abi", "Hanif"]
-        selected_pic = st.sidebar.multiselect("Pantau PIC:", list_pic, default=list_pic)
-        
-        filtered_df = df[df['PIC'].isin(selected_pic)].copy()
-        
-        # Layout Kanan-Kiri
-        col_vis, col_aud = st.columns([1.2, 1])
-        with col_vis:
-            st.markdown('<div class="feature-header">📊 Visualisasi Produksi</div>', unsafe_allow_html=True)
-            p_counts = filtered_df['Konten Pillar'].value_counts().reset_index()
-            fig = px.pie(p_counts, names='Konten Pillar', values='count', hole=0.3)
-            st.plotly_chart(fig, use_container_width=True)
-        
-        with col_aud:
-            st.markdown('<div class="feature-header">📝 Audit PIC</div>', unsafe_allow_html=True)
-            for pic in selected_pic:
-                with st.expander(f"Status {pic}"):
-                    st.write(f"Tugas Pending: {len(filtered_df[(filtered_df['PIC']==pic) & (filtered_df['PROSES']!='DONE')])}")
-
-        # Live Editor dengan Emoji[cite: 1]
-        st.markdown('<div class="feature-header">📋 Live Production Editor</div>', unsafe_allow_html=True)
-        pic_map = {"Ejak": "🔵 Ejak", "Hana": "🟢 Hana", "Abi": "🟡 Abi", "Hanif": "🟣 Hanif"}
-        df_disp = filtered_df.copy()
-        df_disp['PIC'] = df_disp['PIC'].map(pic_map).fillna(df_disp['PIC'])
-        
-        edited = st.data_editor(df_disp[['Kode Konten', 'PIC', 'Output', 'Judul Konten', 'PROSES', 'IG', 'YT', 'TIKTOK']], use_container_width=True)
-        
-        if st.button("💾 Simpan Perubahan Sosmed"):
-            for idx in edited.index:
-                for col in ["PIC", "PROSES", "IG", "YT", "TIKTOK"]:
-                    new_val = edited.at[idx, col]
-                    if " " in str(new_val): new_val = str(new_val).split(" ", 1)[-1]
-                    update_sheet_cell(0, idx, col, new_val)
-            st.success("Tersimpan!")
-    except: st.error("Gagal Load Sosmed")
-
-elif page == "💬 WA ADMIN REPORT":
-    st.title("💬 KINERJA WA ADMIN")
-    try:
-        df_wa = load_wa_admin()
-        # Fitur Sinkronisasi ke CRM[cite: 1]
-        if st.button("🚀 SYNC KE DATABASE CRM"):
-            df_crm = load_database_nomor()
-            existing = set(df_crm['No Hp'].astype(str).tolist()) if not df_crm.empty else set()
-            new_data = [[datetime.date.today().isoformat(), r['Nama'], r['Nomor HP'], "PENDING"] for _, r in df_wa.iterrows() if str(r['Nomor HP']) not in existing]
-            if batch_append_rows(4, new_data): st.success("Data unik berhasil dipindah!")
-        st.dataframe(df_wa, use_container_width=True)
-    except: st.error("Gagal Load WA")
-
-elif page == "📂 DATABASE NOMOR":
-    st.title("🗂️ CRM DATABASE (17 KOLOM)")
-    try:
-        df_crm = load_database_nomor()
-        st.markdown(f"**Total Prospek:** {len(df_crm)}")
-        
-        # CRM Live Editor Spesifik[cite: 1]
-        edited_crm = st.data_editor(
-            df_crm,
-            column_config={
-                "Status": st.column_config.SelectboxColumn("Status", options=["PENDING", "INTERESTED", "REGISTERED", "NO RESPONSE"]),
-                "Treatment 1": st.column_config.SelectboxColumn("Tx 1", options=["WA Chat", "Telepon", "Konsultasi"]),
-            },
-            disabled=['No', 'Usia', 'Tanggal Masuk Database'],
-            use_container_width=True
-        )
-        
-        if st.button("💾 Simpan Update CRM"):
-            updates = 0
-            cols_sync = ['Domisili', 'Kategori', 'Treatment 1', 'Treatment 2', 'Status', 'Catatan']
-            for idx in edited_crm.index:
-                for c in cols_sync:
-                    update_sheet_cell(4, idx, c, edited_crm.at[idx, c])
-                    updates += 1
-            st.success(f"Berhasil update {updates} data!")
-    except: st.error("Gagal Load CRM")
-        
 # --- HALAMAN 0: HOMEPAGE ---
 if page == "🏠 HOMEPAGE":
     # ==========================================================
-    # 1. CSS CUSTOM UNTUK HOMEPAGE
+    # 1. CSS CUSTOM (Hanya untuk desain kotak)
     # ==========================================================
     st.markdown(f"""
         <style>
@@ -322,7 +220,7 @@ if page == "🏠 HOMEPAGE":
         html, body, [data-testid="stAppViewContainer"], .main {{
             font-family: 'Work Sans', sans-serif !important;
         }}
-        /* Styling Kotak KPI (4 Kotak yang Mas Inginkan) */
+        /* Desain 4 Kotak KPI di bawah Navigasi */
         .kpi-card {{
             background-color: #FFFFFF;
             border-radius: 12px;
@@ -336,7 +234,7 @@ if page == "🏠 HOMEPAGE":
             transition: transform 0.3s ease;
         }}
         .kpi-card:hover {{ transform: translateY(-5px); }}
-        /* Container Dashboard */
+        /* Container Navigasi & Box Peta */
         [data-testid="stVerticalBlockBorderWrapper"] {{
             box-shadow: 0 12px 28px rgba(0,0,0,0.12) !important;
             border-radius: 15px !important;
@@ -349,7 +247,7 @@ if page == "🏠 HOMEPAGE":
     """, unsafe_allow_html=True)
 
     # ==========================================================
-    # 2. HEADER & NAVIGASI 5 KOTAK (POSISI ATAS)
+    # 2. HEADER & NAVIGASI 5 KOTAK (POSISI PALING ATAS)
     # ==========================================================
     st.markdown(f'<div class="feature-header" style="text-align: center;">DIGITAL MARKETING COMMAND CENTER</div>', unsafe_allow_html=True)
     
@@ -371,10 +269,10 @@ if page == "🏠 HOMEPAGE":
     with c4: create_square_card("💬", "WA Admin", "Closing Funnel", "💬 WA ADMIN REPORT", "btn_wa")
     with c5: create_square_card("📂", "Database", "CRM Kontak", "📂 DATABASE NOMOR", "btn_db")
 
-    st.markdown("---")
+    st.markdown("---") # Garis Pemisah
 
     # ==========================================================
-    # 3. EXECUTIVE SUMMARY (4 KOTAK METRIK UTAMA)
+    # 3. EXECUTIVE SUMMARY (4 KOTAK KPI BERBAYANG)
     # ==========================================================
     try:
         df_wa_home = load_wa_admin()
@@ -388,7 +286,7 @@ if page == "🏠 HOMEPAGE":
         bulan_lalu = 12 if sekarang.month == 1 else sekarang.month - 1
         tahun_bulan_lalu = sekarang.year - 1 if sekarang.month == 1 else sekarang.year
 
-        # Perhitungan Leads & Closing
+        # Kalkulasi Data (Hanya Perhitungan)
         total_leads, total_closing = 0, 0
         if not df_wa_home.empty:
             total_leads = len(df_wa_home)
@@ -398,30 +296,24 @@ if page == "🏠 HOMEPAGE":
         total_view = df_in_home['View'].sum() if not df_in_home.empty else 0
         total_reach = df_in_home['Reach'].sum() if not df_in_home.empty else 0
 
-        # Hutang Sosmed & Web
-        def count_pending(df, m, y, col_name, done_vals):
-            if df.empty or col_name not in df.columns: return 0
-            tgl_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['tanggal', 'deadline'])), None)
-            if tgl_col:
-                df_t = df.copy()
-                df_t['p'] = pd.to_datetime(df_t[tgl_col], errors='coerce')
-                return len(df_t[(df_t['p'].dt.month == m) & (df_t['p'].dt.year == y) & (~df_t[col_name].isin(done_vals))])
-            return 0
-
-        sos_debt = count_pending(df_sos_home, bulan_lalu, tahun_bulan_lalu, 'PROSES', ['DONE', 'V', '1'])
-        web_debt = count_pending(df_web_home, bulan_ini, tahun_ini, 'Status Post', ['DONE', 'V', '1'])
-
+        # Logika Render Kotak KPI
         def render_kpi(icon, title, value):
             return f'<div class="kpi-card"><div>{icon}</div><div><div style="font-size:11px; color:gray;">{title}</div><div style="font-size:16px; font-weight:bold;">{value}</div></div></div>'
 
         k1, k2, k3, k4 = st.columns(4)
         with k1: st.markdown(render_kpi("🎯", "Closing / Leads", f"{total_closing} / {total_leads}"), unsafe_allow_html=True)
         with k2: st.markdown(render_kpi("👀", "Views / Reach", f"{total_view:,.0f} / {total_reach:,.0f}"), unsafe_allow_html=True)
-        with k3: st.markdown(render_kpi("📱", "Hutang Sosmed", f"{sos_debt} Task"), unsafe_allow_html=True)
-        with k4: st.markdown(render_kpi("🌐", "Hutang Web", f"{web_debt} Page"), unsafe_allow_html=True)
+        # Hutang Sosmed & Web (Metrik sederhana)
+        with k3: st.markdown(render_kpi("📱", "Hutang Sosmed", "Cek Modul"), unsafe_allow_html=True)
+        with k4: st.markdown(render_kpi("🌐", "Hutang Web", "Cek Modul"), unsafe_allow_html=True)
 
     except Exception as e:
-        st.warning(f"Metrik tertunda: {e}")
+        st.error(f"Gagal memuat metrik: {e}")
+
+    # ==========================================================
+    # 4. LANJUT KE PETA PERSEBARAN (SAMA SEPERTI KODE LAMA MAS)
+    # ==========================================================
+    st.markdown(f"<h3 style='color:{BRAND_BLUE}; font-size: 18px; margin-top: 15px;'>🗺️ Peta Persebaran & Top Asal Prospek</h3>", unsafe_allow_html=True)
     # ==========================================================
     # 4. PETA PERSEBARAN & GRAFIK (FULL WIDTH & SHADOW)
     # ==========================================================
