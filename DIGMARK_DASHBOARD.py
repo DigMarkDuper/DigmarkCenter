@@ -273,46 +273,40 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
-# =====================================================================
-# 5. NAVIGASI UTAMA (DENGAN KONTROL SESSION STATE)
-# =====================================================================
-if "nav_page" not in st.session_state:
-    st.session_state.nav_page = "🏠 HOMEPAGE"
+    # ==========================================================
+    # 5. GRID NAVIGASI KOTAK BAWAH (UPDATED: 5 COLUMNS)
+    # ==========================================================
+    def create_square_card(icon, title, subtitle, target_page, button_key):
+        with st.container(border=True):
+            st.markdown(f"""
+                <div style="text-align: center; padding: 10px 0px 5px 0px;">
+                    <div style="font-size: 70px; line-height: 1; margin-bottom: 15px;">{icon}</div>
+                    <div style="font-size: 14px; font-weight: 900; color: {BRAND_BLUE}; text-transform: uppercase; line-height: 1.2;">{title}</div>
+                    <div style="font-size: 12px; color: #666; margin-top: 8px; min-height: 35px;">{subtitle}</div>
+                </div>
+            """, unsafe_allow_html=True)
+            st.button("Masuk ➔", key=button_key, use_container_width=True, on_click=go_to_page, args=(target_page,))
 
-# FUNGSI CALLBACK: Mengganti halaman secara aman sebelum script me-render ulang
-def go_to_page(page_name):
-    st.session_state.nav_page = page_name
-
-st.sidebar.markdown(f"<h1 style='color:{BRAND_BLUE};'>🚀 NAVIGATION</h1>", unsafe_allow_html=True)
-
-page = st.sidebar.radio(
-    "Pilih Proses Kerja:", 
-    ["🏠 HOMEPAGE", "📱 SOSIAL MEDIA", "🌐 WEBSITE AUDIT", "📈 INSIGHTS & ANALYTICS", "💬 WA ADMIN REPORT"],
-    key="nav_page" 
-)
-
-if st.sidebar.button("🔄 Force Global Refresh"):
-    st.cache_data.clear()
-    st.rerun()
+    # Kita ubah menjadi 5 kolom
+    c1, c2, c3, c4, c5 = st.columns(5)
     
-# --- RUNNING TEXT NOTIFICATION ---
-st.markdown(f"""
-    <div style="
-        background-color: #d1e7dd; 
-        color: #0f5132; 
-        padding: 12px 15px; 
-        border-radius: 8px; 
-        border-left: 8px solid #198754;
-        font-size: 16px;
-        font-weight: bold;
-        margin-bottom: 25px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    ">
-        <marquee behavior="scroll" direction="left" scrollamount="6">
-            ✅ Login Berhasil! Selamat bekerja, Tim Digmark LPK Duta Persada. Tetap jaga sinergi dan ketangguhan tim, mari wujudkan target 450 pendaftaran siswa baru! 🚀
-        </marquee>
-    </div>
-""", unsafe_allow_html=True)
+    with c1: 
+        create_square_card("📱", "Sosial Media", "Jadwal Tayang & Hutang PIC", "📱 SOSIAL MEDIA", "btn_sos")
+    
+    with c2: 
+        create_square_card("🌐", "Website Audit", "Status Artikel & Pilar SEO", "🌐 WEBSITE AUDIT", "btn_web")
+    
+    with c3: 
+        create_square_card("📈", "Analytics", "Interaksi, Views & Leads", "📈 INSIGHTS & ANALYTICS", "btn_in")
+    
+    with c4: 
+        create_square_card("💬", "WA Report", "Funneling & Sukses Closing", "💬 WA ADMIN REPORT", "btn_wa")
+    
+    # Fitur Baru: Database Nomor
+    with c5: 
+        create_square_card("📂", "Database Nomor", "CRM & Detail Prospek Siswa", "📂 DATABASE NOMOR", "btn_db")
+
+    st.markdown("<hr style='border: 1px solid #EEE; margin-top: 40px;'>", unsafe_allow_html=True)
 # ==========================================================
 # KONFIGURASI TAMPILAN GLOBAL (SELURUH HALAMAN)
 # ==========================================================
