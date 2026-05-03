@@ -908,39 +908,76 @@ elif page == "📂 DATABASE NOMOR":
     st.markdown("---")
     
     try:
+        # 1. Ambil Data
         df_crm = load_database_nomor()
         
         if not df_crm.empty:
-            # (Pastikan kode filtering Anda ada di sini sebelum Section 2)
-            # filtered_crm = ... 
+            # Fix tipe data No Hp agar bisa diedit (paksa jadi string)
+            df_crm['No Hp'] = df_crm['No Hp'].astype(str)
+
+            # ==========================================================
+            # 1. SMART FILTERING SYSTEM (SIDEBAR)
+            # ==========================================================
+            st.sidebar.markdown(f"<h2 style='color:{BRAND_BLUE};'>Smart Filter CRM</h2>", unsafe_allow_html=True)
+            
+            # A. Suhu Prospek
+            temp_options = ["PENDING", "INTERESTED", "REGISTERED", "NO RESPONSE"]
+            temp_filter = st.sidebar.multiselect("Suhu Prospek:", options=temp_options, default=temp_options)
+
+            # B. Zonasi Wilayah
+            df_crm['Zonasi'] = df_crm['Domisili'].apply(lambda x: 
+                'LOKAL (DIY)' if any(area in str(x).upper() for area in ['JOGJA', 'SLEMAN', 'BANTUL', 'KULON', 'GUNUNG']) else 'LUAR KOTA'
+            )
+            zona_filter = st.sidebar.multiselect("Zonasi Wilayah:", options=['LOKAL (DIY)', 'LUAR KOTA'], default=['LOKAL (DIY)', 'LUAR KOTA'])
+
+            # C. Segment Usia
+            def segment_usia(usia):
+                try:
+                    u = int(usia)
+                    if u <= 21: return "Fresh Graduate (19-21)"
+                    elif u <= 26: return "Career Switcher (22-26)"
+                    else: return "Senior"
+                except: return "N/A"
+            df_crm['Segment Usia'] = df_crm['Usia'].apply(segment_usia)
+            usia_filter = st.sidebar.multiselect("Segment Usia:", options=df_crm['Segment Usia'].unique(), default=df_crm['Segment Usia'].unique())
+
+            # D. Search
+            search_crm = st.sidebar.text_input("🔍 Cari Nama/Nomor:")
+
+            # EKSEKUSI FILTER
+            mask = (
+                (df_crm['Status'].isin(temp_filter)) & 
+                (df_crm['Zonasi'].isin(zona_filter)) & 
+                (df_crm['Segment Usia'].isin(usia_filter))
+            )
+            if search_crm:
+                mask = mask & (df_crm['Nama'].str.contains(search_crm, case=False) | df_crm['No Hp'].str.contains(search_crm))
+            
+            filtered_crm = df_crm[mask].copy()
 
             # ==========================================================
             # 2. EXECUTIVE SUMMARY (METRIK)
             # ==========================================================
             st.markdown('<div class="feature-header">📈 Lead Monitoring Dashboard</div>', unsafe_allow_html=True)
             m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Konten Terfilter", len(filtered_crm))
+            m1.metric("Prospek Terfilter", len(filtered_crm))
             
-            # Hot Leads dari data terfilter
             hot_count = len(filtered_crm[filtered_crm['Status'] == 'INTERESTED'])
             m2.metric("Hot Leads 🔥", hot_count)
             
-            # Closing rate di segmen ini
             reg_seg = len(filtered_crm[filtered_crm['Status'] == 'REGISTERED'])
-            m3.metric("Closing di Segmen Ini", reg_seg)
+            m3.metric("Closing Segmen", reg_seg)
             
-            # Prosentase Closing
             conv = (reg_seg / len(filtered_crm) * 100) if len(filtered_crm) > 0 else 0
-            m4.metric("Conv. Rate Segmen", f"{conv:.1f}%")
+            m4.metric("Conv. Rate", f"{conv:.1f}%")
 
             st.markdown("---")
 
             # ==========================================================
-            # 3. LIVE CRM EDITOR (WITH EMOJI & SPECIFIC COLUMNS)
+            # 3. LIVE CRM EDITOR
             # ==========================================================
             st.markdown('<div class="feature-header">📑 Management Database Kontak LPK</div>', unsafe_allow_html=True)
             
-            # Map visual untuk mempermudah mata melihat status
             stat_map = {"PENDING": "⏳ PENDING", "INTERESTED": "🔥 INTERESTED", "REGISTERED": "✅ REGISTERED", "NO RESPONSE": "🧊 NO RESPONSE"}
             tx_map = {"WA Chat": "💬 WA Chat", "Telepon": "📞 Telepon", "Konsultasi": "🏫 Konsultasi", "Broadcast": "📢 Broadcast"}
 
@@ -950,7 +987,7 @@ elif page == "📂 DATABASE NOMOR":
             edited_crm = st.data_editor(
                 df_crm_disp,
                 column_config={
-                    "No Hp": st.column_config.TextColumn("WhatsApp", disabled=True), 
+                    "No Hp": st.column_config.TextColumn("WhatsApp", disabled=True),
                     "Kategori": st.column_config.SelectboxColumn("Kategori", options=["Siswa", "Partnership", "Lainnya"]),
                     "Tanggal Lahir": st.column_config.DateColumn("Tgl Lahir"),
                     "Treatment 1": st.column_config.SelectboxColumn("Tx 1", options=list(tx_map.values())),
@@ -975,16 +1012,14 @@ elif page == "📂 DATABASE NOMOR":
                         'Treatment 1', 'Treatment 2', 'Tanggal Treatment 1', 'Tanggal Treatment 2',
                         'Status', 'Updated Status After Treatment', 'Catatan'
                     ]
-                    
                     for idx in edited_crm.index:
                         for col in cols_sync:
-                            old_val = str(df_crm.at[idx, col]).strip()
-                            new_val_raw = edited_crm.at[idx, col]
-                            
-                            new_val = str(new_val_raw).split(" ", 1)[-1].strip() if " " in str(new_val_raw) else str(new_val_raw)
+                            old_v = str(df_crm.at[idx, col]).strip()
+                            new_v_raw = edited_crm.at[idx, col]
+                            new_v = str(new_v_raw).split(" ", 1)[-1].strip() if " " in str(new_v_raw) else str(new_v_raw)
 
-                            if old_val != new_val and new_val != "None":
-                                update_sheet_cell(4, idx, col, new_val)
+                            if old_v != new_v and new_v != "None":
+                                update_sheet_cell(4, idx, col, new_v)
                                 updates += 1
                     
                     if updates > 0:
@@ -996,96 +1031,6 @@ elif page == "📂 DATABASE NOMOR":
 
     except Exception as e:
         st.error(f"Gagal memuat CRM: {e}")
-
-            # ==========================================================
-            # 2. EXECUTIVE SUMMARY (METRIK)
-            # ==========================================================
-        st.markdown('<div class="feature-header">📈 Lead Monitoring Dashboard</div>', unsafe_allow_html=True)
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Konten Terfilter", len(filtered_crm))
-            
-            # Hot Leads dari data terfilter
-            hot_count = len(filtered_crm[filtered_crm['Status'] == 'INTERESTED'])
-            m2.metric("Hot Leads 🔥", hot_count)
-            
-            # Closing rate di segmen ini
-            reg_seg = len(filtered_crm[filtered_crm['Status'] == 'REGISTERED'])
-            m3.metric("Closing di Segmen Ini", reg_seg)
-            
-            # Prosentase Closing
-            conv = (reg_seg / len(filtered_crm) * 100) if len(filtered_crm) > 0 else 0
-            m4.metric("Conv. Rate Segmen", f"{conv:.1f}%")
-
-            st.markdown("---")
-
-            # ==========================================================
-            # 3. LIVE CRM EDITOR
-            # ==========================================================
-            st.markdown('<div class="feature-header">📑 Management Database Kontak LPK</div>', unsafe_allow_html=True)
-            
-            stat_map = {
-                "PENDING": "⏳ PENDING", 
-                "INTERESTED": "🔥 INTERESTED", 
-                "REGISTERED": "✅ REGISTERED", 
-                "NO RESPONSE": "🧊 NO RESPONSE"
-            }
-            tx_map = {
-                "WA Chat": "💬 WA Chat", 
-                "Telepon": "📞 Telepon", 
-                "Konsultasi": "🏫 Konsultasi", 
-                "Broadcast": "📢 Broadcast"
-            }
-
-            df_crm_disp = filtered_crm.copy()
-            df_crm_disp['Status'] = df_crm_disp['Status'].map(stat_map).fillna(df_crm_disp['Status'])
-
-            edited_crm = st.data_editor(
-                df_crm_disp,
-                column_config={
-                    "No Hp": st.column_config.TextColumn("WhatsApp"),
-                    "Kategori": st.column_config.SelectboxColumn("Kategori", options=["Siswa", "Partnership", "Lainnya"]),
-                    "Tanggal Lahir": st.column_config.DateColumn("Tgl Lahir"),
-                    "Treatment 1": st.column_config.SelectboxColumn("Tx 1", options=list(tx_map.values())),
-                    "Treatment 2": st.column_config.SelectboxColumn("Tx 2", options=list(tx_map.values())),
-                    "Status": st.column_config.SelectboxColumn("Status", options=list(stat_map.values())),
-                },
-                disabled=['No', 'Usia', 'Tanggal Masuk Database', 'Zonasi', 'Segment Usia'],
-                use_container_width=True,
-                hide_index=True,
-                key="crm_detailed_editor"
-            )
-            # ==========================================================
-            # 4. TOMBOL SIMPAN
-            # ==========================================================
-            if st.button("💾 Simpan Update Database CRM", use_container_width=True):
-                with st.spinner("Sinkronisasi data ke Cloud..."):
-                    updates = 0
-                    cols_to_sync = [
-                        'Domisili', 'Tanggal Lahir', 'Kategori', 'Keterangan Setelah Isi Form',
-                        'Treatment 1', 'Treatment 2', 'Tanggal Treatment 1', 'Tanggal Treatment 2',
-                        'Status', 'Updated Status After Treatment', 'Catatan'
-                    ]
-                    
-                    # Kita lakukan update menggunakan index asli dari df_crm agar tidak salah baris
-                    for idx in edited_crm.index:
-                        for col in cols_to_sync:
-                            old_v = str(df_crm.at[idx, col]).strip()
-                            new_v_raw = edited_crm.at[idx, col]
-                            
-                            new_v = str(new_v_raw).split(" ", 1)[-1].strip() if " " in str(new_v_raw) else str(new_v_raw)
-
-                            if old_v != new_v and new_v != "None":
-                                update_sheet_cell(4, idx, col, new_v)
-                                updates += 1
-                    
-                    if updates > 0:
-                        st.success(f"✅ Berhasil! {updates} detail kontak telah diperbarui.")
-                        st.cache_data.clear()
-                        st.rerun()
-
-    except Exception as e:
-        st.error(f"Gagal memuat CRM: {e}")
-
     except Exception as e:
         st.error(f"Gagal memuat Database Spesifik: {e}")
 if __name__ == "__main__":
