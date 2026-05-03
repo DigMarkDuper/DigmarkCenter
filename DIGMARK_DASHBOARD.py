@@ -176,6 +176,54 @@ def load_wa_admin():
         df['Tanggal Filter'] = pd.to_datetime(df['Tanggal Masuk'], dayfirst=True, errors='coerce')
         df['Bulan-Masuk'] = df['Tanggal Filter'].dt.strftime('%B %Y')
     return df
+
+@st.cache_data(ttl=5)
+def load_database_nomor():
+    """Mengambil data dari tab Database CRM (Asumsi Index 4)"""
+    return get_raw_df(4)
+
+# =====================================================================
+# 4. FUNGSI WRITE-BACK & BATCH UPDATE
+# =====================================================================
+
+def update_sheet_cell(sheet_index, row_index, column_name, new_value):
+    """Update satu cell (untuk Live Editor)"""
+    client = init_connection()
+    if client:
+        try:
+            spreadsheet = client.open("MASTER DATA DIGITAL MARKETING 2.0")
+            sheet = spreadsheet.get_worksheet(sheet_index)
+            headers = sheet.row_values(1)
+            if column_name in headers:
+                col_index = headers.index(column_name) + 1
+                sheet.update_cell(row_index + 2, col_index, str(new_value))
+                st.cache_data.clear() # Penting agar data terbaru langsung tampil
+                return True
+        except Exception as e:
+            st.error(f"Gagal Update Cell: {e}")
+    return False
+
+def batch_append_rows(sheet_index, data_list):
+    """
+    Menambahkan banyak baris sekaligus (Batch Update).
+    Cocok untuk sinkronisasi Laporan WA ke Database Nomor.
+    data_list: List dari List (Contoh: [['2026-05-01', 'Budi', '0812...'], [...]])
+    """
+    if not data_list:
+        return False
+        
+    client = init_connection()
+    if client:
+        try:
+            spreadsheet = client.open("MASTER DATA DIGITAL MARKETING 2.0")
+            sheet = spreadsheet.get_worksheet(sheet_index)
+            # append_rows jauh lebih cepat daripada update_cell satu per satu
+            sheet.append_rows(data_list)
+            st.cache_data.clear()
+            return True
+        except Exception as e:
+            st.error(f"Gagal Batch Update: {e}")
+    return False
 # =====================================================================
 # 4. FUNGSI UPDATE DATA (TARUH TEPAT DI BAWAH load_wa_admin)
 # =====================================================================
