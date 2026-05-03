@@ -135,11 +135,18 @@ def load_wa_admin():
 def load_database_nomor():
     df = get_raw_df(4)
     if not df.empty:
-        # PAKSA kolom No Hp jadi teks agar nol di depan tidak hilang dan tidak error
+        
         if 'No Hp' in df.columns:
-            df['No Hp'] = df['No Hp'].astype(str)
+            def format_whatsapp(val):
+                num = str(val).strip().replace('+', '').replace(' ', '').replace('-', '')
+                if num.startswith('0'):
+                    return '62' + num[1:]
+                elif num.startswith('8'):
+                    return '62' + num
+                return num
             
-        # Konversi tanggal seperti biasa
+            df['No Hp'] = df['No Hp'].apply(format_whatsapp)
+            
         for col in ['Tanggal Lahir', 'Tanggal Masuk Database', 'Tanggal Treatment 1', 'Tanggal Treatment 2']:
             if col in df.columns:
                 df[col] = pd.to_datetime(df[col], errors='coerce').dt.date
