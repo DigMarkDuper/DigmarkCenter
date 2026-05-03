@@ -490,7 +490,7 @@ if page == "🏠 HOMEPAGE":
         st.markdown('<div style="font-weight: 800; margin-bottom: 15px;">📊 RINGKASAN PERFORMA</div>', unsafe_allow_html=True)
         k1, k2, k3, k4 = st.columns(4)
         
-        with k1: render_kpi("🎯", "Closing / Leads ", f"{total_closing} / {total_leads}")
+        with k1: render_kpi("🎯", "Closing / Leads (Bulan Ini)", f"{total_closing} / {total_leads}")
         with k2: render_kpi("👀", "Views / Reach", f"{total_view:,.0f} / {total_reach:,.0f}")
         with k3: render_kpi("📱", f"Utang Sosmed ({bulan_lalu})", f"{sos_pending} Task")
         with k4: render_kpi("🌐", f"Utang Web ({bulan_ini})", f"{web_pending} Page")
