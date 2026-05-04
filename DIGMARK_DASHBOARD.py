@@ -1073,47 +1073,47 @@ elif page == "💬 WA ADMIN REPORT":
                     fig_sumber.update_traces(textinfo='label+percent')
                     st.plotly_chart(fig_sumber, use_container_width=True)
 
-           # 7. MAPPING ASAL (PIE CHART)
-            st.markdown('<div class="feature-header">📍 Mapping Persebaran Asal</div>', unsafe_allow_html=True)
-            
-            if 'Asal' in df_wa.columns:
-                # Menghitung jumlah per asal kota/provinsi
-                asal_counts = df_wa['Asal'].value_counts().reset_index()
-                asal_counts.columns = ['Asal', 'Jumlah']
-                
-                # Filter agar data kosong tidak ikut muncul di chart
-                df_asal_filtered = asal_counts[asal_counts['Asal'].str.strip() != '']
-                
-                if not df_asal_filtered.empty:
-                    fig_asal = px.pie(
-                        df_asal_filtered, 
-                        names='Asal', 
-                        values='Jumlah', 
-                        hole=0.4, # Membuat Donut Chart
-                        color_discrete_sequence=px.colors.qualitative.Pastel
-                    )
+          # 7. MAPPING ASAL (TREEMAP)
+                    st.markdown('<div class="feature-header">📍 Sebaran Domisili Prospek (TreeMap)</div>', unsafe_allow_html=True)
                     
-                    # Pengaturan teks agar langsung terbaca di luar
-                    fig_asal.update_traces(
-                        textinfo='label+value+percent', 
-                        textposition='outside',
-                        textfont_size=12,
-                        marker=dict(line=dict(color='#FFFFFF', width=2))
-                    )
+                    if 'Asal' in df_wa.columns:
+                        # Menghitung jumlah per asal kota/provinsi
+                        asal_counts = df_wa['Asal'].value_counts().reset_index()
+                        asal_counts.columns = ['Asal', 'Jumlah']
+                        
+                        # Filter agar data kosong tidak ikut muncul
+                        df_asal_filtered = asal_counts[asal_counts['Asal'].str.strip() != '']
+                        
+                        if not df_asal_filtered.empty:
+                            # Membuat TreeMap
+                            fig_asal = px.treemap(
+                                df_asal_filtered,
+                                path=[px.Constant("Seluruh Wilayah"), 'Asal'], # Membuat hierarki visual
+                                values='Jumlah',
+                                color='Jumlah',
+                                color_continuous_scale='GnBu', # Gradasi Biru-Hijau yang segar
+                                hover_data=['Jumlah']
+                            )
+                            
+                            # Pengaturan agar label Nama Kota dan Jumlah muncul di dalam kotak
+                            fig_asal.update_traces(
+                                textinfo="label+value",
+                                texttemplate="<b>%{label}</b><br>%{value} Leads",
+                                hovertemplate='<b>%{label}</b><br>Total: %{value} Prospek'
+                            )
+                            
+                            fig_asal.update_layout(
+                                height=500,
+                                margin=dict(t=10, l=10, r=10, b=10),
+                                coloraxis_showscale=False # Sembunyikan color bar agar lebih bersih
+                            )
+                            
+                            st.plotly_chart(fig_asal, use_container_width=True)
+                        else:
+                            st.info("Data Asal belum diisi oleh Admin.")
                     
-                    fig_asal.update_layout(
-                        height=600, # Tinggi disesuaikan agar label kota tidak bertumpuk
-                        showlegend=True,
-                        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
-                        paper_bgcolor='white'
-                    )
-                    
-                    st.plotly_chart(fig_asal, use_container_width=True)
-                else:
-                    st.info("Data Asal belum diisi oleh Admin.")
-
-            st.markdown('<div class="feature-header">📋 Master Database WA Admin</div>', unsafe_allow_html=True)
-            st.dataframe(df_wa, use_container_width=True, hide_index=True)
+                    st.markdown('<div class="feature-header">📋 Master Database WA Admin</div>', unsafe_allow_html=True)
+                    st.dataframe(df_wa, use_container_width=True, hide_index=True)
             
         else:
             st.warning("⚠️ Data tidak ditemukan.")
