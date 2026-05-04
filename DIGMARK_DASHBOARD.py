@@ -1073,14 +1073,44 @@ elif page == "💬 WA ADMIN REPORT":
                     fig_sumber.update_traces(textinfo='label+percent')
                     st.plotly_chart(fig_sumber, use_container_width=True)
 
-            # 7. MAPPING ASAL
+           # 7. MAPPING ASAL (PIE CHART)
             st.markdown('<div class="feature-header">📍 Mapping Persebaran Asal</div>', unsafe_allow_html=True)
+            
             if 'Asal' in df_wa.columns:
+                # Menghitung jumlah per asal kota/provinsi
                 asal_counts = df_wa['Asal'].value_counts().reset_index()
                 asal_counts.columns = ['Asal', 'Jumlah']
-                fig_asal = px.bar(asal_counts[asal_counts['Asal'] != ''], y='Asal', x='Jumlah', text_auto=True, orientation='h', color_discrete_sequence=[BRAND_BLUE])
-                fig_asal.update_layout(height=max(400, len(asal_counts)*20), yaxis={'categoryorder':'total ascending'})
-                st.plotly_chart(fig_asal, use_container_width=True)
+                
+                # Filter agar data kosong tidak ikut muncul di chart
+                df_asal_filtered = asal_counts[asal_counts['Asal'].str.strip() != '']
+                
+                if not df_asal_filtered.empty:
+                    fig_asal = px.pie(
+                        df_asal_filtered, 
+                        names='Asal', 
+                        values='Jumlah', 
+                        hole=0.4, # Membuat Donut Chart
+                        color_discrete_sequence=px.colors.qualitative.Pastel
+                    )
+                    
+                    # Pengaturan teks agar langsung terbaca di luar
+                    fig_asal.update_traces(
+                        textinfo='label+value+percent', 
+                        textposition='outside',
+                        textfont_size=12,
+                        marker=dict(line=dict(color='#FFFFFF', width=2))
+                    )
+                    
+                    fig_asal.update_layout(
+                        height=600, # Tinggi disesuaikan agar label kota tidak bertumpuk
+                        showlegend=True,
+                        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
+                        paper_bgcolor='white'
+                    )
+                    
+                    st.plotly_chart(fig_asal, use_container_width=True)
+                else:
+                    st.info("Data Asal belum diisi oleh Admin.")
 
             st.markdown('<div class="feature-header">📋 Master Database WA Admin</div>', unsafe_allow_html=True)
             st.dataframe(df_wa, use_container_width=True, hide_index=True)
