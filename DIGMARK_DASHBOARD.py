@@ -952,13 +952,17 @@ elif page == "💬 WA ADMIN REPORT":
         status_col = next((col for col in df_wa.columns if 'Status' in str(col)), None)
         if status_col:
             df_wa.rename(columns={status_col: 'Status'}, inplace=True)
-            # --- LOGIKA BARU: MASUKKAN KOSONG SEBAGAI 'BELUM TERUPDATE' ---
             df_wa['Status'] = df_wa['Status'].astype(str).str.strip()
             df_wa['Status'] = df_wa['Status'].replace(['', 'nan', 'None', 'NaN'], 'Belum Terupdate')
         else:
             df_wa['Status'] = "Belum Terupdate"
             
+        # Simpan versi lengkap untuk chart Mekari Tag (sebelum difilter Partnership)
+        df_full_tags = df_wa.copy()
+            
         if 'Mekari Tag' in df_wa.columns:
+            # Tetap filter Partnership untuk perhitungan Leads utama jika Mas mau, 
+            # tapi untuk laporan Tag di bawah kita pakai df_full_tags
             df_wa = df_wa[~df_wa['Mekari Tag'].astype(str).str.contains('Partnership', case=False, na=False)]
         
         # 2. SIDEBAR FILTER
@@ -968,10 +972,12 @@ elif page == "💬 WA ADMIN REPORT":
             months_wa = df_wa['Bulan-Masuk'].dropna().unique().tolist()
             selected_months_wa = st.sidebar.multiselect("Pilih Bulan:", options=months_wa, default=months_wa, key="wa_bulan")
             df_wa = df_wa[df_wa['Bulan-Masuk'].isin(selected_months_wa)]
+            df_full_tags = df_full_tags[df_full_tags['Bulan-Masuk'].isin(selected_months_wa)]
             
         search_city = st.sidebar.text_input("Cari Asal Kota/Provinsi:", "", key="wa_search").strip()
         if search_city:
             df_wa = df_wa[df_wa['Asal'].astype(str).str.contains(search_city, case=False, na=False)]
+            df_full_tags = df_full_tags[df_full_tags['Asal'].astype(str).str.contains(search_city, case=False, na=False)]
 
         if not df_wa.empty:
             # 3. METRIK UTAMA
@@ -988,47 +994,70 @@ elif page == "💬 WA ADMIN REPORT":
 
             st.markdown("---")
 
-            # 4. DISTRIBUSI STATUS (TERMASUK BELUM TERUPDATE)
-            st.markdown('<div class="feature-header">📊 Distribusi Status Prospek</div>', unsafe_allow_html=True)
+            # 4. FITUR BARU: MEKARI TAG STATUS BREAKDOWN (SESUAI GAMBAR)
+            st.markdown('<div class="feature-header">🏷️ Mekari Tag Status Breakdown</div>', unsafe_allow_html=True)
             
-            # Update urutan dan warna dengan kategori 'Belum Terupdate'
+            if 'Mekari Tag' in df_full_tags.columns:
+                # Menghitung distribusi tag
+                mekari_summary = df_full_tags['Mekari Tag'].value_counts().reset_index()
+                mekari_summary.columns = ['Tag', 'Jumlah']
+                
+                # Urutan berdasarkan gambar yang dikirim (Leads -> Progress -> Closing -> Others)
+                mekari_order = [
+                    "Hot Lead", "Warm Lead", "Cold Lead", 
+                    "Pending Form - L1", "Pending Form - L2", 
+                    "Re-engagement", "Future Prospect", 
+                    "Form Submitted", "Sales Progress", 
+                    "Closed - Registered", "Closed - Not Interested",
+                    "Not Eligible", "Double Chat", "Alumni", 
+                    "Partnership", "Fast Track", "Mahasiswa Observasi", "Ortu Siswa"
+                ]
+                
+                fig_mekari = px.bar(
+                    mekari_summary,
+                    x='Jumlah',
+                    y='Tag',
+                    orientation='h',
+                    category_orders={"Tag": mekari_order},
+                    color='Jumlah',
+                    color_continuous_scale='Blues',
+                    text_auto=True
+                )
+                fig_mekari.update_layout(
+                    height=600,
+                    paper_bgcolor='white',
+                    plot_bgcolor='white',
+                    xaxis_title="Jumlah Kontak",
+                    yaxis_title="",
+                    coloraxis_showscale=False
+                )
+                fig_mekari.update_yaxes(tickfont=dict(family="Arial Black", size=12))
+                st.plotly_chart(fig_mekari, use_container_width=True)
+            
+            st.markdown("---")
+
+            # 5. DISTRIBUSI STATUS (BELUM TERUPDATE)
+            st.markdown('<div class="feature-header">📊 Distribusi Status Prospek (Internal Status)</div>', unsafe_allow_html=True)
             status_order = ["Belum Terupdate", "No Response", "Follow Up", "Daftar", "Interview", "Closing", "Lainnya", "Sales Progress", "Withdraw"]
             color_map = {
-                "Belum Terupdate": "#F3F4F6", # Abu-abu sangat terang
-                "No Response": "#FDE68A",    
-                "Follow Up": "#BFDBFE",      
-                "Daftar": "#BBF7D0",         
-                "Interview": "#E9D5FF",      
-                "Closing": "#FECACA",        
-                "Lainnya": "#D1D5DB",        
-                "Sales Progress": "#1D4ED8",  
-                "Withdraw": "#B91C1C"        
+                "Belum Terupdate": "#F3F4F6", "No Response": "#FDE68A", "Follow Up": "#BFDBFE",
+                "Daftar": "#BBF7D0", "Interview": "#E9D5FF", "Closing": "#FECACA",
+                "Lainnya": "#D1D5DB", "Sales Progress": "#1D4ED8", "Withdraw": "#B91C1C"
             }
-
             status_summary = df_wa['Status'].value_counts().reset_index()
             status_summary.columns = ['Status', 'Jumlah']
             
             fig_status = px.bar(
-                status_summary, 
-                x='Jumlah', 
-                y='Status', 
-                orientation='h',
-                category_orders={"Status": status_order},
-                color='Status',
-                color_discrete_map=color_map,
-                text_auto=True
+                status_summary, x='Jumlah', y='Status', orientation='h',
+                category_orders={"Status": status_order}, color='Status',
+                color_discrete_map=color_map, text_auto=True
             )
-            fig_status.update_layout(
-                showlegend=False, height=450, 
-                paper_bgcolor='white', plot_bgcolor='white',
-                xaxis_title="Jumlah Prospek", yaxis_title=""
-            )
-            fig_status.update_yaxes(tickfont=dict(family="Arial Black"))
+            fig_status.update_layout(showlegend=False, height=400, paper_bgcolor='white', plot_bgcolor='white', yaxis_title="")
             st.plotly_chart(fig_status, use_container_width=True)
 
             st.markdown("---")
             
-            # 5. FUNNEL & SUMBER
+            # 6. FUNNEL & SUMBER
             c1, c2 = st.columns(2)
             with c1:
                 st.markdown('<div class="feature-header">📊 Funnel Konversi Prospek</div>', unsafe_allow_html=True)
@@ -1037,10 +1066,8 @@ elif page == "💬 WA ADMIN REPORT":
                 for tahap in funnel_order:
                     count = len(df_wa[df_wa['Status'].str.contains(tahap, case=False, na=False)])
                     funnel_data.append(dict(Tahap=tahap, Jumlah=count))
-                
                 df_f = pd.DataFrame(funnel_data)
                 df_f['Pct'] = (df_f['Jumlah'] / total_leads * 100).round(1)
-                
                 fig_funnel = px.bar(
                     df_f, x='Jumlah', y='Tahap', orientation='h',
                     text=df_f.apply(lambda r: f"{r['Jumlah']} ({r['Pct']}%)", axis=1),
@@ -1058,7 +1085,7 @@ elif page == "💬 WA ADMIN REPORT":
                     fig_sumber.update_traces(textinfo='label+percent')
                     st.plotly_chart(fig_sumber, use_container_width=True)
 
-            # 6. MAPPING ASAL
+            # 7. MAPPING ASAL
             st.markdown('<div class="feature-header">📍 Mapping Persebaran Asal</div>', unsafe_allow_html=True)
             if 'Asal' in df_wa.columns:
                 asal_counts = df_wa['Asal'].value_counts().reset_index()
@@ -1067,7 +1094,7 @@ elif page == "💬 WA ADMIN REPORT":
                 fig_asal.update_layout(height=max(400, len(asal_counts)*20), yaxis={'categoryorder':'total ascending'})
                 st.plotly_chart(fig_asal, use_container_width=True)
 
-            st.markdown('<div class="feature-header">📋 Master Database WA Admin (Cek Baris Kosong di Sini)</div>', unsafe_allow_html=True)
+            st.markdown('<div class="feature-header">📋 Master Database WA Admin</div>', unsafe_allow_html=True)
             st.dataframe(df_wa, use_container_width=True, hide_index=True)
             
         else:
