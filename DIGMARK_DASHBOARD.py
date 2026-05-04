@@ -957,12 +957,9 @@ elif page == "💬 WA ADMIN REPORT":
         else:
             df_wa['Status'] = "Belum Terupdate"
             
-        # Simpan versi lengkap untuk chart Mekari Tag (sebelum difilter Partnership)
         df_full_tags = df_wa.copy()
             
         if 'Mekari Tag' in df_wa.columns:
-            # Tetap filter Partnership untuk perhitungan Leads utama jika Mas mau, 
-            # tapi untuk laporan Tag di bawah kita pakai df_full_tags
             df_wa = df_wa[~df_wa['Mekari Tag'].astype(str).str.contains('Partnership', case=False, na=False)]
         
         # 2. SIDEBAR FILTER
@@ -994,49 +991,42 @@ elif page == "💬 WA ADMIN REPORT":
 
             st.markdown("---")
 
-            # 4. FITUR BARU: MEKARI TAG STATUS BREAKDOWN (SESUAI GAMBAR)
-            st.markdown('<div class="feature-header">🏷️ Mekari Tag Status Breakdown</div>', unsafe_allow_html=True)
+            # 4. UPDATE: MEKARI TAG STATUS BREAKDOWN (PIE/DONUT CHART)
+            st.markdown('<div class="feature-header">🏷️ Mekari Tag Status Breakdown (Pie Chart)</div>', unsafe_allow_html=True)
             
             if 'Mekari Tag' in df_full_tags.columns:
-                # Menghitung distribusi tag
                 mekari_summary = df_full_tags['Mekari Tag'].value_counts().reset_index()
                 mekari_summary.columns = ['Tag', 'Jumlah']
                 
-                # Urutan berdasarkan gambar yang dikirim (Leads -> Progress -> Closing -> Others)
-                mekari_order = [
-                    "Hot Lead", "Warm Lead", "Cold Lead", 
-                    "Pending Form - L1", "Pending Form - L2", 
-                    "Re-engagement", "Future Prospect", 
-                    "Form Submitted", "Sales Progress", 
-                    "Closed - Registered", "Closed - Not Interested",
-                    "Not Eligible", "Double Chat", "Alumni", 
-                    "Partnership", "Fast Track", "Mahasiswa Observasi", "Ortu Siswa"
-                ]
+                # Menggunakan Pie Chart agar proporsi status terlihat jelas
+                fig_mekari = px.pie(
+                    mekari_summary, 
+                    names='Tag', 
+                    values='Jumlah', 
+                    hole=0.4, # Membuat Donut Chart agar tampilan lebih modern
+                    color_discrete_sequence=px.colors.qualitative.Bold
+                )
                 
-                fig_mekari = px.bar(
-                    mekari_summary,
-                    x='Jumlah',
-                    y='Tag',
-                    orientation='h',
-                    category_orders={"Tag": mekari_order},
-                    color='Jumlah',
-                    color_continuous_scale='Blues',
-                    text_auto=True
+                # Menampilkan Label + Jumlah + Persentase agar langsung terbaca di luar
+                fig_mekari.update_traces(
+                    textinfo='label+value+percent', 
+                    textposition='outside', # Teks di luar chart agar tidak bertumpuk
+                    textfont_size=12,
+                    marker=dict(line=dict(color='#FFFFFF', width=2))
                 )
+                
                 fig_mekari.update_layout(
-                    height=600,
-                    paper_bgcolor='white',
-                    plot_bgcolor='white',
-                    xaxis_title="Jumlah Kontak",
-                    yaxis_title="",
-                    coloraxis_showscale=False
+                    height=700, # Diperbesar agar teks leluasa dan terbaca
+                    showlegend=True,
+                    legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
+                    paper_bgcolor='white'
                 )
-                fig_mekari.update_yaxes(tickfont=dict(family="Arial Black", size=12))
+                
                 st.plotly_chart(fig_mekari, use_container_width=True)
             
             st.markdown("---")
 
-            # 5. DISTRIBUSI STATUS (BELUM TERUPDATE)
+            # 5. DISTRIBUSI STATUS INTERNAL
             st.markdown('<div class="feature-header">📊 Distribusi Status Prospek (Internal Status)</div>', unsafe_allow_html=True)
             status_order = ["Belum Terupdate", "No Response", "Follow Up", "Daftar", "Interview", "Closing", "Lainnya", "Sales Progress", "Withdraw"]
             color_map = {
@@ -1054,8 +1044,6 @@ elif page == "💬 WA ADMIN REPORT":
             )
             fig_status.update_layout(showlegend=False, height=400, paper_bgcolor='white', plot_bgcolor='white', yaxis_title="")
             st.plotly_chart(fig_status, use_container_width=True)
-
-            st.markdown("---")
             
             # 6. FUNNEL & SUMBER
             c1, c2 = st.columns(2)
