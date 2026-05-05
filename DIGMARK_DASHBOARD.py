@@ -1004,15 +1004,30 @@ elif page == "💬 WA ADMIN REPORT":
                 fig_mekari.update_layout(height=600, showlegend=True, legend=dict(orientation="h", y=-0.2, x=0.5), paper_bgcolor='white')
                 st.plotly_chart(fig_mekari, use_container_width=True)
 
-            # 5. [FITUR YANG SEMPAT HILANG DIKEMBALIKAN] KATEGORI PESAN MASUK
+            # 5. KATEGORI PESAN MASUK
             st.markdown('<div class="feature-header">🗂️ Kategori Intensi Pesan</div>', unsafe_allow_html=True)
             if 'Kategori (Persyaratan/Biaya/Pendaftaran/Loker/dll)' in df_wa.columns:
                 kat_counts = df_wa['Kategori (Persyaratan/Biaya/Pendaftaran/Loker/dll)'].value_counts().reset_index()
-                fig_kat = px.bar(kat_counts, x='Kategori (Persyaratan/Biaya/Pendaftaran/Loker/dll)', y='count', text_auto=True, color_discrete_sequence=[BRAND_BLUE])
-                fig_kat.update_layout(paper_bgcolor='white', plot_bgcolor='white', font=dict(color="#000000"), xaxis_title="Kategori", yaxis_title="Jumlah")
+                
+                fig_kat = px.bar(
+                    kat_counts, 
+                    x='Kategori (Persyaratan/Biaya/Pendaftaran/Loker/dll)', 
+                    y='count', 
+                    text_auto=True, 
+                    color='Kategori (Persyaratan/Biaya/Pendaftaran/Loker/dll)', # Membedakan warna tiap kategori
+                    color_discrete_sequence=px.colors.qualitative.Pastel # Menggunakan palet warna yang bervariasi
+                )
+                
+                fig_kat.update_layout(
+                    paper_bgcolor='white', 
+                    plot_bgcolor='white', 
+                    font=dict(color="#000000"), 
+                    xaxis_title="", # Dikosongkan agar lebih bersih
+                    yaxis_title="Jumlah",
+                    showlegend=False # Disembunyikan karena nama kategori sudah ada di sumbu X
+                )
+                
                 st.plotly_chart(fig_kat, use_container_width=True)
-
-            st.markdown("---")
 
             # 6. DISTRIBUSI STATUS INTERNAL
             st.markdown('<div class="feature-header">📊 Distribusi Status Prospek (Internal Status)</div>', unsafe_allow_html=True)
