@@ -991,42 +991,30 @@ elif page == "💬 WA ADMIN REPORT":
 
             st.markdown("---")
 
-            # 4. UPDATE: MEKARI TAG STATUS BREAKDOWN (PIE/DONUT CHART)
-            st.markdown('<div class="feature-header">🏷️ Mekari Tag Status Breakdown (Pie Chart)</div>', unsafe_allow_html=True)
-            
+            # 4. MEKARI TAG STATUS BREAKDOWN (PIE CHART)
+            st.markdown('<div class="feature-header">🏷️ Mekari Tag Status Breakdown</div>', unsafe_allow_html=True)
             if 'Mekari Tag' in df_full_tags.columns:
                 mekari_summary = df_full_tags['Mekari Tag'].value_counts().reset_index()
                 mekari_summary.columns = ['Tag', 'Jumlah']
-                
-                # Menggunakan Pie Chart agar proporsi status terlihat jelas
                 fig_mekari = px.pie(
-                    mekari_summary, 
-                    names='Tag', 
-                    values='Jumlah', 
-                    hole=0.4, # Membuat Donut Chart agar tampilan lebih modern
+                    mekari_summary, names='Tag', values='Jumlah', hole=0.4, 
                     color_discrete_sequence=px.colors.qualitative.Bold
                 )
-                
-                # Menampilkan Label + Jumlah + Persentase agar langsung terbaca di luar
-                fig_mekari.update_traces(
-                    textinfo='label+value+percent', 
-                    textposition='outside', # Teks di luar chart agar tidak bertumpuk
-                    textfont_size=12,
-                    marker=dict(line=dict(color='#FFFFFF', width=2))
-                )
-                
-                fig_mekari.update_layout(
-                    height=700, # Diperbesar agar teks leluasa dan terbaca
-                    showlegend=True,
-                    legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
-                    paper_bgcolor='white'
-                )
-                
+                fig_mekari.update_traces(textinfo='label+value+percent', textposition='outside', textfont_size=12)
+                fig_mekari.update_layout(height=600, showlegend=True, legend=dict(orientation="h", y=-0.2, x=0.5), paper_bgcolor='white')
                 st.plotly_chart(fig_mekari, use_container_width=True)
-            
+
+            # 5. [FITUR YANG SEMPAT HILANG DIKEMBALIKAN] KATEGORI PESAN MASUK
+            st.markdown('<div class="feature-header">🗂️ Kategori Intensi Pesan</div>', unsafe_allow_html=True)
+            if 'Kategori (Persyaratan/Biaya/Pendaftaran/Loker/dll)' in df_wa.columns:
+                kat_counts = df_wa['Kategori (Persyaratan/Biaya/Pendaftaran/Loker/dll)'].value_counts().reset_index()
+                fig_kat = px.bar(kat_counts, x='Kategori (Persyaratan/Biaya/Pendaftaran/Loker/dll)', y='count', text_auto=True, color_discrete_sequence=[BRAND_BLUE])
+                fig_kat.update_layout(paper_bgcolor='white', plot_bgcolor='white', font=dict(color="#000000"), xaxis_title="Kategori", yaxis_title="Jumlah")
+                st.plotly_chart(fig_kat, use_container_width=True)
+
             st.markdown("---")
 
-            # 5. DISTRIBUSI STATUS INTERNAL
+            # 6. DISTRIBUSI STATUS INTERNAL
             st.markdown('<div class="feature-header">📊 Distribusi Status Prospek (Internal Status)</div>', unsafe_allow_html=True)
             status_order = ["Belum Terupdate", "No Response", "Follow Up", "Daftar", "Interview", "Closing", "Lainnya", "Sales Progress", "Withdraw"]
             color_map = {
@@ -1036,7 +1024,6 @@ elif page == "💬 WA ADMIN REPORT":
             }
             status_summary = df_wa['Status'].value_counts().reset_index()
             status_summary.columns = ['Status', 'Jumlah']
-            
             fig_status = px.bar(
                 status_summary, x='Jumlah', y='Status', orientation='h',
                 category_orders={"Status": status_order}, color='Status',
@@ -1045,7 +1032,7 @@ elif page == "💬 WA ADMIN REPORT":
             fig_status.update_layout(showlegend=False, height=400, paper_bgcolor='white', plot_bgcolor='white', yaxis_title="")
             st.plotly_chart(fig_status, use_container_width=True)
             
-            # 6. FUNNEL & SUMBER
+            # 7. FUNNEL & SUMBER
             c1, c2 = st.columns(2)
             with c1:
                 st.markdown('<div class="feature-header">📊 Funnel Konversi Prospek</div>', unsafe_allow_html=True)
@@ -1073,47 +1060,42 @@ elif page == "💬 WA ADMIN REPORT":
                     fig_sumber.update_traces(textinfo='label+percent')
                     st.plotly_chart(fig_sumber, use_container_width=True)
 
-          # 7. MAPPING ASAL (TREEMAP)
-                    st.markdown('<div class="feature-header">📍 Sebaran Domisili Prospek (TreeMap)</div>', unsafe_allow_html=True)
-                    
-                    if 'Asal' in df_wa.columns:
-                        # Menghitung jumlah per asal kota/provinsi
-                        asal_counts = df_wa['Asal'].value_counts().reset_index()
-                        asal_counts.columns = ['Asal', 'Jumlah']
-                        
-                        # Filter agar data kosong tidak ikut muncul
-                        df_asal_filtered = asal_counts[asal_counts['Asal'].str.strip() != '']
-                        
-                        if not df_asal_filtered.empty:
-                            # Membuat TreeMap
-                            fig_asal = px.treemap(
-                                df_asal_filtered,
-                                path=[px.Constant("Seluruh Wilayah"), 'Asal'], # Membuat hierarki visual
-                                values='Jumlah',
-                                color='Jumlah',
-                                color_continuous_scale='GnBu', # Gradasi Biru-Hijau yang segar
-                                hover_data=['Jumlah']
-                            )
-                            
-                            # Pengaturan agar label Nama Kota dan Jumlah muncul di dalam kotak
-                            fig_asal.update_traces(
-                                textinfo="label+value",
-                                texttemplate="<b>%{label}</b><br>%{value} Leads",
-                                hovertemplate='<b>%{label}</b><br>Total: %{value} Prospek'
-                            )
-                            
-                            fig_asal.update_layout(
-                                height=500,
-                                margin=dict(t=10, l=10, r=10, b=10),
-                                coloraxis_showscale=False # Sembunyikan color bar agar lebih bersih
-                            )
-                            
-                            st.plotly_chart(fig_asal, use_container_width=True)
-                        else:
-                            st.info("Data Asal belum diisi oleh Admin.")
-                    
-                    st.markdown('<div class="feature-header">📋 Master Database WA Admin</div>', unsafe_allow_html=True)
-                    st.dataframe(df_wa, use_container_width=True, hide_index=True)
+            # 8. MAPPING ASAL (TREEMAP)
+            st.markdown('<div class="feature-header">📍 Sebaran Domisili Prospek (TreeMap)</div>', unsafe_allow_html=True)
+            if 'Asal' in df_wa.columns:
+                asal_counts = df_wa['Asal'].value_counts().reset_index()
+                asal_counts.columns = ['Asal', 'Jumlah']
+                df_asal_filtered = asal_counts[asal_counts['Asal'].str.strip() != '']
+                if not df_asal_filtered.empty:
+                    fig_asal = px.treemap(
+                        df_asal_filtered, path=[px.Constant("Seluruh Wilayah"), 'Asal'], values='Jumlah',
+                        color='Jumlah', color_continuous_scale='GnBu'
+                    )
+                    fig_asal.update_traces(textinfo="label+value", texttemplate="<b>%{label}</b><br>%{value} Leads")
+                    fig_asal.update_layout(height=500, margin=dict(t=10, l=10, r=10, b=10), coloraxis_showscale=False)
+                    st.plotly_chart(fig_asal, use_container_width=True)
+                else:
+                    st.info("Data Asal belum diisi oleh Admin.")
+            
+            # 9. DATA DETAIL SUKSES CLOSING
+            st.markdown('<div class="feature-header">🎉 Data Detail Sukses Closing</div>', unsafe_allow_html=True)
+            df_closing = df_wa[df_wa['Status'].str.contains('Closing', case=False, na=False)].copy()
+            if not df_closing.empty:
+                kolom_target = {
+                    'Tanggal Masuk': 'Tanggal', 'Nama': 'Nama', 'No Hp': 'Nomor Telfon',
+                    'Asal': 'Asal Wilayah', 'Sumber (Ads/Organik/Sales)': 'Sumber Pesan Masuk'
+                }
+                kolom_tersedia = [col for col in kolom_target.keys() if col in df_closing.columns]
+                df_closing_display = df_closing[kolom_tersedia].rename(columns=kolom_target)
+                df_closing_display.reset_index(drop=True, inplace=True)
+                df_closing_display.index = df_closing_display.index + 1
+                st.dataframe(df_closing_display, use_container_width=True)
+            else:
+                st.info("Belum ada data siswa yang berstatus Closing.")
+
+            # 10. MASTER DATABASE
+            st.markdown('<div class="feature-header">📋 Master Database WA Admin</div>', unsafe_allow_html=True)
+            st.dataframe(df_wa, use_container_width=True, hide_index=True)
             
         else:
             st.warning("⚠️ Data tidak ditemukan.")
