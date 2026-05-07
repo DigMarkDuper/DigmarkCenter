@@ -957,10 +957,17 @@ elif page == "💬 WA ADMIN REPORT":
         else:
             df_wa['Status'] = "Belum Terupdate"
             
-        df_full_tags = df_wa.copy()
+       df_full_tags = df_wa.copy()
             
         if 'Mekari Tag' in df_wa.columns:
-            df_wa = df_wa[~df_wa['Mekari Tag'].astype(str).str.contains('Partnership', case=False, na=False)]
+            # Masukkan Partnership kembali ke dalam daftar tag yang dibuang
+            tag_dibuang = ['Double Chat', 'Not Eligible', 'Closed - Not Interested', 'Partnership']
+            
+            # Gabungkan menjadi pola pencarian (Regex)
+            pola_hapus = '|'.join(tag_dibuang)
+            
+            # Filter dataframe (Buang semua data yang tag-nya ada di daftar atas)
+            df_wa = df_wa[~df_wa['Mekari Tag'].astype(str).str.contains(pola_hapus, case=False, na=False)]
         
         # 2. SIDEBAR FILTER
         st.sidebar.markdown(f"<h2 style='color:{BRAND_BLUE};'>Filter & Search</h2>", unsafe_allow_html=True)
