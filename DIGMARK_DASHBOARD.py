@@ -1004,18 +1004,37 @@ elif page == "💬 WA ADMIN REPORT":
                 fig_mekari.update_layout(height=600, showlegend=True, legend=dict(orientation="h", y=-0.2, x=0.5), paper_bgcolor='white')
                 st.plotly_chart(fig_mekari, use_container_width=True)
 
-            # 5. KATEGORI PESAN MASUK
+           # 5. KATEGORI PESAN MASUK
             st.markdown('<div class="feature-header">🗂️ Kategori Intensi Pesan</div>', unsafe_allow_html=True)
             if 'Kategori (Persyaratan/Biaya/Pendaftaran/Loker/dll)' in df_wa.columns:
-                kat_counts = df_wa['Kategori (Persyaratan/Biaya/Pendaftaran/Loker/dll)'].value_counts().reset_index()
+                # Bersihkan data: hilangkan spasi berlebih dan ubah yang kosong jadi 'Lainnya'
+                kolom_kat = 'Kategori (Persyaratan/Biaya/Pendaftaran/Loker/dll)'
+                df_wa[kolom_kat] = df_wa[kolom_kat].astype(str).str.strip()
+                df_wa[kolom_kat] = df_wa[kolom_kat].replace(['', 'nan', 'None', 'NaN'], 'Lainnya')
+                
+                kat_counts = df_wa[kolom_kat].value_counts().reset_index()
+                
+                # Mapping warna sesuai dengan gambar referensi Mas
+                kat_color_map = {
+                    "Persyaratan": "#BBF7D0",  # Hijau Pastel
+                    "Biaya": "#FECACA",        # Merah Muda / Peach
+                    "Pendaftaran": "#BFDBFE",  # Biru Pastel
+                    "Loker": "#E9D5FF",        # Ungu Pastel
+                    "Partnership": "#E9D5FF",  # Ungu Pastel
+                    "Lainnya": "#E5E7EB"       # Abu-abu
+                }
+                
+                # Urutan tampilan kategori agar sesuai gambar
+                kat_order = ["Persyaratan", "Biaya", "Pendaftaran", "Loker", "Partnership", "Lainnya"]
                 
                 fig_kat = px.bar(
                     kat_counts, 
-                    x='Kategori (Persyaratan/Biaya/Pendaftaran/Loker/dll)', 
+                    x=kolom_kat, 
                     y='count', 
                     text_auto=True, 
-                    color='Kategori (Persyaratan/Biaya/Pendaftaran/Loker/dll)', # Membedakan warna tiap kategori
-                    color_discrete_sequence=px.colors.qualitative.Pastel # Menggunakan palet warna yang bervariasi
+                    color=kolom_kat, 
+                    color_discrete_map=kat_color_map, # Menggunakan mapping warna spesifik
+                    category_orders={kolom_kat: kat_order} # Memaksa urutan dari kiri ke kanan
                 )
                 
                 fig_kat.update_layout(
@@ -1024,7 +1043,7 @@ elif page == "💬 WA ADMIN REPORT":
                     font=dict(color="#000000"), 
                     xaxis_title="", # Dikosongkan agar lebih bersih
                     yaxis_title="Jumlah",
-                    showlegend=False # Disembunyikan karena nama kategori sudah ada di sumbu X
+                    showlegend=False # Disembunyikan karena label sudah ada di bawah
                 )
                 
                 st.plotly_chart(fig_kat, use_container_width=True)
