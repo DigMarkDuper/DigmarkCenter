@@ -1110,6 +1110,15 @@ elif page == "💬 WA ADMIN REPORT":
 
             # 10. MASTER DATABASE
             st.markdown('<div class="feature-header">📋 Master Database WA Admin</div>', unsafe_allow_html=True)
+            
+            # Tambahkan tombol sinkronisasi khusus untuk menarik ulang data Spreadsheet
+            col_refresh, _ = st.columns([1, 2])
+            with col_refresh:
+                if st.button("🔄 Refresh & Tarik Data Terbaru", use_container_width=True, key="refresh_wa_admin"):
+                    st.cache_data.clear() # Membersihkan memori sementara
+                    st.rerun()            # Memuat ulang halaman dengan data fresh
+
+            # Tampilkan tabel Master Database
             st.dataframe(df_wa, use_container_width=True, hide_index=True)
             
         else:
