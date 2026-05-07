@@ -957,7 +957,7 @@ elif page == "💬 WA ADMIN REPORT":
         else:
             df_wa['Status'] = "Belum Terupdate"
             
-       df_full_tags = df_wa.copy()
+     df_full_tags = df_wa.copy()
             
         if 'Mekari Tag' in df_wa.columns:
             # Masukkan Partnership kembali ke dalam daftar tag yang dibuang
