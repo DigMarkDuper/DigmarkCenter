@@ -1108,21 +1108,42 @@ elif page == "💬 WA ADMIN REPORT":
                 else:
                     st.info("Data Asal belum diisi oleh Admin.")
             
-            # 9. DATA DETAIL SUKSES CLOSING
-            st.markdown('<div class="feature-header">🎉 Data Detail Sukses Closing</div>', unsafe_allow_html=True)
-            df_closing = df_wa[df_wa['Status'].str.contains('Closing', case=False, na=False)].copy()
-            if not df_closing.empty:
-                kolom_target = {
-                    'Tanggal Masuk': 'Tanggal', 'Nama': 'Nama', 'No Hp': 'Nomor Telfon',
-                    'Asal': 'Asal Wilayah', 'Sumber (Ads/Organik/Sales)': 'Sumber Pesan Masuk'
-                }
-                kolom_tersedia = [col for col in kolom_target.keys() if col in df_closing.columns]
-                df_closing_display = df_closing[kolom_tersedia].rename(columns=kolom_target)
-                df_closing_display.reset_index(drop=True, inplace=True)
-                df_closing_display.index = df_closing_display.index + 1
-                st.dataframe(df_closing_display, use_container_width=True)
-            else:
-                st.info("Belum ada data siswa yang berstatus Closing.")
+            # 9. DATA DETAIL SUKSES CLOSING & SALES PROGRESS
+            col_closing, col_sales = st.columns(2)
+            
+            # --- KOLOM KIRI: DATA CLOSING ---
+            with col_closing:
+                st.markdown('<div class="feature-header">🎉 Detail Sukses Closing</div>', unsafe_allow_html=True)
+                df_closing = df_wa[df_wa['Status'].str.contains('Closing', case=False, na=False)].copy()
+                if not df_closing.empty:
+                    kolom_target = {
+                        'Tanggal Masuk': 'Tanggal', 'Nama': 'Nama', 'No Hp': 'Nomor Telfon',
+                        'Asal': 'Asal Wilayah', 'Sumber (Ads/Organik/Sales)': 'Sumber'
+                    }
+                    kolom_tersedia = [col for col in kolom_target.keys() if col in df_closing.columns]
+                    df_closing_display = df_closing[kolom_tersedia].rename(columns=kolom_target)
+                    df_closing_display.reset_index(drop=True, inplace=True)
+                    df_closing_display.index = df_closing_display.index + 1
+                    st.dataframe(df_closing_display, use_container_width=True)
+                else:
+                    st.info("Belum ada data siswa yang berstatus Closing.")
+                    
+            # --- KOLOM KANAN: DATA SALES PROGRESS ---
+            with col_sales:
+                st.markdown('<div class="feature-header">⏳ Detail Sales Progress</div>', unsafe_allow_html=True)
+                df_sales = df_wa[df_wa['Status'].str.contains('Sales Progress', case=False, na=False)].copy()
+                if not df_sales.empty:
+                    kolom_target = {
+                        'Tanggal Masuk': 'Tanggal', 'Nama': 'Nama', 'No Hp': 'Nomor Telfon',
+                        'Asal': 'Asal Wilayah', 'Sumber (Ads/Organik/Sales)': 'Sumber'
+                    }
+                    kolom_tersedia = [col for col in kolom_target.keys() if col in df_sales.columns]
+                    df_sales_display = df_sales[kolom_tersedia].rename(columns=kolom_target)
+                    df_sales_display.reset_index(drop=True, inplace=True)
+                    df_sales_display.index = df_sales_display.index + 1
+                    st.dataframe(df_sales_display, use_container_width=True)
+                else:
+                    st.info("Belum ada prospek yang sedang dalam Sales Progress.")
 
             # 10. MASTER DATABASE
             st.markdown('<div class="feature-header">📋 Master Database WA Admin</div>', unsafe_allow_html=True)
