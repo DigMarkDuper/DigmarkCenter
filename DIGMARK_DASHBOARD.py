@@ -1047,20 +1047,28 @@ elif page == "💬 WA ADMIN REPORT":
 
             # 6. DISTRIBUSI STATUS INTERNAL
             st.markdown('<div class="feature-header">📊 Distribusi Status Prospek (Internal Status)</div>', unsafe_allow_html=True)
-            status_order = ["Belum Terupdate", "No Response", "Follow Up", "Daftar", "Interview", "Closing", "Lainnya", "Sales Progress", "Withdraw"]
+            
+            # Menambahkan 'Not Eligible' ke dalam daftar urutan
+            status_order = ["Belum Terupdate", "No Response", "Follow Up", "Daftar", "Interview", "Closing", "Lainnya", "Sales Progress", "Withdraw", "Not Eligible"]
+            
+            # Menambahkan warna khusus untuk 'Not Eligible'
             color_map = {
                 "Belum Terupdate": "#F3F4F6", "No Response": "#FDE68A", "Follow Up": "#BFDBFE",
                 "Daftar": "#BBF7D0", "Interview": "#E9D5FF", "Closing": "#FECACA",
-                "Lainnya": "#D1D5DB", "Sales Progress": "#1D4ED8", "Withdraw": "#B91C1C"
+                "Lainnya": "#D1D5DB", "Sales Progress": "#1D4ED8", "Withdraw": "#B91C1C",
+                "Not Eligible": "#9CA3AF" # Warna abu-abu gelap
             }
+            
             status_summary = df_wa['Status'].value_counts().reset_index()
             status_summary.columns = ['Status', 'Jumlah']
+            
             fig_status = px.bar(
                 status_summary, x='Jumlah', y='Status', orientation='h',
                 category_orders={"Status": status_order}, color='Status',
                 color_discrete_map=color_map, text_auto=True
             )
-            fig_status.update_layout(showlegend=False, height=400, paper_bgcolor='white', plot_bgcolor='white', yaxis_title="")
+            
+            fig_status.update_layout(showlegend=False, height=450, paper_bgcolor='white', plot_bgcolor='white', yaxis_title="")
             st.plotly_chart(fig_status, use_container_width=True)
             
             # 7. FUNNEL & SUMBER
