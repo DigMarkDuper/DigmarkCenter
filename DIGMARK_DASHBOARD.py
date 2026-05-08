@@ -969,19 +969,25 @@ elif page == "💬 WA ADMIN REPORT":
             # Filter dataframe (Buang semua data yang tag-nya ada di daftar atas)
             df_wa = df_wa[~df_wa['Mekari Tag'].astype(str).str.contains(pola_hapus, case=False, na=False)]
         
-        # 2. SIDEBAR FILTER
-        st.sidebar.markdown(f"<h2 style='color:{BRAND_BLUE};'>Filter & Search</h2>", unsafe_allow_html=True)
+        # 2. FILTER DATA DI HALAMAN UTAMA (BUKAN SIDEBAR LAGI)
+        st.markdown('<div class="feature-header">🔍 Filter Data Laporan</div>', unsafe_allow_html=True)
         
-        if 'Bulan-Masuk' in df_wa.columns:
-            months_wa = df_wa['Bulan-Masuk'].dropna().unique().tolist()
-            selected_months_wa = st.sidebar.multiselect("Pilih Bulan:", options=months_wa, default=months_wa, key="wa_bulan")
-            df_wa = df_wa[df_wa['Bulan-Masuk'].isin(selected_months_wa)]
-            df_full_tags = df_full_tags[df_full_tags['Bulan-Masuk'].isin(selected_months_wa)]
-            
-        search_city = st.sidebar.text_input("Cari Asal Kota/Provinsi:", "", key="wa_search").strip()
-        if search_city:
-            df_wa = df_wa[df_wa['Asal'].astype(str).str.contains(search_city, case=False, na=False)]
-            df_full_tags = df_full_tags[df_full_tags['Asal'].astype(str).str.contains(search_city, case=False, na=False)]
+        col_filter1, col_filter2 = st.columns(2)
+        
+        with col_filter1:
+            if 'Bulan-Masuk' in df_wa.columns:
+                months_wa = df_wa['Bulan-Masuk'].dropna().unique().tolist()
+                selected_months_wa = st.multiselect("📅 Pilih Bulan Masuk:", options=months_wa, default=months_wa, key="wa_bulan")
+                df_wa = df_wa[df_wa['Bulan-Masuk'].isin(selected_months_wa)]
+                df_full_tags = df_full_tags[df_full_tags['Bulan-Masuk'].isin(selected_months_wa)]
+                
+        with col_filter2:
+            search_city = st.text_input("📍 Cari Asal Kota/Provinsi:", "", key="wa_search").strip()
+            if search_city:
+                df_wa = df_wa[df_wa['Asal'].astype(str).str.contains(search_city, case=False, na=False)]
+                df_full_tags = df_full_tags[df_full_tags['Asal'].astype(str).str.contains(search_city, case=False, na=False)]
+
+        st.markdown("---")
 
         if not df_wa.empty:
             # 3. METRIK UTAMA
