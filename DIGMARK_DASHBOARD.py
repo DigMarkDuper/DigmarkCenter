@@ -1014,45 +1014,29 @@ elif page == "💬 WA ADMIN REPORT":
             # 5. KATEGORI PESAN MASUK
             st.markdown('<div class="feature-header">🗂️ Kategori Intensi Pesan</div>', unsafe_allow_html=True)
             if 'Kategori (Persyaratan/Biaya/Pendaftaran/Loker/dll)' in df_wa.columns:
-                # Bersihkan data: hilangkan spasi berlebih dan ubah yang kosong jadi 'Lainnya'
                 kolom_kat = 'Kategori (Persyaratan/Biaya/Pendaftaran/Loker/dll)'
                 df_wa[kolom_kat] = df_wa[kolom_kat].astype(str).str.strip()
                 df_wa[kolom_kat] = df_wa[kolom_kat].replace(['', 'nan', 'None', 'NaN'], 'Lainnya')
                 
                 kat_counts = df_wa[kolom_kat].value_counts().reset_index()
                 
-                # Mapping warna sesuai dengan gambar referensi Mas
                 kat_color_map = {
-                    "Persyaratan": "#BBF7D0",  # Hijau Pastel
-                    "Biaya": "#FECACA",        # Merah Muda / Peach
-                    "Pendaftaran": "#BFDBFE",  # Biru Pastel
-                    "Loker": "#E9D5FF",        # Ungu Pastel
-                    "Partnership": "#E9D5FF",  # Ungu Pastel
-                    "Lainnya": "#E5E7EB"       # Abu-abu
+                    "Persyaratan": "#BBF7D0",
+                    "Biaya": "#FECACA",
+                    "Pendaftaran": "#BFDBFE",
+                    "Loker": "#E9D5FF",
+                    "Partnership": "#E9D5FF",
+                    "Lainnya": "#E5E7EB"
                 }
                 
-                # Urutan tampilan kategori agar sesuai gambar
                 kat_order = ["Persyaratan", "Biaya", "Pendaftaran", "Loker", "Partnership", "Lainnya"]
                 
                 fig_kat = px.bar(
-                    kat_counts, 
-                    x=kolom_kat, 
-                    y='count', 
-                    text_auto=True, 
-                    color=kolom_kat, 
-                    color_discrete_map=kat_color_map, # Menggunakan mapping warna spesifik
-                    category_orders={kolom_kat: kat_order} # Memaksa urutan dari kiri ke kanan
+                    kat_counts, x=kolom_kat, y='count', text_auto=True, 
+                    color=kolom_kat, color_discrete_map=kat_color_map,
+                    category_orders={kolom_kat: kat_order}
                 )
-                
-                fig_kat.update_layout(
-                    paper_bgcolor='white', 
-                    plot_bgcolor='white', 
-                    font=dict(color="#000000"), 
-                    xaxis_title="", # Dikosongkan agar lebih bersih
-                    yaxis_title="Jumlah",
-                    showlegend=False # Disembunyikan karena label sudah ada di bawah
-                )
-                
+                fig_kat.update_layout(paper_bgcolor='white', plot_bgcolor='white', font=dict(color="#000000"), xaxis_title="", yaxis_title="Jumlah", showlegend=False)
                 st.plotly_chart(fig_kat, use_container_width=True)
 
             # 6. DISTRIBUSI STATUS INTERNAL
@@ -1072,9 +1056,82 @@ elif page == "💬 WA ADMIN REPORT":
             )
             fig_status.update_layout(showlegend=False, height=400, paper_bgcolor='white', plot_bgcolor='white', yaxis_title="")
             st.plotly_chart(fig_status, use_container_width=True)
+            
+            # 7. FUNNEL & SUMBER
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown('<div class="feature-header">📊 Funnel Konversi Prospek</div>', unsafe_allow_html=True)
+                funnel_order = ["Follow Up", "Daftar", "Interview", "Closing"]
+                funnel_data = [dict(Tahap="Total Leads", Jumlah=total_leads)]
+                for tahap in funnel_order:
+                    count = len(df_wa[df_wa['Status'].str.contains(tahap, case=False, na=False)])
+                    funnel_data.append(dict(Tahap=tahap, Jumlah=count))
+                df_f = pd.DataFrame(funnel_data)
+                df_f['Pct'] = (df_f['Jumlah'] / total_leads * 100).round(1)
+                fig_funnel = px.bar(
+                    df_f, x='Jumlah', y='Tahap', orientation='h',
+                    text=df_f.apply(lambda r: f"{r['Jumlah']} ({r['Pct']}%)", axis=1),
+                    color='Tahap', color_discrete_sequence=[BRAND_BLUE, "#006bbd", "#0080e0", BRAND_YELLOW, "#32CD32"]
+                )
+                fig_funnel.update_layout(paper_bgcolor='white', plot_bgcolor='white', showlegend=False, yaxis={'categoryorder':'total descending'})
+                st.plotly_chart(fig_funnel, use_container_width=True)
 
-        except Exception as e:
-                st.error(f"Kesalahan Teknis: {e}")
+            with c2:
+                st.markdown('<div class="feature-header">🌐 Sumber Prospek</div>', unsafe_allow_html=True)
+                if 'Sumber (Ads/Organik/Sales)' in df_wa.columns:
+                    sumber_counts = df_wa['Sumber (Ads/Organik/Sales)'].value_counts().reset_index()
+                    sumber_counts.columns = ['Sumber', 'Jumlah']
+                    fig_sumber = px.pie(sumber_counts, names='Sumber', values='Jumlah', hole=0.4, color_discrete_sequence=[BRAND_BLUE, BRAND_YELLOW, "#003A66"])
+                    fig_sumber.update_traces(textinfo='label+percent')
+                    st.plotly_chart(fig_sumber, use_container_width=True)
+
+            # 8. MAPPING ASAL (TREEMAP)
+            st.markdown('<div class="feature-header">📍 Sebaran Domisili Prospek (TreeMap)</div>', unsafe_allow_html=True)
+            if 'Asal' in df_wa.columns:
+                asal_counts = df_wa['Asal'].value_counts().reset_index()
+                asal_counts.columns = ['Asal', 'Jumlah']
+                df_asal_filtered = asal_counts[asal_counts['Asal'].str.strip() != '']
+                if not df_asal_filtered.empty:
+                    fig_asal = px.treemap(
+                        df_asal_filtered, path=[px.Constant("Seluruh Wilayah"), 'Asal'], values='Jumlah',
+                        color='Jumlah', color_continuous_scale='GnBu'
+                    )
+                    fig_asal.update_traces(textinfo="label+value", texttemplate="<b>%{label}</b><br>%{value} Leads")
+                    fig_asal.update_layout(height=500, margin=dict(t=10, l=10, r=10, b=10), coloraxis_showscale=False)
+                    st.plotly_chart(fig_asal, use_container_width=True)
+                else:
+                    st.info("Data Asal belum diisi oleh Admin.")
+            
+            # 9. DATA DETAIL SUKSES CLOSING
+            st.markdown('<div class="feature-header">🎉 Data Detail Sukses Closing</div>', unsafe_allow_html=True)
+            df_closing = df_wa[df_wa['Status'].str.contains('Closing', case=False, na=False)].copy()
+            if not df_closing.empty:
+                kolom_target = {
+                    'Tanggal Masuk': 'Tanggal', 'Nama': 'Nama', 'No Hp': 'Nomor Telfon',
+                    'Asal': 'Asal Wilayah', 'Sumber (Ads/Organik/Sales)': 'Sumber Pesan Masuk'
+                }
+                kolom_tersedia = [col for col in kolom_target.keys() if col in df_closing.columns]
+                df_closing_display = df_closing[kolom_tersedia].rename(columns=kolom_target)
+                df_closing_display.reset_index(drop=True, inplace=True)
+                df_closing_display.index = df_closing_display.index + 1
+                st.dataframe(df_closing_display, use_container_width=True)
+            else:
+                st.info("Belum ada data siswa yang berstatus Closing.")
+
+            # 10. MASTER DATABASE
+            st.markdown('<div class="feature-header">📋 Master Database WA Admin</div>', unsafe_allow_html=True)
+            col_refresh, _ = st.columns([1, 2])
+            with col_refresh:
+                if st.button("🔄 Refresh & Tarik Data Terbaru", use_container_width=True, key="refresh_wa_admin"):
+                    st.cache_data.clear()
+                    st.rerun()
+            st.dataframe(df_wa, use_container_width=True, hide_index=True)
+            
+        else:
+            st.warning("⚠️ Data tidak ditemukan.")
+            
+    except Exception as e:
+        st.error(f"Kesalahan Teknis: {e}")
 
 # --- HALAMAN 5: DATABASE NOMOR (CRM) ---
 elif page == "📂 DATABASE NOMOR":
