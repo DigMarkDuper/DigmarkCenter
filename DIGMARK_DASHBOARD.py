@@ -1073,6 +1073,9 @@ elif page == "💬 WA ADMIN REPORT":
             fig_status.update_layout(showlegend=False, height=400, paper_bgcolor='white', plot_bgcolor='white', yaxis_title="")
             st.plotly_chart(fig_status, use_container_width=True)
 
+except Exception as e:
+        st.error(f"Kesalahan Teknis: {e}")
+
 # --- HALAMAN 5: DATABASE NOMOR (CRM) ---
 elif page == "📂 DATABASE NOMOR":
     st.title("🗂️ CRM & DETAILED LEAD DATABASE")
