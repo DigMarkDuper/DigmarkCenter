@@ -514,14 +514,34 @@ if page == "🏠 HOMEPAGE":
     st.markdown(f"<h3 style='color:{BRAND_BLUE}; font-size: 18px; margin-bottom: 10px; margin-top: 15px;'>🗺️ Peta Persebaran & Top Asal Prospek</h3>", unsafe_allow_html=True)
     
     try:
-        asal_col = next((col for col in df_wa_home.columns if 'Asal' in str(col)), None)
-        if asal_col and not df_wa_home.empty:
-            asal_counts = df_wa_home[asal_col].value_counts().reset_index()
+        # --- PERBAIKAN 1: Filter data mentah agar peta hanya menampilkan Leads Murni ---
+        df_maps = df_wa_home.copy()
+        
+        # Bersihkan baris hantu
+        kolom_penting = [col for col in ['Tanggal Masuk', 'No Hp', 'Status'] if col in df_maps.columns]
+        if kolom_penting:
+            df_maps = df_maps.dropna(subset=kolom_penting, how='all')
+            
+        # Buang tag sampah (Double Chat, Partnership, dll)
+        mekari_col = next((c for c in df_maps.columns if 'Mekari' in str(c)), None)
+        if mekari_col:
+            tag_dibuang = ['Double Chat', 'Closed - Not Interested', 'Partnership']
+            pola_hapus = '|'.join(tag_dibuang)
+            df_maps = df_maps[~df_maps[mekari_col].astype(str).str.contains(pola_hapus, case=False, na=False)]
+
+        # --- PERBAIKAN 2: Penyeragaman dan Perhitungan Lokasi ---
+        asal_col = next((col for col in df_maps.columns if 'Asal' in str(col)), None)
+        
+        if asal_col and not df_maps.empty:
+            # Seragamkan huruf besar di awal kata agar "jogja" dan "JOGJA" tergabung jadi satu
+            df_maps[asal_col] = df_maps[asal_col].astype(str).str.strip().str.title()
+            
+            asal_counts = df_maps[asal_col].value_counts().reset_index()
             asal_counts.columns = ['Lokasi', 'Jumlah'] 
             
-            # Pembersihan data "-" dan sampah
-            invalid_vals = ['', '-', 'nan', 'none', 'undefined', '#n/a']
-            asal_counts = asal_counts[~asal_counts['Lokasi'].astype(str).str.strip().str.lower().isin(invalid_vals)]
+            # Pembersihan data "-" dan teks kosong (Ditambahkan 'Nan', 'None' dalam format Title Case)
+            invalid_vals = ['', '-', 'Nan', 'None', 'Undefined', '#N/A']
+            asal_counts = asal_counts[~asal_counts['Lokasi'].isin(invalid_vals)]
             
             indo_coords = {
                 # DKI & BANTEN
