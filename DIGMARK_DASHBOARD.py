@@ -941,13 +941,14 @@ elif page == "📈 INSIGHTS & ANALYTICS":
     except Exception as e:
         st.error(f"Kesalahan Teknis Insight: {e}")
 
-# --- HALAMAN 4: WA ADMIN REPORT ---
-elif page == "💬 WA ADMIN REPORT":
-    st.title("💬 KINERJA WA ADMIN & CLOSING LPK")
-    st.markdown("---")
-    try:
-        df_wa = load_wa_admin()
+df_wa = load_wa_admin()
         
+        # --- [LOGIKA BARU] PEMBERSIHAN BARIS KOSONG SPREADSHEET ---
+        # Membuang baris yang 'Nama'-nya kosong agar baris hantu tidak ikut terhitung sebagai Leads
+        if 'Nama' in df_wa.columns:
+            df_wa = df_wa[df_wa['Nama'].astype(str).str.strip() != '']
+            df_wa = df_wa[df_wa['Nama'].astype(str).str.lower() != 'nan']
+
         # 1. IDENTIFIKASI & PEMBERSIHAN KOLOM STATUS
         status_col = next((col for col in df_wa.columns if 'Status' in str(col)), None)
         if status_col:
@@ -960,16 +961,13 @@ elif page == "💬 WA ADMIN REPORT":
         df_full_tags = df_wa.copy()
                 
         if 'Mekari Tag' in df_wa.columns:
-            # Masukkan Partnership kembali ke dalam daftar tag yang dibuang
-            tag_dibuang = ['Double Chat', 'Not Eligible', 'Closed - Not Interested', 'Partnership']
+            # PERBAIKAN: 'Not Eligible' dihapus dari sini agar datanya tetap masuk dan bisa dihitung
+            tag_dibuang = ['Double Chat', 'Closed - Not Interested', 'Partnership']
             
-            # Gabungkan menjadi pola pencarian (Regex)
             pola_hapus = '|'.join(tag_dibuang)
-            
-            # Filter dataframe (Buang semua data yang tag-nya ada di daftar atas)
             df_wa = df_wa[~df_wa['Mekari Tag'].astype(str).str.contains(pola_hapus, case=False, na=False)]
         
-        # 2. FILTER DATA DI HALAMAN UTAMA (BUKAN SIDEBAR LAGI)
+        # 2. FILTER DATA DI HALAMAN UTAMA
         st.markdown('<div class="feature-header">🔍 Filter Data Laporan</div>', unsafe_allow_html=True)
         
         col_filter1, col_filter2 = st.columns(2)
@@ -990,8 +988,9 @@ elif page == "💬 WA ADMIN REPORT":
         st.markdown("---")
 
         if not df_wa.empty:
-            # 3. METRIK UTAMA
+            # 3. METRIK UTAMA (Logika Perhitungan yang Lebih Solid)
             total_leads = len(df_wa)
+            # Pastikan pencarian case-insensitive agar "CLOSING", "closing", atau "Closing " tetap terhitung
             total_closing = len(df_wa[df_wa['Status'].str.contains('Closing', case=False, na=False)])
             conversion_rate = (total_closing / total_leads * 100) if total_leads > 0 else 0
             
@@ -1000,7 +999,10 @@ elif page == "💬 WA ADMIN REPORT":
             a1.metric("Total Leads Terdeteksi 📲", f"{total_leads}")
             a2.metric("Total Sukses Closing 🎓", f"{total_closing} / 45")
             a3.metric("Conversion Rate ⚡", f"{conversion_rate:.1f}%")
-            a4.metric("Unique Locations 📍", f"{df_wa['Asal'].nunique()}")
+            
+            # Hitung asal yang tidak kosong/NaN agar lebih akurat
+            unique_locations = df_wa['Asal'].replace(['', 'nan', 'NaN'], pd.NA).dropna().nunique()
+            a4.metric("Unique Locations 📍", f"{unique_locations}")
 
             st.markdown("---")
 
