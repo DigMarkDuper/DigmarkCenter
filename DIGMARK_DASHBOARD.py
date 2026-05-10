@@ -1260,7 +1260,7 @@ elif page == "📂 DATABASE NOMOR":
     import io 
     import datetime
 
-    # ID SPREADSHEET (Diambil dari URL yang Mas berikan)
+    # ID SPREADSHEET (Sudah sesuai dengan URL yang Mas berikan)
     YOUR_SPREADSHEET_ID = "1v0SLw92qqkgs76qSpjb7xScYpVoJ8Ahc3fFIZ2u9HRs"
 
     # 1. AREA INPUT DATA (SINKRONISASI & UPLOAD)
@@ -1290,81 +1290,59 @@ elif page == "📂 DATABASE NOMOR":
                 file_name="Template_CRM_Mekari.xlsx", 
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 
                 use_container_width=True,
-                key="dl_tpl_mekari"
+                key="dl_tpl_mekari_v2"
             )
             
             st.markdown("---")
             
             # --- FITUR UPLOAD BULK ---
-            uploaded_file = st.file_uploader("Upload file Excel Mekari", type=["xlsx"], key="crm_uploader_main")
+            uploaded_file = st.file_uploader("Upload file Excel Mekari", type=["xlsx"], key="crm_uploader_main_v2")
             
             if uploaded_file is not None:
                 try:
                     df_upload = pd.read_excel(uploaded_file)
-                    # Normalisasi Kolom
                     df_upload.columns = [str(c).strip().lower() for c in df_upload.columns]
                     req_cols = ['phone_number', 'full_name', 'customer_name', 'company']
                     
                     if all(col in df_upload.columns for col in req_cols):
                         st.write(f"✅ Terdeteksi {len(df_upload)} data siap import.")
                         
-                        if st.button("📥 Konfirmasi Import Massal (Fast)", use_container_width=True, key="confirm_bulk_crm"):
+                        if st.button("📥 Konfirmasi Import Massal (Fast)", use_container_width=True, key="confirm_bulk_crm_v2"):
                             with st.spinner("Mengirim data massal ke Google Sheets..."):
                                 tgl_hari_ini = datetime.date.today().strftime("%d-%m-%Y")
-                                
-                                # Membersihkan data NaN agar tidak error
                                 df_upload = df_upload.fillna("")
                                 
-                                # Menyiapkan data: full_name, phone_number, company (Domisili), Kategori, Tgl
-                                # Menambahkan petik (') agar nol di depan nomor HP tidak hilang
+                                # --- PENYESUAIAN URUTAN KOLOM SPREADSHEET ---
+                                # Urutan ini harus sama dengan kolom di Tab ke-5 (CRM) Mas
+                                # Contoh Asumsi: A=No, B=Nama, C=No Hp, D=Domisili, E=Kategori, F=Tgl Masuk
                                 bulk_data = []
                                 for _, row in df_upload.iterrows():
-                                    bulk_data.append([
-                                        str(row['full_name']).strip(), 
-                                        "'" + str(row['phone_number']).strip(),
-                                        str(row['company']).strip(), # Masuk ke kolom Domisili
-                                        "Siswa",                     # Kategori default
-                                        tgl_hari_ini                 # Tanggal masuk database
-                                    ])
+                                    data_baris = [
+                                        "",                                     # Kolom A (No) - Biarkan kosong jika ada auto-number
+                                        str(row['full_name']).strip(),          # Kolom B (Nama)
+                                        "'" + str(row['phone_number']).strip(), # Kolom C (No Hp)
+                                        str(row['company']).strip(),            # Kolom D (Domisili - Diambil dari Company)
+                                        "Siswa",                                # Kolom E (Kategori)
+                                        tgl_hari_ini                            # Kolom F (Tanggal Masuk Database)
+                                    ]
+                                    bulk_data.append(data_baris)
                                 
                                 try:
-                                    # Memanggil fungsi append_sheet_rows yang ada di backend Mas (sheet_index 4)
-                                    # Pastikan di backend menggunakan spreadsheet.get_worksheet(4)
+                                    # Menggunakan fungsi backend (sheet_index 4 = tab ke-5)
                                     success = append_sheet_rows(4, bulk_data) 
                                     
                                     if success:
-                                        st.success(f"🚀 Berhasil! {len(df_upload)} data masuk ke CRM.")
+                                        st.success(f"🚀 Berhasil! {len(df_upload)} data masuk ke kolom yang tepat.")
                                         st.cache_data.clear()
                                         st.rerun()
                                     else:
-                                        st.error("Gagal mengirim data. Cek akses Editor Service Account.")
+                                        st.error("Gagal mengirim data. Cek akses Editor.")
                                 except Exception as e:
                                     st.error(f"Kesalahan sistem backend: {e}")
                     else:
                         st.error("⚠️ Header tidak sesuai format Mekari!")
                 except Exception as e:
                     st.error(f"Gagal baca Excel: {e}")
-            
-    st.markdown("---")
-
-    # 2. TAMPILAN DATABASE CRM
-    try:
-        df_crm = load_database_nomor()
-        if not df_crm.empty:
-            st.markdown('<div class="feature-header">📑 Management Database CRM</div>', unsafe_allow_html=True)
-            
-            # Key unik untuk input pencarian
-            search_crm_val = st.text_input("🔎 Cari di Database (Nama/HP):", "", key="crm_search_unique_key")
-            
-            if search_crm_val:
-                # Filter global di semua kolom
-                df_crm = df_crm[df_crm.astype(str).apply(lambda x: x.str.contains(search_crm_val, case=False)).any(axis=1)]
-                
-            st.dataframe(df_crm, use_container_width=True, hide_index=True)
-        else:
-            st.info("Database masih kosong. Silakan import data.")
-    except Exception as e:
-        st.error(f"Gagal memuat data: {e}")
 if __name__ == "__main__":
     if not st.runtime.exists():
         sys.argv = ["streamlit", "run", sys.argv[0]]
