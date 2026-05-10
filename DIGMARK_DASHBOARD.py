@@ -1353,7 +1353,7 @@ elif page == "📂 DATABASE NOMOR":
             st.info("Database masih kosong.")
     except Exception as e:
         st.error(f"Gagal memuat: {e}")
-Tanggal Masuk Database
+        
 if __name__ == "__main__":
     if not st.runtime.exists():
         sys.argv = ["streamlit", "run", sys.argv[0]]
