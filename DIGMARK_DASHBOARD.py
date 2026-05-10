@@ -1234,7 +1234,7 @@ elif page == "💬 WA ADMIN REPORT":
 elif page == "📂 DATABASE NOMOR":
     st.title("🗂️ CRM & DETAILED LEAD DATABASE")
     
-    import io # Pastikan import io ada untuk fitur download/upload
+    import io 
     
     # 1. AREA INPUT DATA (SINKRONISASI & UPLOAD)
     c_sync, c_upload = st.columns([1, 1])
@@ -1249,44 +1249,48 @@ elif page == "📂 DATABASE NOMOR":
     with c_upload:
         st.markdown("### ⬆️ Import Data Baru")
         with st.expander("Upload File Excel (.xlsx)"):
-            st.info("💡 Pastikan file Excel hanya berisi 3 kolom: **Nama**, **No Hp**, dan **Domisili**.")
+            st.info("💡 Gunakan format: **Nama**, **No Hp**, dan **Domisili**.")
             
-            # --- TOMBOL DOWNLOAD TEMPLATE ---
+            # --- 1. DOWNLOAD TEMPLATE DENGAN FORMAT BARU ---
+            # Kita buat template dengan header yang Mas minta
             df_template = pd.DataFrame(columns=["Nama", "No Hp", "Domisili"])
             buffer_template = io.BytesIO()
             with pd.ExcelWriter(buffer_template, engine='xlsxwriter') as writer:
                 df_template.to_excel(writer, index=False, sheet_name='Template_Upload')
             
             st.download_button(
-                label="📥 Download Template Excel", 
+                label="📥 Download Template Excel (3 Kolom)", 
                 data=buffer_template.getvalue(), 
-                file_name="Template_Upload_CRM.xlsx", 
+                file_name="Template_CRM_Baru.xlsx", 
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 
-                use_container_width=True
+                use_container_width=True,
+                help="Klik untuk mendownload contoh file Excel dengan kolom Nama, No Hp, dan Domisili"
             )
             
             st.markdown("---")
             
-            # --- FITUR UPLOAD ---
+            # --- 2. FITUR UPLOAD ---
             uploaded_file = st.file_uploader("Upload file yang sudah diisi", type=["xlsx"], key="crm_uploader")
             
             if uploaded_file is not None:
                 try:
                     df_upload = pd.read_excel(uploaded_file)
                     
+                    # Kita cek apakah file yang diupload punya kolom yang benar
                     req_cols = ['Nama', 'No Hp', 'Domisili']
                     if all(col in df_upload.columns for col in req_cols):
                         st.write(f"📂 Terdeteksi: {len(df_upload)} baris data.")
                         st.dataframe(df_upload[req_cols].head(3), use_container_width=True)
                         
                         if st.button("📥 Konfirmasi Import ke CRM", use_container_width=True):
-                            # PANGGIL FUNGSI APPEND MAS DI SINI
+                            # Jalankan fungsi simpan ke Google Sheets di sini
                             # Contoh: append_to_sheet_crm(df_upload[req_cols])
                             st.success(f"✅ {len(df_upload)} data berhasil di-import!")
                             st.cache_data.clear()
                             st.rerun()
                     else:
-                        st.error("⚠️ Format kolom tidak sesuai. Gunakan: Nama, No Hp, Domisili.")
+                        st.error(f"⚠️ Kolom tidak sesuai! Pastikan header file adalah: {', '.join(req_cols)}")
+                        st.info(f"Kolom yang terdeteksi di file Anda: {', '.join(df_upload.columns.tolist())}")
                 except Exception as e:
                     st.error(f"Gagal baca Excel: {e}")
             
@@ -1359,7 +1363,7 @@ elif page == "📂 DATABASE NOMOR":
             m3.metric("Belum Disentuh 🧊", len(filtered_crm[filtered_crm['Tahap Progress'] == 'Belum Ada Treatment']))
             m4.metric("Warm Leads 🌤️", len(filtered_crm[filtered_crm['Mekari Tag (Status Terakhir)'] == 'Warm Lead']))
 
-            # 5. EXPORT MEKARI
+            # 5. EXPORT MEKARI (Tetap ada karena ini fungsi download data CRM ke Mekari)
             st.markdown("### 📥 Export Data untuk Mekari")
             if not filtered_crm.empty:
                 df_mekari = pd.DataFrame()
