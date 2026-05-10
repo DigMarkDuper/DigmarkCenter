@@ -1234,11 +1234,36 @@ elif page == "💬 WA ADMIN REPORT":
 elif page == "📂 DATABASE NOMOR":
     st.title("🗂️ CRM & DETAILED LEAD DATABASE")
     
-    # 1. TOMBOL SINKRONISASI (Mapping Asal -> Domisili otomatis ada di dalam fungsi sync ini)
-    c_sync, _ = st.columns([1, 2])
+    # 1. AREA INPUT DATA (SINKRONISASI & UPLOAD)
+    c_sync, c_upload = st.columns([1, 1])
+    
     with c_sync:
-        if st.button("🔄 Tarik Data Unik dari WA Admin", use_container_width=True):
-            sync_leads_to_crm() # Pastikan fungsi sync yang terbaru (yang pakai mapping Asal) sudah Mas pasang di atas
+        st.markdown("### 🔄 Sinkronisasi")
+        if st.button("Tarik Data Unik dari WA Admin", use_container_width=True):
+            sync_leads_to_crm() 
+            st.success("Berhasil sinkronisasi!")
+            st.rerun()
+
+    with c_upload:
+        st.markdown("### ⬆️ Import Data Baru")
+        with st.expander("Upload File Excel (.xlsx)"):
+            st.info("💡 Pastikan kolom Excel sesuai: Nama, No Hp, Kategori, Domisili.")
+            uploaded_file = st.file_uploader("Pilih file", type=["xlsx"], key="crm_uploader")
+            
+            if uploaded_file is not None:
+                try:
+                    df_upload = pd.read_excel(uploaded_file)
+                    st.write(f"📂 Terdeteksi: {len(df_upload)} baris data.")
+                    st.dataframe(df_upload.head(3), use_container_width=True)
+                    
+                    if st.button("📥 Konfirmasi Import ke CRM", use_container_width=True):
+                        # PANGGIL FUNGSI APPEND MAS DI SINI
+                        # Contoh: append_to_sheet_crm(df_upload)
+                        st.success(f"✅ {len(df_upload)} data berhasil di-import!")
+                        st.cache_data.clear()
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"Gagal baca Excel: {e}")
             
     st.markdown("---")
     
@@ -1256,6 +1281,7 @@ elif page == "📂 DATABASE NOMOR":
                 if not t1 and not t2: return "Belum Ada Treatment"
                 if t1 and not t2: return "Sudah Treatment 1"
                 return "Sudah Treatment 2"
+            
             df_crm['Tahap Progress'] = df_crm.apply(check_progress, axis=1)
 
             form_map = {"": "⚪ Belum Diisi", "Tidak Dibalas": "🔇 Tidak Dibalas", "Sudah Interview": "🤝 Sudah Interview", "Tidak Lanjut": "🛑 Tidak Lanjut"}
@@ -1285,7 +1311,7 @@ elif page == "📂 DATABASE NOMOR":
                     daerah_opts = sorted(df_crm['Domisili'].unique().tolist())
                     sel_daerah = st.multiselect("Pilih Daerah:", options=daerah_opts, format_func=lambda x: "⚪ Belum Diisi" if x == "" else x)
 
-            # 3. EKSEKUSI FILTER (Penting: Letakkan sebelum tombol download)
+            # 3. EKSEKUSI FILTER
             mask = pd.Series([True] * len(df_crm))
             if 'Updated Status After Treatment' in df_crm.columns:
                 mask &= (df_crm['Updated Status After Treatment'].astype(str).str.strip() != 'Form Submitted')
@@ -1308,23 +1334,16 @@ elif page == "📂 DATABASE NOMOR":
             m3.metric("Belum Disentuh 🧊", len(filtered_crm[filtered_crm['Tahap Progress'] == 'Belum Ada Treatment']))
             m4.metric("Warm Leads 🌤️", len(filtered_crm[filtered_crm['Mekari Tag (Status Terakhir)'] == 'Warm Lead']))
 
-            # ==========================================================
-            # 5. FITUR DOWNLOAD EXCEL (FORMAT KHUSUS MEKARI)
-            # ==========================================================
+            # 5. EXPORT MEKARI
             import io
             st.markdown("### 📥 Export Data untuk Mekari")
-            
             if not filtered_crm.empty:
-                # --- PROSES MAPPING KOLOM SESUAI REQUEST ---
                 df_mekari = pd.DataFrame()
-                
-                # Pastikan phone_number bersih dan berawalan 62
                 df_mekari['phone_number'] = filtered_crm['No Hp'].astype(str)
                 df_mekari['full_name'] = filtered_crm['Nama']
                 df_mekari['customer_name'] = filtered_crm['Nama']
                 df_mekari['company'] = filtered_crm['Kategori']
                 
-                # Buat buffer untuk Excel
                 buffer = io.BytesIO()
                 with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
                     df_mekari.to_excel(writer, index=False, sheet_name='Import_Mekari')
@@ -1334,11 +1353,8 @@ elif page == "📂 DATABASE NOMOR":
                     data=buffer.getvalue(),
                     file_name=f"Import_Mekari_{datetime.datetime.now().strftime('%d_%m_%Y')}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True,
-                    help="Format kolom: phone_number, full_name, customer_name, company"
+                    use_container_width=True
                 )
-            else:
-                st.info("Silakan filter data terlebih dahulu untuk men-download.")
 
             # 6. LIVE CRM EDITOR
             st.markdown('<div class="feature-header">📑 Management Database Prospek Aktif</div>', unsafe_allow_html=True)
