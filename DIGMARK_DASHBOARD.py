@@ -36,7 +36,7 @@ def append_sheet_rows(sheet_index, all_data_list):
 def append_rows_to_crm(bulk_data):
     try:
         # 1. Pastikan ID Spreadsheet benar
-        SPREADSHEET_ID = "ISI_ID_SPREADSHEET_MAS_DI_SINI" 
+        SPREADSHEET_ID = "1v0SLw92qqkgs76qSpjb7xScYpVoJ8Ahc3fFIZ2u9HRs" 
         
         # 2. Buka Spreadsheet
         # Gunakan 'sh' atau variabel client yang sudah Mas set di awal backend
@@ -1258,7 +1258,7 @@ elif page == "📂 DATABASE NOMOR":
     import io 
     import datetime
 
-    # GANTI ID INI dengan ID Spreadsheet Mas yang ada di URL browser
+    # ID SPREADSHEET (Sudah diambil dari URL Mas)
     YOUR_SPREADSHEET_ID = "1v0SLw92qqkgs76qSpjb7xScYpVoJ8Ahc3fFIZ2u9HRs"
 
     # 1. AREA INPUT DATA
@@ -1305,41 +1305,57 @@ elif page == "📂 DATABASE NOMOR":
                     if all(col in df_upload.columns for col in req_cols):
                         st.write(f"✅ Terdeteksi {len(df_upload)} data siap import.")
                         
-                        # PERBAIKAN INDENTASI DI SINI
                         if st.button("📥 Konfirmasi Import Massal (Fast)", use_container_width=True):
                             with st.spinner("Mengirim data massal..."):
-                                tgl_hari_ini = datetime.date.today().strftime("%Y-%m-%d")
+                                tgl_hari_ini = datetime.date.today().strftime("%d-%m-%Y")
                                 
-                                # Menyiapkan data: full_name, phone_number, company (Domisili), Kategori, Tgl
+                                # Membersihkan data NaN agar tidak error
+                                df_upload = df_upload.fillna("")
+                                
+                                # Menyiapkan data: full_name, phone_number, Domisili (dari company), Kategori, Tgl
                                 bulk_data = []
                                 for _, row in df_upload.iterrows():
                                     bulk_data.append([
-                                        str(row['full_name']), 
-                                        "'" + str(row['phone_number']), # Tambah petik agar nol di depan tidak hilang
-                                        str(row['company']), 
-                                        "Siswa", 
-                                        tgl_hari_ini
+                                        str(row['full_name']).strip(), 
+                                        "'" + str(row['phone_number']).strip(), # Petik agar format teks terjaga
+                                        str(row['company']).strip(),            # Company jadi Domisili
+                                        "Siswa",                                # Kategori default
+                                        tgl_hari_ini                            # Tanggal masuk
                                     ])
                                 
                                 try:
                                     # Panggil fungsi backend
-                                    # Pastikan ID Spreadsheet sudah benar di fungsi backend Mas
                                     success = append_rows_to_crm(bulk_data) 
                                     
                                     if success:
-                                        st.success(f"🚀 Berhasil import {len(df_upload)} data!")
+                                        st.success(f"🚀 Berhasil! {len(df_upload)} data telah masuk ke baris terakhir Sheet CRM.")
                                         st.cache_data.clear()
                                         st.rerun()
                                     else:
-                                        st.error("Gagal mengirim data ke Google Sheets.")
-                                        st.warning("Pastikan Email Service Account sudah di-SHARE ke Google Sheets sebagai EDITOR.")
+                                        st.error("Gagal mengirim data. Pastikan email Service Account sudah di-SHARE ke sheet tersebut sebagai EDITOR.")
                                 except Exception as e:
                                     st.error(f"Terjadi kesalahan sistem: {e}")
                     else:
-                        st.error("⚠️ Kolom tidak sesuai! Pastikan header: phone_number, full_name, customer_name, company")
+                        st.error("⚠️ Header tidak sesuai! Wajib: phone_number, full_name, customer_name, company")
                         
                 except Exception as e:
                     st.error(f"Gagal baca Excel: {e}")
+            
+    st.markdown("---")
+
+    # 2. TAMPILAN DATABASE CRM
+    try:
+        df_crm = load_database_nomor()
+        if not df_crm.empty:
+            st.markdown('<div class="feature-header">📑 Management Database CRM</div>', unsafe_allow_html=True)
+            search_crm = st.text_input("🔎 Cari di Database (Nama/HP):", "")
+            if search_crm:
+                df_crm = df_crm[df_crm.astype(str).apply(lambda x: x.str.contains(search_crm, case=False)).any(axis=1)]
+            st.dataframe(df_crm, use_container_width=True, hide_index=True)
+        else:
+            st.info("Database masih kosong.")
+    except Exception as e:
+        st.error(f"Gagal memuat data: {e}")
             
     st.markdown("---")
 
