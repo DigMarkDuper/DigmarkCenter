@@ -433,10 +433,17 @@ if page == "🏠 HOMEPAGE":
         total_leads, total_closing = 0, 0
         
         if not df_wa_home.empty:
-            # 1. Bersihkan baris yang benar-benar kosong (biasanya ada di bawah sheet)
-            # Kita asumsikan kolom 'No Hp' atau 'Nama' harus ada isinya
-            df_clean = df_wa_home.dropna(subset=['No Hp']).copy()
-            df_clean = df_clean[df_clean['No Hp'].astype(str).str.strip() != ""]
+            # 1. Bersihkan baris hantu (baris kosong dari Google Sheets)
+            kolom_penting = [col for col in ['Tanggal Masuk', 'No Hp', 'Status'] if col in df_wa_home.columns]
+            if kolom_penting:
+                df_clean = df_wa_home.dropna(subset=kolom_penting, how='all').copy()
+            else:
+                df_clean = df_wa_home.copy()
+                
+            # Filter tambahan: Pastikan No Hp benar-benar ada (tidak hanya spasi atau nan)
+            if 'No Hp' in df_clean.columns:
+                df_clean = df_clean[df_clean['No Hp'].astype(str).str.strip() != ""]
+                df_clean = df_clean[df_clean['No Hp'].astype(str).str.lower() != "nan"]
         
             # 2. Filter hanya untuk BULAN INI (Agar sinkron dengan dashboard bulanan)
             sekarang = datetime.datetime.now()
@@ -449,9 +456,11 @@ if page == "🏠 HOMEPAGE":
             mekari_col = next((c for c in df_bulan_ini.columns if 'Mekari' in str(c)), None)
             status_col = next((c for c in df_bulan_ini.columns if 'Status' in str(c)), None)
         
-            # 4. Hitung Leads Murni (Bukan Partnership)
+            # 4. Hitung Leads Murni (Sesuai Logika Terbaru: Buang 3 Kategori Sampah)
             if mekari_col:
-                df_leads_only = df_bulan_ini[df_bulan_ini[mekari_col].astype(str).str.strip().str.upper() != 'PARTNERSHIP']
+                tag_dibuang = ['Double Chat', 'Closed - Not Interested', 'Partnership']
+                pola_hapus = '|'.join(tag_dibuang)
+                df_leads_only = df_bulan_ini[~df_bulan_ini[mekari_col].astype(str).str.contains(pola_hapus, case=False, na=False)]
             else:
                 df_leads_only = df_bulan_ini
         
