@@ -1167,10 +1167,25 @@ elif page == "💬 WA ADMIN REPORT":
             # 10. MASTER DATABASE
             st.markdown('<div class="feature-header">📋 Master Database WA Admin</div>', unsafe_allow_html=True)
             col_refresh, _ = st.columns([1, 2])
+            
             with col_refresh:
                 if st.button("🔄 Refresh & Tarik Data Terbaru", use_container_width=True, key="refresh_wa_admin"):
+                    # 1. Bersihkan Data Cache Utama
                     st.cache_data.clear()
+                    
+                    # 2. Bersihkan Resource Cache jika ada
+                    if hasattr(st, 'cache_resource'):
+                        st.cache_resource.clear()
+                        
+                    # 3. Hapus Memori Filter agar reset ke awal dan menangkap data baru
+                    if 'wa_bulan' in st.session_state:
+                        del st.session_state['wa_bulan']
+                    if 'wa_search' in st.session_state:
+                        del st.session_state['wa_search']
+                        
+                    # 4. Rerun Halaman
                     st.rerun()
+                    
             st.dataframe(df_wa, use_container_width=True, hide_index=True)
             
         else:
