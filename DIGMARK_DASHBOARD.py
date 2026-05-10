@@ -34,22 +34,19 @@ def append_sheet_rows(sheet_index, all_data_list):
             st.error(f"Gagal batch update ke Google Sheets: {e}")
 
 def append_rows_to_crm(bulk_data):
-    """
-    Fungsi untuk menambah banyak baris sekaligus ke Google Sheets CRM (Sheet ke-5)
-    bulk_data: formatnya harus list of lists [[nama, hp, domisili, ...], [nama, hp, domisili, ...]]
-    """
     try:
-        # 1. Buka spreadsheet dan pilih worksheet ke-5 (Database Nomor/CRM)
-        # Pastikan variabel 'client' atau 'sh' sudah terdefinisi di backend Mas
-        sheet = client.open_by_key(YOUR_SPREADSHEET_KEY).get_worksheet(4) # Indeks 4 adalah sheet ke-5
+        # Buka Spreadsheet
+        sh = client.open_by_key("ISI_DENGAN_KEY_SPREADSHEET_MAS")
         
-        # 2. Kirim data sekaligus (Bulk Append)
-        # value_input_option='USER_ENTERED' supaya format tanggal/angka otomatis dikenali Sheets
+        # Coba buka berdasarkan NAMA SHEET agar lebih pasti (Ganti jika namanya beda)
+        sheet = sh.worksheet("DATABASE NOMOR") 
+        
+        # Kirim Data
         sheet.append_rows(bulk_data, value_input_option='USER_ENTERED')
-        
         return True
     except Exception as e:
-        print(f"Error saat append_rows: {e}")
+        # TULISAN INI AKAN MUNCUL DI TERMINAL VS CODE MAS
+        print(f"❌ ERROR GOOGLE SHEETS: {e}") 
         return False
             
 def sync_leads_to_crm():
