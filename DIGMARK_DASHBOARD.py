@@ -949,13 +949,13 @@ elif page == "💬 WA ADMIN REPORT":
     st.markdown("---")
     
     try:
-        
         df_wa = load_wa_admin()
         
-     # --- [PERBAIKAN LOGIKA] PEMBERSIHAN BARIS HANTU ---
-        # Daripada mengecek 'Nama' yang mungkin belum diisi admin,
-        # kita buang baris jika SEMUA kolom pentingnya kosong (benar-benar baris hantu dari Google Sheets)
-        df_wa = df_wa.dropna(subset=[col for col in ['Tanggal Masuk', 'No Hp', 'Status'] if col in df_wa.columns], how='all')
+        # --- [PERBAIKAN LOGIKA] PEMBERSIHAN BARIS HANTU ---
+        # Buang baris HANYA JIKA kolom penting ini kosong semua (menghindari hilangnya data admin yang belum lengkap)
+        kolom_penting = [col for col in ['Tanggal Masuk', 'No Hp', 'Status'] if col in df_wa.columns]
+        if kolom_penting:
+            df_wa = df_wa.dropna(subset=kolom_penting, how='all')
 
         # 1. IDENTIFIKASI & PEMBERSIHAN KOLOM STATUS
         status_col = next((col for col in df_wa.columns if 'Status' in str(col)), None)
@@ -969,6 +969,7 @@ elif page == "💬 WA ADMIN REPORT":
         df_full_tags = df_wa.copy()
                 
         if 'Mekari Tag' in df_wa.columns:
+            # Filter membuang data sampah dari metrik utama
             tag_dibuang = ['Double Chat', 'Closed - Not Interested', 'Partnership']
             pola_hapus = '|'.join(tag_dibuang)
             df_wa = df_wa[~df_wa['Mekari Tag'].astype(str).str.contains(pola_hapus, case=False, na=False)]
@@ -980,7 +981,7 @@ elif page == "💬 WA ADMIN REPORT":
         
         with col_filter1:
             if 'Bulan-Masuk' in df_wa.columns:
-                # PERBAIKAN: Jika bulan kosong, jangan dihapus, tapi ubah jadi "Belum Diisi"
+                # PERBAIKAN: Jika bulan kosong, jangan dihapus, tapi ubah jadi "Belum Diisi" agar tetap terbaca
                 df_wa['Bulan-Masuk'] = df_wa['Bulan-Masuk'].astype(str).str.strip().replace(['', 'nan', 'None', 'NaN'], 'Belum Diisi')
                 df_full_tags['Bulan-Masuk'] = df_full_tags['Bulan-Masuk'].astype(str).str.strip().replace(['', 'nan', 'None', 'NaN'], 'Belum Diisi')
                 
@@ -997,9 +998,12 @@ elif page == "💬 WA ADMIN REPORT":
                 df_full_tags = df_full_tags[df_full_tags['Asal'].astype(str).str.contains(search_city, case=False, na=False)]
 
         st.markdown("---")
-            # 3. METRIK UTAMA (Logika Perhitungan yang Lebih Solid)
+        
+        # PERBAIKAN: Baris ini sebelumnya terhapus, wajib ada agar kode tidak error!
+        if not df_wa.empty:
+            
+            # 3. METRIK UTAMA
             total_leads = len(df_wa)
-            # Pastikan pencarian case-insensitive agar "CLOSING", "closing", atau "Closing " tetap terhitung
             total_closing = len(df_wa[df_wa['Status'].str.contains('Closing', case=False, na=False)])
             conversion_rate = (total_closing / total_leads * 100) if total_leads > 0 else 0
             
@@ -1009,7 +1013,6 @@ elif page == "💬 WA ADMIN REPORT":
             a2.metric("Total Sukses Closing 🎓", f"{total_closing} / 45")
             a3.metric("Conversion Rate ⚡", f"{conversion_rate:.1f}%")
             
-            # Hitung asal yang tidak kosong/NaN agar lebih akurat
             unique_locations = df_wa['Asal'].replace(['', 'nan', 'NaN'], pd.NA).dropna().nunique()
             a4.metric("Unique Locations 📍", f"{unique_locations}")
 
@@ -1060,14 +1063,12 @@ elif page == "💬 WA ADMIN REPORT":
             # 6. DISTRIBUSI STATUS INTERNAL
             st.markdown('<div class="feature-header">📊 Distribusi Status Prospek (Internal Status)</div>', unsafe_allow_html=True)
             
-            # Menambahkan kategori tag_dibuang ke dalam daftar urutan
             status_order = [
                 "Belum Terupdate", "No Response", "Follow Up", "Daftar", "Interview", 
                 "Closing", "Sales Progress", "Withdraw", "Lainnya",
                 "Not Eligible", "Double Chat", "Closed - Not Interested", "Partnership"
             ]
             
-            # Menambahkan warna khusus untuk kategori yang baru ditambahkan
             color_map = {
                 "Belum Terupdate": "#F3F4F6", "No Response": "#FDE68A", "Follow Up": "#BFDBFE",
                 "Daftar": "#BBF7D0", "Interview": "#E9D5FF", "Closing": "#BBF7D0",
@@ -1200,7 +1201,6 @@ elif page == "💬 WA ADMIN REPORT":
             
     except Exception as e:
         st.error(f"Kesalahan Teknis: {e}")
-
 # --- HALAMAN 5: DATABASE NOMOR (CRM) ---
 elif page == "📂 DATABASE NOMOR":
     st.title("🗂️ CRM & DETAILED LEAD DATABASE")
