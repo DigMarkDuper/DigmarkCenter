@@ -1260,15 +1260,13 @@ elif page == "📂 DATABASE NOMOR":
     import io 
     import datetime
 
-    # ID SPREADSHEET (Sudah sesuai dengan URL yang Mas berikan)
     YOUR_SPREADSHEET_ID = "1v0SLw92qqkgs76qSpjb7xScYpVoJ8Ahc3fFIZ2u9HRs"
 
-    # 1. AREA INPUT DATA (SINKRONISASI & UPLOAD)
+    # 1. AREA INPUT DATA
     c_sync, c_upload = st.columns([1, 1])
-    
     with c_sync:
         st.markdown("### 🔄 Sinkronisasi")
-        if st.button("Tarik Data Unik dari WA Admin", use_container_width=True, key="sync_crm_btn"):
+        if st.button("Tarik Data Unik dari WA Admin", use_container_width=True, key="sync_crm_final"):
             sync_leads_to_crm() 
             st.success("Berhasil sinkronisasi!")
             st.rerun()
@@ -1278,71 +1276,86 @@ elif page == "📂 DATABASE NOMOR":
         with st.expander("Upload File Excel (.xlsx)"):
             st.info("💡 Format Mekari: **phone_number**, **full_name**, **customer_name**, **company**.")
             
-            # --- DOWNLOAD TEMPLATE ---
+            # --- TEMPLATE ---
             df_template = pd.DataFrame(columns=["phone_number", "full_name", "customer_name", "company"])
             buffer_template = io.BytesIO()
             with pd.ExcelWriter(buffer_template, engine='xlsxwriter') as writer:
-                df_template.to_excel(writer, index=False, sheet_name='Template_Mekari')
+                df_template.to_excel(writer, index=False, sheet_name='Template')
             
-            st.download_button(
-                label="📥 Download Template Mekari", 
-                data=buffer_template.getvalue(), 
-                file_name="Template_CRM_Mekari.xlsx", 
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 
-                use_container_width=True,
-                key="dl_tpl_mekari_v2"
-            )
+            st.download_button(label="📥 Download Template", data=buffer_template.getvalue(), file_name="Template_CRM.xlsx", use_container_width=True, key="dl_crm_final")
             
-            st.markdown("---")
-            
-            # --- FITUR UPLOAD BULK ---
-            uploaded_file = st.file_uploader("Upload file Excel Mekari", type=["xlsx"], key="crm_uploader_main_v2")
-            
+            # --- UPLOAD ---
+            uploaded_file = st.file_uploader("Upload file Excel", type=["xlsx"], key="up_crm_final")
             if uploaded_file is not None:
                 try:
                     df_upload = pd.read_excel(uploaded_file)
                     df_upload.columns = [str(c).strip().lower() for c in df_upload.columns]
-                    req_cols = ['phone_number', 'full_name', 'customer_name', 'company']
                     
-                    if all(col in df_upload.columns for col in req_cols):
-                        st.write(f"✅ Terdeteksi {len(df_upload)} data siap import.")
-                        
-                        if st.button("📥 Konfirmasi Import Massal (Fast)", use_container_width=True, key="confirm_bulk_crm_v2"):
-                            with st.spinner("Mengirim data massal ke Google Sheets..."):
-                                tgl_hari_ini = datetime.date.today().strftime("%d-%m-%Y")
-                                df_upload = df_upload.fillna("")
-                                
-                                # --- PENYESUAIAN URUTAN KOLOM SPREADSHEET ---
-                                # Urutan ini harus sama dengan kolom di Tab ke-5 (CRM) Mas
-                                # Contoh Asumsi: A=No, B=Nama, C=No Hp, D=Domisili, E=Kategori, F=Tgl Masuk
-                                bulk_data = []
-                                for _, row in df_upload.iterrows():
-                                    data_baris = [
-                                        "",                                     # Kolom A (No) - Biarkan kosong jika ada auto-number
-                                        str(row['full_name']).strip(),          # Kolom B (Nama)
-                                        "'" + str(row['phone_number']).strip(), # Kolom C (No Hp)
-                                        str(row['company']).strip(),            # Kolom D (Domisili - Diambil dari Company)
-                                        "Siswa",                                # Kolom E (Kategori)
-                                        tgl_hari_ini                            # Kolom F (Tanggal Masuk Database)
-                                    ]
-                                    bulk_data.append(data_baris)
-                                
-                                try:
-                                    # Menggunakan fungsi backend (sheet_index 4 = tab ke-5)
-                                    success = append_sheet_rows(4, bulk_data) 
-                                    
-                                    if success:
-                                        st.success(f"🚀 Berhasil! {len(df_upload)} data masuk ke kolom yang tepat.")
-                                        st.cache_data.clear()
-                                        st.rerun()
-                                    else:
-                                        st.error("Gagal mengirim data. Cek akses Editor.")
-                                except Exception as e:
-                                    st.error(f"Kesalahan sistem backend: {e}")
-                    else:
-                        st.error("⚠️ Header tidak sesuai format Mekari!")
+                    if st.button("📥 Konfirmasi Import Massal", use_container_width=True, key="conf_crm_final"):
+                        with st.spinner("Mengirim data..."):
+                            tgl_hari_ini = datetime.date.today().strftime("%d-%m-%Y")
+                            df_upload = df_upload.fillna("")
+                            
+                            # --- PENYESUAIAN URUTAN KOLOM BARU ---
+                            # A: Kosong (No), B: full_name, C: phone_number, D: company (Domisili), E: tgl_hari_ini
+                            bulk_data = []
+                            for _, row in df_upload.iterrows():
+                                data_baris = [
+                                    "",                                     # Kolom A (No)
+                                    str(row['full_name']).strip(),          # Kolom B (Nama)
+                                    "'" + str(row['phone_number']).strip(), # Kolom C (No Hp)
+                                    str(row['company']).strip(),            # Kolom D (Domisili)
+                                    tgl_hari_ini                            # Kolom E (Tanggal Masuk Database)
+                                ]
+                                bulk_data.append(data_baris)
+                            
+                            # Mengirim ke sheet_index 4 (Tab ke-5)
+                            if append_sheet_rows(4, bulk_data):
+                                st.success(f"🚀 Berhasil! {len(bulk_data)} data masuk ke kolom yang benar.")
+                                st.cache_data.clear()
+                                st.rerun()
                 except Exception as e:
-                    st.error(f"Gagal baca Excel: {e}")
+                    st.error(f"Gagal: {e}")
+            
+    st.markdown("---")
+
+    # 2. LOAD DATA & FILTER SYSTEM
+    try:
+        df_crm = load_database_nomor()
+        if not df_crm.empty:
+            df_crm = df_crm.fillna('')
+            
+            # Filter UI
+            with st.expander("🔍 Filter Strategis Database", expanded=True):
+                search_crm = st.text_input("🔎 Cari Nama/HP:", placeholder="Ketik...", key="search_crm_fix")
+                c1, c2 = st.columns(2)
+                with c1:
+                    # Ambil opsi unik dari kolom Mekari jika ada
+                    mekari_col = 'Mekari Tag (Status Terakhir)'
+                    opts_mekari = sorted(df_crm[mekari_col].unique().tolist()) if mekari_col in df_crm.columns else []
+                    sel_mekari = st.multiselect("Mekari Tag:", options=opts_mekari, key="f_mekari_fix")
+                with c2:
+                    opts_daerah = sorted(df_crm['Domisili'].unique().tolist()) if 'Domisili' in df_crm.columns else []
+                    sel_daerah = st.multiselect("Pilih Daerah:", options=opts_daerah, key="f_daerah_fix")
+
+            # Logika Filter
+            mask = pd.Series([True] * len(df_crm))
+            if search_crm:
+                mask &= (df_crm['Nama'].astype(str).str.contains(search_crm, case=False) | df_crm['No Hp'].astype(str).str.contains(search_crm))
+            if sel_mekari:
+                mask &= df_crm[mekari_col].isin(sel_mekari)
+            if sel_daerah:
+                mask &= df_crm['Domisili'].isin(sel_daerah)
+            
+            filtered_crm = df_crm[mask].copy()
+
+            st.markdown('<div class="feature-header">📑 Management Database CRM</div>', unsafe_allow_html=True)
+            st.dataframe(filtered_crm, use_container_width=True, hide_index=True)
+            
+        else:
+            st.info("Database masih kosong.")
+    except Exception as e:
+        st.error(f"Gagal memuat: {e}")
 if __name__ == "__main__":
     if not st.runtime.exists():
         sys.argv = ["streamlit", "run", sys.argv[0]]
