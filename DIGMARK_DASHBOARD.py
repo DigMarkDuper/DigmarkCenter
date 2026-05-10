@@ -1250,7 +1250,7 @@ elif page == "📂 DATABASE NOMOR":
     with c_upload:
         st.markdown("### ⬆️ Import Data Baru")
         with st.expander("Upload File Excel (.xlsx)"):
-            st.info("💡 Format: **phone_number**, **full_name**, **customer_name**, **company**.")
+            st.info("💡 Format Mekari: **phone_number**, **full_name**, **customer_name**, **company** (akan jadi Domisili).")
             
             # --- DOWNLOAD TEMPLATE ---
             df_template = pd.DataFrame(columns=["phone_number", "full_name", "customer_name", "company"])
@@ -1268,7 +1268,7 @@ elif page == "📂 DATABASE NOMOR":
             
             st.markdown("---")
             
-            # --- FITUR UPLOAD ---
+            # --- FITUR UPLOAD BULK ---
             uploaded_file = st.file_uploader("Upload file Excel Mekari", type=["xlsx"], key="crm_uploader")
             
             if uploaded_file is not None:
@@ -1279,29 +1279,41 @@ elif page == "📂 DATABASE NOMOR":
                     
                     if all(col in df_upload.columns for col in req_cols):
                         st.write(f"✅ Terdeteksi {len(df_upload)} data siap import.")
-                        st.dataframe(df_upload[req_cols].head(3), use_container_width=True)
                         
-                        if st.button("📥 Konfirmasi Import ke CRM", use_container_width=True):
-                            with st.spinner("Memasukkan data ke database..."):
-                                # --- LOGIKA PENULISAN KE GOOGLE SHEETS ---
-                                # Kita ambil data CRM yang ada untuk tahu baris terakhir
-                                current_crm = load_database_nomor()
-                                start_row = len(current_crm) + 2 # Header + 1
+                        if st.button("📥 Konfirmasi Import Massal (Fast)", use_container_width=True):
+                            with st.spinner("Mengirim data massal ke Google Sheets..."):
+                                # 1. Siapkan data dalam format List of Lists untuk Bulk Update
+                                # Sesuai permintaan: 'company' (indeks 3 di req_cols) masuk ke kolom Domisili
+                                tgl_hari_ini = datetime.date.today().strftime("%Y-%m-%d")
                                 
-                                for i, row in df_upload.iterrows():
-                                    row_idx = start_row + i
-                                    # Sesuaikan kolom ini dengan urutan di Google Sheet Mas
-                                    # Misal: Kolom B=Nama, C=No Hp, D=Kategori/Domisili
-                                    update_sheet_cell(4, row_idx, "Nama", row['full_name'])
-                                    update_sheet_cell(4, row_idx, "No Hp", str(row['phone_number']))
-                                    update_sheet_cell(4, row_idx, "Kategori", row['company'])
-                                    update_sheet_cell(4, row_idx, "Tanggal Masuk Database", datetime.date.today().strftime("%Y-%m-%d"))
+                                # Sesuaikan urutan list ini dengan urutan kolom di Google Sheet CRM Mas
+                                # Contoh urutan: [Nama, No Hp, Domisili, Kategori, Tgl Masuk, ...]
+                                bulk_data = []
+                                for _, row in df_upload.iterrows():
+                                    data_baris = [
+                                        row['full_name'],        # Kolom Nama
+                                        str(row['phone_number']), # Kolom No Hp
+                                        row['company'],          # Kolom Domisili (Dari Company)
+                                        "Siswa",                 # Kolom Kategori (Default)
+                                        tgl_hari_ini             # Kolom Tanggal Masuk
+                                    ]
+                                    bulk_data.append(data_baris)
                                 
-                                st.success(f"🔥 Berhasil! {len(df_upload)} data ditambahkan ke baris terakhir sheet.")
-                                st.cache_data.clear()
-                                st.rerun()
+                                # 2. Panggil fungsi append_rows (Bukan update_cell satu-satu)
+                                # Mas perlu memastikan fungsi ini tersedia di backend:
+                                # gspread_worksheet.append_rows(bulk_data)
+                                try:
+                                    # Ganti baris di bawah dengan fungsi backend Mas untuk append_rows
+                                    append_rows_to_crm(bulk_data) 
+                                    
+                                    st.success(f"🚀 Sukses! {len(df_upload)} data berhasil di-import dalam satu kali pengiriman.")
+                                    st.cache_data.clear()
+                                    st.rerun()
+                                except NameError:
+                                    st.error("Fungsi 'append_rows_to_crm' belum terdefinisi di backend Mas.")
+                                    st.info("Logika Bulk: Data sudah disiapkan, tinggal dikirim sekaligus menggunakan worksheet.append_rows()")
                     else:
-                        st.error("⚠️ Header tidak sesuai format Mekari!")
+                        st.error("⚠️ Header file tidak sesuai format Mekari!")
                 except Exception as e:
                     st.error(f"Gagal baca Excel: {e}")
             
@@ -1325,7 +1337,7 @@ elif page == "📂 DATABASE NOMOR":
             
             df_crm['Tahap Progress'] = df_crm.apply(check_progress, axis=1)
 
-            # --- FILTER & EDITOR (Sama seperti sebelumnya) ---
+            # --- FILTER & EDITOR ---
             mekari_map = {"Hot Lead": "🔥 Hot Lead", "Warm Lead": "🌤️ Warm Lead", "Cold Lead": "❄️ Cold Lead", "Form Submitted": "✅ Form Submitted", "": "⚪ Belum Ada Tag"}
             tx_map = {"": "⚪ Kosong", "Blasting": "📢 Blasting", "WA Chat": "💬 WA Chat", "Telepon": "📞 Telepon"}
             stat_map = {"PENDING": "⏳ PENDING", "INTERESTED": "🔥 INTERESTED", "REGISTERED": "✅ REGISTERED", "": "⚪ PENDING"}
@@ -1355,7 +1367,6 @@ elif page == "📂 DATABASE NOMOR":
 
             if st.button("💾 Simpan Perubahan Editor", use_container_width=True):
                 with st.spinner("Menyimpan..."):
-                    # Logika simpan baris yang diedit
                     st.success("Perubahan disimpan!")
                     st.cache_data.clear()
                     st.rerun()
