@@ -22,16 +22,18 @@ def init_connection():
         return None
 
 def append_sheet_rows(sheet_index, all_data_list):
-    """Fungsi untuk mengirim BANYAK baris sekaligus dalam satu kali panggil API"""
     client = init_connection()
     if client:
         try:
-            spreadsheet = client.open("MASTER DATA DIGITAL MARKETING 2.0")
+            # Gunakan ID untuk keamanan extra
+            spreadsheet = client.open_by_key("1v0SLw92qqkgs76qSpjb7xScYpVoJ8Ahc3fFIZ2u9HRs")
             sheet = spreadsheet.get_worksheet(sheet_index)
-            # Menggunakan append_rows (dengan 's') untuk batch update
-            sheet.append_rows(all_data_list)
+            # value_input_option='USER_ENTERED' wajib agar tanda petik nomor HP diproses dengan benar
+            sheet.append_rows(all_data_list, value_input_option='USER_ENTERED')
+            return True
         except Exception as e:
-            st.error(f"Gagal batch update ke Google Sheets: {e}")
+            st.error(f"Gagal Menambah Data: {e}")
+            return False
 
 def append_rows_to_crm(bulk_data):
     try:
@@ -1258,15 +1260,15 @@ elif page == "📂 DATABASE NOMOR":
     import io 
     import datetime
 
-    # ID SPREADSHEET (Sudah diambil dari URL Mas)
+    # ID SPREADSHEET (Diambil dari URL yang Mas berikan)
     YOUR_SPREADSHEET_ID = "1v0SLw92qqkgs76qSpjb7xScYpVoJ8Ahc3fFIZ2u9HRs"
 
-    # 1. AREA INPUT DATA
+    # 1. AREA INPUT DATA (SINKRONISASI & UPLOAD)
     c_sync, c_upload = st.columns([1, 1])
     
     with c_sync:
         st.markdown("### 🔄 Sinkronisasi")
-        if st.button("Tarik Data Unik dari WA Admin", use_container_width=True, key="btn_sync_crm"):
+        if st.button("Tarik Data Unik dari WA Admin", use_container_width=True, key="sync_crm_btn"):
             sync_leads_to_crm() 
             st.success("Berhasil sinkronisasi!")
             st.rerun()
@@ -1288,51 +1290,58 @@ elif page == "📂 DATABASE NOMOR":
                 file_name="Template_CRM_Mekari.xlsx", 
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 
                 use_container_width=True,
-                key="btn_download_template"
+                key="dl_tpl_mekari"
             )
             
             st.markdown("---")
             
             # --- FITUR UPLOAD BULK ---
-            uploaded_file = st.file_uploader("Upload file Excel Mekari", type=["xlsx"], key="crm_uploader_file")
+            uploaded_file = st.file_uploader("Upload file Excel Mekari", type=["xlsx"], key="crm_uploader_main")
             
             if uploaded_file is not None:
                 try:
                     df_upload = pd.read_excel(uploaded_file)
+                    # Normalisasi Kolom
                     df_upload.columns = [str(c).strip().lower() for c in df_upload.columns]
                     req_cols = ['phone_number', 'full_name', 'customer_name', 'company']
                     
                     if all(col in df_upload.columns for col in req_cols):
                         st.write(f"✅ Terdeteksi {len(df_upload)} data siap import.")
                         
-                        if st.button("📥 Konfirmasi Import Massal (Fast)", use_container_width=True, key="btn_confirm_import"):
-                            with st.spinner("Mengirim data massal..."):
+                        if st.button("📥 Konfirmasi Import Massal (Fast)", use_container_width=True, key="confirm_bulk_crm"):
+                            with st.spinner("Mengirim data massal ke Google Sheets..."):
                                 tgl_hari_ini = datetime.date.today().strftime("%d-%m-%Y")
+                                
+                                # Membersihkan data NaN agar tidak error
                                 df_upload = df_upload.fillna("")
                                 
+                                # Menyiapkan data: full_name, phone_number, company (Domisili), Kategori, Tgl
+                                # Menambahkan petik (') agar nol di depan nomor HP tidak hilang
                                 bulk_data = []
                                 for _, row in df_upload.iterrows():
                                     bulk_data.append([
                                         str(row['full_name']).strip(), 
                                         "'" + str(row['phone_number']).strip(),
-                                        str(row['company']).strip(),
-                                        "Siswa", 
-                                        tgl_hari_ini
+                                        str(row['company']).strip(), # Masuk ke kolom Domisili
+                                        "Siswa",                     # Kategori default
+                                        tgl_hari_ini                 # Tanggal masuk database
                                     ])
                                 
                                 try:
-                                    success = append_rows_to_crm(bulk_data) 
+                                    # Memanggil fungsi append_sheet_rows yang ada di backend Mas (sheet_index 4)
+                                    # Pastikan di backend menggunakan spreadsheet.get_worksheet(4)
+                                    success = append_sheet_rows(4, bulk_data) 
+                                    
                                     if success:
-                                        st.success(f"🚀 Berhasil import {len(df_upload)} data!")
+                                        st.success(f"🚀 Berhasil! {len(df_upload)} data masuk ke CRM.")
                                         st.cache_data.clear()
                                         st.rerun()
                                     else:
-                                        st.error("Gagal mengirim data. Cek ID dan akses Editor.")
+                                        st.error("Gagal mengirim data. Cek akses Editor Service Account.")
                                 except Exception as e:
-                                    st.error(f"Terjadi kesalahan sistem: {e}")
+                                    st.error(f"Kesalahan sistem backend: {e}")
                     else:
-                        st.error("⚠️ Header tidak sesuai! Wajib: phone_number, full_name, customer_name, company")
-                        
+                        st.error("⚠️ Header tidak sesuai format Mekari!")
                 except Exception as e:
                     st.error(f"Gagal baca Excel: {e}")
             
@@ -1344,15 +1353,16 @@ elif page == "📂 DATABASE NOMOR":
         if not df_crm.empty:
             st.markdown('<div class="feature-header">📑 Management Database CRM</div>', unsafe_allow_html=True)
             
-            # PERBAIKAN: Menambahkan KEY unik agar tidak duplikat ID
-            search_crm = st.text_input("🔎 Cari di Database (Nama/HP):", "", key="search_crm_main_input")
+            # Key unik untuk input pencarian
+            search_crm_val = st.text_input("🔎 Cari di Database (Nama/HP):", "", key="crm_search_unique_key")
             
-            if search_crm:
-                df_crm = df_crm[df_crm.astype(str).apply(lambda x: x.str.contains(search_crm, case=False)).any(axis=1)]
-            
+            if search_crm_val:
+                # Filter global di semua kolom
+                df_crm = df_crm[df_crm.astype(str).apply(lambda x: x.str.contains(search_crm_val, case=False)).any(axis=1)]
+                
             st.dataframe(df_crm, use_container_width=True, hide_index=True)
         else:
-            st.info("Database masih kosong.")
+            st.info("Database masih kosong. Silakan import data.")
     except Exception as e:
         st.error(f"Gagal memuat data: {e}")
 if __name__ == "__main__":
