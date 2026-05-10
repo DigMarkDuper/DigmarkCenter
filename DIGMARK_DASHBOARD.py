@@ -1266,7 +1266,7 @@ elif page == "📂 DATABASE NOMOR":
     
     with c_sync:
         st.markdown("### 🔄 Sinkronisasi")
-        if st.button("Tarik Data Unik dari WA Admin", use_container_width=True):
+        if st.button("Tarik Data Unik dari WA Admin", use_container_width=True, key="btn_sync_crm"):
             sync_leads_to_crm() 
             st.success("Berhasil sinkronisasi!")
             st.rerun()
@@ -1287,52 +1287,47 @@ elif page == "📂 DATABASE NOMOR":
                 data=buffer_template.getvalue(), 
                 file_name="Template_CRM_Mekari.xlsx", 
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 
-                use_container_width=True
+                use_container_width=True,
+                key="btn_download_template"
             )
             
             st.markdown("---")
             
             # --- FITUR UPLOAD BULK ---
-            uploaded_file = st.file_uploader("Upload file Excel Mekari", type=["xlsx"], key="crm_uploader")
+            uploaded_file = st.file_uploader("Upload file Excel Mekari", type=["xlsx"], key="crm_uploader_file")
             
             if uploaded_file is not None:
                 try:
                     df_upload = pd.read_excel(uploaded_file)
-                    # Normalisasi Kolom (Kecilkan semua huruf)
                     df_upload.columns = [str(c).strip().lower() for c in df_upload.columns]
                     req_cols = ['phone_number', 'full_name', 'customer_name', 'company']
                     
                     if all(col in df_upload.columns for col in req_cols):
                         st.write(f"✅ Terdeteksi {len(df_upload)} data siap import.")
                         
-                        if st.button("📥 Konfirmasi Import Massal (Fast)", use_container_width=True):
+                        if st.button("📥 Konfirmasi Import Massal (Fast)", use_container_width=True, key="btn_confirm_import"):
                             with st.spinner("Mengirim data massal..."):
                                 tgl_hari_ini = datetime.date.today().strftime("%d-%m-%Y")
-                                
-                                # Membersihkan data NaN agar tidak error
                                 df_upload = df_upload.fillna("")
                                 
-                                # Menyiapkan data: full_name, phone_number, Domisili (dari company), Kategori, Tgl
                                 bulk_data = []
                                 for _, row in df_upload.iterrows():
                                     bulk_data.append([
                                         str(row['full_name']).strip(), 
-                                        "'" + str(row['phone_number']).strip(), # Petik agar format teks terjaga
-                                        str(row['company']).strip(),            # Company jadi Domisili
-                                        "Siswa",                                # Kategori default
-                                        tgl_hari_ini                            # Tanggal masuk
+                                        "'" + str(row['phone_number']).strip(),
+                                        str(row['company']).strip(),
+                                        "Siswa", 
+                                        tgl_hari_ini
                                     ])
                                 
                                 try:
-                                    # Panggil fungsi backend
                                     success = append_rows_to_crm(bulk_data) 
-                                    
                                     if success:
-                                        st.success(f"🚀 Berhasil! {len(df_upload)} data telah masuk ke baris terakhir Sheet CRM.")
+                                        st.success(f"🚀 Berhasil import {len(df_upload)} data!")
                                         st.cache_data.clear()
                                         st.rerun()
                                     else:
-                                        st.error("Gagal mengirim data. Pastikan email Service Account sudah di-SHARE ke sheet tersebut sebagai EDITOR.")
+                                        st.error("Gagal mengirim data. Cek ID dan akses Editor.")
                                 except Exception as e:
                                     st.error(f"Terjadi kesalahan sistem: {e}")
                     else:
@@ -1348,31 +1343,16 @@ elif page == "📂 DATABASE NOMOR":
         df_crm = load_database_nomor()
         if not df_crm.empty:
             st.markdown('<div class="feature-header">📑 Management Database CRM</div>', unsafe_allow_html=True)
-            search_crm = st.text_input("🔎 Cari di Database (Nama/HP):", "")
+            
+            # PERBAIKAN: Menambahkan KEY unik agar tidak duplikat ID
+            search_crm = st.text_input("🔎 Cari di Database (Nama/HP):", "", key="search_crm_main_input")
+            
             if search_crm:
                 df_crm = df_crm[df_crm.astype(str).apply(lambda x: x.str.contains(search_crm, case=False)).any(axis=1)]
+            
             st.dataframe(df_crm, use_container_width=True, hide_index=True)
         else:
             st.info("Database masih kosong.")
-    except Exception as e:
-        st.error(f"Gagal memuat data: {e}")
-            
-    st.markdown("---")
-
-    # 2. TAMPILAN DATABASE CRM
-    try:
-        df_crm = load_database_nomor()
-        if not df_crm.empty:
-            st.markdown('<div class="feature-header">📑 Management Database CRM</div>', unsafe_allow_html=True)
-            
-            # Tambahkan Filter sederhana jika dibutuhkan
-            search_crm = st.text_input("🔎 Cari di Database (Nama/HP):", "")
-            if search_crm:
-                df_crm = df_crm[df_crm.astype(str).apply(lambda x: x.str.contains(search_crm, case=False)).any(axis=1)]
-                
-            st.dataframe(df_crm, use_container_width=True, hide_index=True)
-        else:
-            st.info("Database masih kosong. Silakan import atau sinkronisasi data.")
     except Exception as e:
         st.error(f"Gagal memuat data: {e}")
 if __name__ == "__main__":
