@@ -1018,6 +1018,7 @@ elif page == "💬 WA ADMIN REPORT":
             # 4. MEKARI TAG STATUS BREAKDOWN (PIE CHART)
             st.markdown('<div class="feature-header">🏷️ Mekari Tag Status Breakdown</div>', unsafe_allow_html=True)
             if 'Mekari Tag' in df_full_tags.columns:
+                df_full_tags['Mekari Tag'] = df_full_tags['Mekari Tag'].astype(str).str.strip()
                 mekari_summary = df_full_tags['Mekari Tag'].value_counts().reset_index()
                 mekari_summary.columns = ['Tag', 'Jumlah']
                 fig_mekari = px.pie(
@@ -1030,12 +1031,12 @@ elif page == "💬 WA ADMIN REPORT":
 
             # 5. KATEGORI PESAN MASUK
             st.markdown('<div class="feature-header">🗂️ Kategori Intensi Pesan</div>', unsafe_allow_html=True)
-            if 'Kategori (Persyaratan/Biaya/Pendaftaran/Loker/dll)' in df_wa.columns:
+            if 'Kategori (Persyaratan/Biaya/Pendaftaran/Loker/dll)' in df_full_tags.columns:
                 kolom_kat = 'Kategori (Persyaratan/Biaya/Pendaftaran/Loker/dll)'
-                df_wa[kolom_kat] = df_wa[kolom_kat].astype(str).str.strip()
-                df_wa[kolom_kat] = df_wa[kolom_kat].replace(['', 'nan', 'None', 'NaN'], 'Lainnya')
+                df_full_tags[kolom_kat] = df_full_tags[kolom_kat].astype(str).str.strip()
+                df_full_tags[kolom_kat] = df_full_tags[kolom_kat].replace(['', 'nan', 'None', 'NaN'], 'Lainnya')
                 
-                kat_counts = df_wa[kolom_kat].value_counts().reset_index()
+                kat_counts = df_full_tags[kolom_kat].value_counts().reset_index()
                 
                 kat_color_map = {
                     "Persyaratan": "#BBF7D0",
@@ -1059,28 +1060,34 @@ elif page == "💬 WA ADMIN REPORT":
             # 6. DISTRIBUSI STATUS INTERNAL
             st.markdown('<div class="feature-header">📊 Distribusi Status Prospek (Internal Status)</div>', unsafe_allow_html=True)
             
-            # Menambahkan 'Not Eligible' ke dalam daftar urutan
-            status_order = ["Belum Terupdate", "No Response", "Follow Up", "Daftar", "Interview", "Closing", "Lainnya", "Sales Progress", "Withdraw", "Not Eligible"]
+            # Menambahkan kategori tag_dibuang ke dalam daftar urutan
+            status_order = [
+                "Belum Terupdate", "No Response", "Follow Up", "Daftar", "Interview", 
+                "Closing", "Sales Progress", "Withdraw", "Lainnya",
+                "Not Eligible", "Double Chat", "Closed - Not Interested", "Partnership"
+            ]
             
-            # Menambahkan warna khusus untuk 'Not Eligible'
+            # Menambahkan warna khusus untuk kategori yang baru ditambahkan
             color_map = {
                 "Belum Terupdate": "#F3F4F6", "No Response": "#FDE68A", "Follow Up": "#BFDBFE",
-                "Daftar": "#BBF7D0", "Interview": "#E9D5FF", "Closing": "#FECACA",
+                "Daftar": "#BBF7D0", "Interview": "#E9D5FF", "Closing": "#BBF7D0",
                 "Lainnya": "#D1D5DB", "Sales Progress": "#1D4ED8", "Withdraw": "#B91C1C",
-                "Not Eligible": "#9CA3AF" # Warna abu-abu gelap
+                "Not Eligible": "#9CA3AF", "Double Chat": "#6B7280", "Closed - Not Interested": "#4B5563", "Partnership": "#E9D5FF"
             }
             
-            status_summary = df_wa['Status'].value_counts().reset_index()
-            status_summary.columns = ['Status', 'Jumlah']
-            
-            fig_status = px.bar(
-                status_summary, x='Jumlah', y='Status', orientation='h',
-                category_orders={"Status": status_order}, color='Status',
-                color_discrete_map=color_map, text_auto=True
-            )
-            
-            fig_status.update_layout(showlegend=False, height=450, paper_bgcolor='white', plot_bgcolor='white', yaxis_title="")
-            st.plotly_chart(fig_status, use_container_width=True)
+            if 'Status' in df_full_tags.columns:
+                df_full_tags['Status'] = df_full_tags['Status'].astype(str).str.strip()
+                status_summary = df_full_tags['Status'].value_counts().reset_index()
+                status_summary.columns = ['Status', 'Jumlah']
+                
+                fig_status = px.bar(
+                    status_summary, x='Jumlah', y='Status', orientation='h',
+                    category_orders={"Status": status_order}, color='Status',
+                    color_discrete_map=color_map, text_auto=True
+                )
+                
+                fig_status.update_layout(showlegend=False, height=550, paper_bgcolor='white', plot_bgcolor='white', yaxis_title="")
+                st.plotly_chart(fig_status, use_container_width=True)
             
             # 7. FUNNEL & SUMBER
             c1, c2 = st.columns(2)
@@ -1170,20 +1177,20 @@ elif page == "💬 WA ADMIN REPORT":
             
             with col_refresh:
                 if st.button("🔄 Refresh & Tarik Data Terbaru", use_container_width=True, key="refresh_wa_admin"):
-                    # 1. Bersihkan Data Cache Utama
+                    # Bersihkan Data Cache Utama
                     st.cache_data.clear()
                     
-                    # 2. Bersihkan Resource Cache jika ada
+                    # Bersihkan Resource Cache jika ada
                     if hasattr(st, 'cache_resource'):
                         st.cache_resource.clear()
                         
-                    # 3. Hapus Memori Filter agar reset ke awal dan menangkap data baru
+                    # Hapus Memori Filter agar reset ke awal dan menangkap data baru
                     if 'wa_bulan' in st.session_state:
                         del st.session_state['wa_bulan']
                     if 'wa_search' in st.session_state:
                         del st.session_state['wa_search']
                         
-                    # 4. Rerun Halaman
+                    # Rerun Halaman
                     st.rerun()
                     
             st.dataframe(df_wa, use_container_width=True, hide_index=True)
