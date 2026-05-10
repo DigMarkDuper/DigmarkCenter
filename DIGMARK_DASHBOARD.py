@@ -952,11 +952,10 @@ elif page == "💬 WA ADMIN REPORT":
         
         df_wa = load_wa_admin()
         
-        # --- [LOGIKA BARU] PEMBERSIHAN BARIS KOSONG SPREADSHEET ---
-        # Membuang baris yang 'Nama'-nya kosong agar baris hantu tidak ikut terhitung sebagai Leads
-        if 'Nama' in df_wa.columns:
-            df_wa = df_wa[df_wa['Nama'].astype(str).str.strip() != '']
-            df_wa = df_wa[df_wa['Nama'].astype(str).str.lower() != 'nan']
+     # --- [PERBAIKAN LOGIKA] PEMBERSIHAN BARIS HANTU ---
+        # Daripada mengecek 'Nama' yang mungkin belum diisi admin,
+        # kita buang baris jika SEMUA kolom pentingnya kosong (benar-benar baris hantu dari Google Sheets)
+        df_wa = df_wa.dropna(subset=[col for col in ['Tanggal Masuk', 'No Hp', 'Status'] if col in df_wa.columns], how='all')
 
         # 1. IDENTIFIKASI & PEMBERSIHAN KOLOM STATUS
         status_col = next((col for col in df_wa.columns if 'Status' in str(col)), None)
@@ -970,9 +969,7 @@ elif page == "💬 WA ADMIN REPORT":
         df_full_tags = df_wa.copy()
                 
         if 'Mekari Tag' in df_wa.columns:
-            # PERBAIKAN: 'Not Eligible' dihapus dari sini agar datanya tetap masuk dan bisa dihitung
             tag_dibuang = ['Double Chat', 'Closed - Not Interested', 'Partnership']
-            
             pola_hapus = '|'.join(tag_dibuang)
             df_wa = df_wa[~df_wa['Mekari Tag'].astype(str).str.contains(pola_hapus, case=False, na=False)]
         
@@ -983,8 +980,13 @@ elif page == "💬 WA ADMIN REPORT":
         
         with col_filter1:
             if 'Bulan-Masuk' in df_wa.columns:
-                months_wa = df_wa['Bulan-Masuk'].dropna().unique().tolist()
+                # PERBAIKAN: Jika bulan kosong, jangan dihapus, tapi ubah jadi "Belum Diisi"
+                df_wa['Bulan-Masuk'] = df_wa['Bulan-Masuk'].astype(str).str.strip().replace(['', 'nan', 'None', 'NaN'], 'Belum Diisi')
+                df_full_tags['Bulan-Masuk'] = df_full_tags['Bulan-Masuk'].astype(str).str.strip().replace(['', 'nan', 'None', 'NaN'], 'Belum Diisi')
+                
+                months_wa = df_wa['Bulan-Masuk'].unique().tolist()
                 selected_months_wa = st.multiselect("📅 Pilih Bulan Masuk:", options=months_wa, default=months_wa, key="wa_bulan")
+                
                 df_wa = df_wa[df_wa['Bulan-Masuk'].isin(selected_months_wa)]
                 df_full_tags = df_full_tags[df_full_tags['Bulan-Masuk'].isin(selected_months_wa)]
                 
@@ -995,8 +997,6 @@ elif page == "💬 WA ADMIN REPORT":
                 df_full_tags = df_full_tags[df_full_tags['Asal'].astype(str).str.contains(search_city, case=False, na=False)]
 
         st.markdown("---")
-
-        if not df_wa.empty:
             # 3. METRIK UTAMA (Logika Perhitungan yang Lebih Solid)
             total_leads = len(df_wa)
             # Pastikan pencarian case-insensitive agar "CLOSING", "closing", atau "Closing " tetap terhitung
