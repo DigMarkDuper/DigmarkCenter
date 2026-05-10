@@ -35,18 +35,23 @@ def append_sheet_rows(sheet_index, all_data_list):
 
 def append_rows_to_crm(bulk_data):
     try:
-        # Buka Spreadsheet
-        sh = client.open_by_key("ISI_DENGAN_KEY_SPREADSHEET_MAS")
+        # 1. Pastikan ID Spreadsheet benar
+        SPREADSHEET_ID = "ISI_ID_SPREADSHEET_MAS_DI_SINI" 
         
-        # Coba buka berdasarkan NAMA SHEET agar lebih pasti (Ganti jika namanya beda)
-        sheet = sh.worksheet("DATABASE NOMOR") 
+        # 2. Buka Spreadsheet
+        # Gunakan 'sh' atau variabel client yang sudah Mas set di awal backend
+        sh = client.open_by_key(SPREADSHEET_ID)
         
-        # Kirim Data
+        # 3. Buka Sheet berdasarkan NAMA (Bukan Indeks) agar lebih akurat
+        # Pastikan namanya di Google Sheets Mas persis: "DATABASE NOMOR"
+        sheet = sh.worksheet("DATABASE NOMOR")
+        
+        # 4. Kirim Data
         sheet.append_rows(bulk_data, value_input_option='USER_ENTERED')
         return True
     except Exception as e:
-        # TULISAN INI AKAN MUNCUL DI TERMINAL VS CODE MAS
-        print(f"❌ ERROR GOOGLE SHEETS: {e}") 
+        # Cek pesan error ini di terminal VS Code Mas!
+        print(f"❌ KENDALA BACKEND: {e}")
         return False
             
 def sync_leads_to_crm():
@@ -1297,51 +1302,25 @@ elif page == "📂 DATABASE NOMOR":
                     if all(col in df_upload.columns for col in req_cols):
                         st.write(f"✅ Terdeteksi {len(df_upload)} data siap import.")
                         
-                        # LOGIKA EKSEKUSI TOMBOL
-                        if st.button("📥 Konfirmasi Import Massal (Fast)", use_container_width=True):
-                            with st.spinner("Mengirim data massal ke Google Sheets..."):
+                       if st.button("📥 Konfirmasi Import Massal (Fast)", use_container_width=True):
+                            with st.spinner("Mengirim data..."):
                                 tgl_hari_ini = datetime.date.today().strftime("%Y-%m-%d")
+                                bulk_data = [[row['full_name'], str(row['phone_number']), row['company'], "Siswa", tgl_hari_ini] for _, row in df_upload.iterrows()]
                                 
-                                # Menyiapkan data: Company jadi Domisili
-                                bulk_data = []
-                                for _, row in df_upload.iterrows():
-                                    data_baris = [
-                                        row['full_name'],        # Kolom Nama
-                                        str(row['phone_number']), # Kolom No Hp
-                                        row['company'],          # Kolom Domisili (Dari Company)
-                                        "Siswa",                 # Kolom Kategori (Default)
-                                        tgl_hari_ini             # Kolom Tanggal Masuk
-                                    ]
-                                    bulk_data.append(data_baris)
-                                
-                                # EKSEKUSI KE BACKEND
                                 try:
-                                    # Memastikan fungsi dipanggil
+                                    # Eksekusi
                                     success = append_rows_to_crm(bulk_data) 
                                     
                                     if success:
-                                        st.success(f"🚀 Sukses! {len(df_upload)} data berhasil masuk ke Google Sheets.")
-                                        st.cache_data.clear() # Hapus cache agar data baru terbaca
-                                        st.rerun() # Refresh tampilan
+                                        st.success(f"🚀 Berhasil import {len(df_upload)} data!")
+                                        st.cache_data.clear()
+                                        st.rerun()
                                     else:
-                                        st.error("Gagal mengirim data. Cek koneksi internet atau API Google Mas.")
+                                        # ERROR LOGIC: Tampilkan pesan teknis di layar
+                                        st.error("Gagal koneksi ke Google Sheets.")
+                                        st.info("Cek terminal VS Code Mas untuk melihat error spesifiknya (biasanya masalah Izin/Share Sheet).")
                                 except Exception as e:
-                                    st.error(f"Error Backend: {e}")
-                    else:
-                        st.error("⚠️ Header file tidak sesuai format Mekari!")
-                except Exception as e:
-                    st.error(f"Gagal baca Excel: {e}")
-            
-    st.markdown("---")
-    
-    # Bagian tampilan database tetap sama seperti sebelumnya...
-    try:
-        df_crm = load_database_nomor()
-        if not df_crm.empty:
-            # (Gunakan kode tampilan tabel yang sudah Mas miliki di sini)
-            st.dataframe(df_crm, use_container_width=True)
-    except Exception as e:
-        st.error(f"Gagal memuat data: {e}")
+                                    st.error(f"Terjadi kesalahan sistem: {e}")
 if __name__ == "__main__":
     if not st.runtime.exists():
         sys.argv = ["streamlit", "run", sys.argv[0]]
