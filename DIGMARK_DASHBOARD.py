@@ -1259,18 +1259,19 @@ elif page == "💬 WA ADMIN REPORT":
         
         import io 
         import datetime
-    
+
+        # ID SPREADSHEET (Sudah sesuai URL Mas)
         YOUR_SPREADSHEET_ID = "1v0SLw92qqkgs76qSpjb7xScYpVoJ8Ahc3fFIZ2u9HRs"
-    
-        # 1. AREA INPUT DATA
+
+        # 1. AREA INPUT DATA (UPLOAD & SYNC)
         c_sync, c_upload = st.columns([1, 1])
         with c_sync:
             st.markdown("### 🔄 Sinkronisasi")
-            if st.button("Tarik Data Unik dari WA Admin", use_container_width=True, key="sync_crm_v4"):
+            if st.button("Tarik Data Unik dari WA Admin", use_container_width=True, key="sync_crm_v5"):
                 sync_leads_to_crm() 
                 st.success("Berhasil sinkronisasi!")
                 st.rerun()
-    
+
         with c_upload:
             st.markdown("### ⬆️ Import Data Baru")
             with st.expander("Upload File Excel (.xlsx)"):
@@ -1282,21 +1283,22 @@ elif page == "💬 WA ADMIN REPORT":
                 with pd.ExcelWriter(buffer_template, engine='xlsxwriter') as writer:
                     df_template.to_excel(writer, index=False, sheet_name='Template')
                 
-                st.download_button(label="📥 Download Template", data=buffer_template.getvalue(), file_name="Template_CRM.xlsx", use_container_width=True, key="dl_v4")
+                st.download_button(label="📥 Download Template", data=buffer_template.getvalue(), file_name="Template_CRM.xlsx", use_container_width=True, key="dl_v5")
                 
                 # --- FITUR UPLOAD ---
-                uploaded_file = st.file_uploader("Upload file Excel", type=["xlsx"], key="up_v4")
+                uploaded_file = st.file_uploader("Upload file Excel", type=["xlsx"], key="up_v5")
                 if uploaded_file is not None:
                     try:
                         df_upload = pd.read_excel(uploaded_file)
                         df_upload.columns = [str(c).strip().lower() for c in df_upload.columns]
                         
-                        if st.button("📥 Konfirmasi Import Massal", use_container_width=True, key="conf_v4"):
+                        if st.button("📥 Konfirmasi Import Massal", use_container_width=True, key="conf_v5"):
                             with st.spinner("Mengirim data..."):
                                 tgl_hari_ini = datetime.date.today().strftime("%d-%m-%Y")
                                 df_upload = df_upload.fillna("")
                                 
-                                # --- PENYESUAIAN URUTAN KOLOM PRESISI ---
+                                # --- PENYESUAIAN URUTAN KOLOM ---
+                                # A: No, B: Nama, C: No Hp, D: Domisili, E: Kosong (Lahir), F: Tgl Masuk
                                 bulk_data = []
                                 for _, row in df_upload.iterrows():
                                     data_baris = [
@@ -1304,21 +1306,21 @@ elif page == "💬 WA ADMIN REPORT":
                                         str(row['full_name']).strip(),          # Kolom B (Nama)
                                         "'" + str(row['phone_number']).strip(), # Kolom C (No Hp)
                                         str(row['company']).strip(),            # Kolom D (Domisili)
-                                        "",                                     # Kolom E (DILONCATI: Tanggal Lahir agar tetap kosong)
-                                        tgl_hari_ini                            # Kolom F (TANGGAL MASUK DATABASE)
+                                        "",                                     # Kolom E (Diloncati: Tanggal Lahir)
+                                        tgl_hari_ini                            # Kolom F (Tanggal Masuk Database)
                                     ]
                                     bulk_data.append(data_baris)
                                 
-                                # Eksekusi ke tab ke-5 (sheet_index 4)
+                                # Eksekusi ke tab ke-5 (indeks 4)
                                 if append_sheet_rows(4, bulk_data):
-                                    st.success(f"🚀 Berhasil! Data masuk tepat di kolom Tanggal Masuk Database.")
+                                    st.success(f"🚀 Berhasil! Data masuk di kolom Tanggal Masuk Database.")
                                     st.cache_data.clear()
                                     st.rerun()
                     except Exception as e:
                         st.error(f"Gagal: {e}")
                 
         st.markdown("---")
-    
+
         # 2. LOAD DATA & FILTER SYSTEM
         try:
             df_crm = load_database_nomor()
@@ -1327,26 +1329,28 @@ elif page == "💬 WA ADMIN REPORT":
                 
                 # Filter UI
                 with st.expander("🔍 Filter Strategis Database", expanded=True):
-                    search_crm = st.text_input("🔎 Cari Nama/HP:", placeholder="Ketik...", key="search_v4")
+                    search_crm = st.text_input("🔎 Cari Nama/HP:", placeholder="Ketik...", key="search_v5")
                     c1, c2 = st.columns(2)
                     with c1:
-                        opts_mekari = sorted(df_crm['Mekari Tag (Status Terakhir)'].unique().tolist()) if 'Mekari Tag (Status Terakhir)' in df_crm.columns else []
-                        sel_mekari = st.multiselect("Mekari Tag:", options=opts_mekari, key="f_mek_v4")
+                        # Ambil kolom mekari tag jika ada
+                        m_col = 'Mekari Tag (Status Terakhir)'
+                        opts_mekari = sorted(df_crm[m_col].unique().tolist()) if m_col in df_crm.columns else []
+                        sel_mekari = st.multiselect("Mekari Tag:", options=opts_mekari, key="f_mek_v5")
                     with c2:
                         opts_daerah = sorted(df_crm['Domisili'].unique().tolist()) if 'Domisili' in df_crm.columns else []
-                        sel_daerah = st.multiselect("Pilih Daerah:", options=opts_daerah, key="f_daer_v4")
-    
+                        sel_daerah = st.multiselect("Pilih Daerah:", options=opts_daerah, key="f_daer_v5")
+
                 # Logika Filter
                 mask = pd.Series([True] * len(df_crm))
                 if search_crm:
                     mask &= (df_crm['Nama'].astype(str).str.contains(search_crm, case=False) | df_crm['No Hp'].astype(str).str.contains(search_crm))
                 if sel_mekari:
-                    mask &= df_crm['Mekari Tag (Status Terakhir)'].isin(sel_mekari)
+                    mask &= df_crm[m_col].isin(sel_mekari)
                 if sel_daerah:
                     mask &= df_crm['Domisili'].isin(sel_daerah)
                 
                 filtered_crm = df_crm[mask].copy()
-    
+
                 st.markdown('<div class="feature-header">📑 Management Database CRM</div>', unsafe_allow_html=True)
                 st.dataframe(filtered_crm, use_container_width=True, hide_index=True)
             else:
