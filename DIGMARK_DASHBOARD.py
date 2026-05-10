@@ -1259,7 +1259,7 @@ elif page == "📂 DATABASE NOMOR":
     import datetime
 
     # GANTI ID INI dengan ID Spreadsheet Mas yang ada di URL browser
-    YOUR_SPREADSHEET_ID = "ISI_ID_SPREADSHEET_MAS_DI_SINI"
+    YOUR_SPREADSHEET_ID = "1v0SLw92qqkgs76qSpjb7xScYpVoJ8Ahc3fFIZ2u9HRs"
 
     # 1. AREA INPUT DATA
     c_sync, c_upload = st.columns([1, 1])
