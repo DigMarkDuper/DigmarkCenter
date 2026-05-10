@@ -941,70 +941,80 @@ elif page == "📈 INSIGHTS & ANALYTICS":
     except Exception as e:
         st.error(f"Kesalahan Teknis Insight: {e}")
 
-df_wa = load_wa_admin()
-        
-        # --- [LOGIKA BARU] PEMBERSIHAN BARIS KOSONG SPREADSHEET ---
-        # Membuang baris yang 'Nama'-nya kosong agar baris hantu tidak ikut terhitung sebagai Leads
-        if 'Nama' in df_wa.columns:
-            df_wa = df_wa[df_wa['Nama'].astype(str).str.strip() != '']
-            df_wa = df_wa[df_wa['Nama'].astype(str).str.lower() != 'nan']
+# --- HALAMAN 4: WA ADMIN REPORT ---
 
-        # 1. IDENTIFIKASI & PEMBERSIHAN KOLOM STATUS
-        status_col = next((col for col in df_wa.columns if 'Status' in str(col)), None)
-        if status_col:
-            df_wa.rename(columns={status_col: 'Status'}, inplace=True)
-            df_wa['Status'] = df_wa['Status'].astype(str).str.strip()
-            df_wa['Status'] = df_wa['Status'].replace(['', 'nan', 'None', 'NaN'], 'Belum Terupdate')
-        else:
-            df_wa['Status'] = "Belum Terupdate"
-            
-        df_full_tags = df_wa.copy()
-                
-        if 'Mekari Tag' in df_wa.columns:
-            # PERBAIKAN: 'Not Eligible' dihapus dari sini agar datanya tetap masuk dan bisa dihitung
-            tag_dibuang = ['Double Chat', 'Closed - Not Interested', 'Partnership']
-            
-            pola_hapus = '|'.join(tag_dibuang)
-            df_wa = df_wa[~df_wa['Mekari Tag'].astype(str).str.contains(pola_hapus, case=False, na=False)]
-        
-        # 2. FILTER DATA DI HALAMAN UTAMA
-        st.markdown('<div class="feature-header">🔍 Filter Data Laporan</div>', unsafe_allow_html=True)
-        
-        col_filter1, col_filter2 = st.columns(2)
-        
-        with col_filter1:
-            if 'Bulan-Masuk' in df_wa.columns:
-                months_wa = df_wa['Bulan-Masuk'].dropna().unique().tolist()
-                selected_months_wa = st.multiselect("📅 Pilih Bulan Masuk:", options=months_wa, default=months_wa, key="wa_bulan")
-                df_wa = df_wa[df_wa['Bulan-Masuk'].isin(selected_months_wa)]
-                df_full_tags = df_full_tags[df_full_tags['Bulan-Masuk'].isin(selected_months_wa)]
-                
-        with col_filter2:
-            search_city = st.text_input("📍 Cari Asal Kota/Provinsi:", "", key="wa_search").strip()
-            if search_city:
-                df_wa = df_wa[df_wa['Asal'].astype(str).str.contains(search_city, case=False, na=False)]
-                df_full_tags = df_full_tags[df_full_tags['Asal'].astype(str).str.contains(search_city, case=False, na=False)]
-
+    elif page == "💬 WA ADMIN REPORT":
+    
+        st.title("💬 KINERJA WA ADMIN & CLOSING LPK")
+    
         st.markdown("---")
-
-        if not df_wa.empty:
-            # 3. METRIK UTAMA (Logika Perhitungan yang Lebih Solid)
-            total_leads = len(df_wa)
-            # Pastikan pencarian case-insensitive agar "CLOSING", "closing", atau "Closing " tetap terhitung
-            total_closing = len(df_wa[df_wa['Status'].str.contains('Closing', case=False, na=False)])
-            conversion_rate = (total_closing / total_leads * 100) if total_leads > 0 else 0
+    
+        try:
+    
+            df_wa = load_wa_admin()
             
-            st.markdown('<div class="feature-header">🎯 Real-Time Lead Health Check</div>', unsafe_allow_html=True)
-            a1, a2, a3, a4 = st.columns(4)
-            a1.metric("Total Leads Terdeteksi 📲", f"{total_leads}")
-            a2.metric("Total Sukses Closing 🎓", f"{total_closing} / 45")
-            a3.metric("Conversion Rate ⚡", f"{conversion_rate:.1f}%")
+            # --- [LOGIKA BARU] PEMBERSIHAN BARIS KOSONG SPREADSHEET ---
+            # Membuang baris yang 'Nama'-nya kosong agar baris hantu tidak ikut terhitung sebagai Leads
+            if 'Nama' in df_wa.columns:
+                df_wa = df_wa[df_wa['Nama'].astype(str).str.strip() != '']
+                df_wa = df_wa[df_wa['Nama'].astype(str).str.lower() != 'nan']
+    
+            # 1. IDENTIFIKASI & PEMBERSIHAN KOLOM STATUS
+            status_col = next((col for col in df_wa.columns if 'Status' in str(col)), None)
+            if status_col:
+                df_wa.rename(columns={status_col: 'Status'}, inplace=True)
+                df_wa['Status'] = df_wa['Status'].astype(str).str.strip()
+                df_wa['Status'] = df_wa['Status'].replace(['', 'nan', 'None', 'NaN'], 'Belum Terupdate')
+            else:
+                df_wa['Status'] = "Belum Terupdate"
+                
+            df_full_tags = df_wa.copy()
+                    
+            if 'Mekari Tag' in df_wa.columns:
+                # PERBAIKAN: 'Not Eligible' dihapus dari sini agar datanya tetap masuk dan bisa dihitung
+                tag_dibuang = ['Double Chat', 'Closed - Not Interested', 'Partnership']
+                
+                pola_hapus = '|'.join(tag_dibuang)
+                df_wa = df_wa[~df_wa['Mekari Tag'].astype(str).str.contains(pola_hapus, case=False, na=False)]
             
-            # Hitung asal yang tidak kosong/NaN agar lebih akurat
-            unique_locations = df_wa['Asal'].replace(['', 'nan', 'NaN'], pd.NA).dropna().nunique()
-            a4.metric("Unique Locations 📍", f"{unique_locations}")
-
+            # 2. FILTER DATA DI HALAMAN UTAMA
+            st.markdown('<div class="feature-header">🔍 Filter Data Laporan</div>', unsafe_allow_html=True)
+            
+            col_filter1, col_filter2 = st.columns(2)
+            
+            with col_filter1:
+                if 'Bulan-Masuk' in df_wa.columns:
+                    months_wa = df_wa['Bulan-Masuk'].dropna().unique().tolist()
+                    selected_months_wa = st.multiselect("📅 Pilih Bulan Masuk:", options=months_wa, default=months_wa, key="wa_bulan")
+                    df_wa = df_wa[df_wa['Bulan-Masuk'].isin(selected_months_wa)]
+                    df_full_tags = df_full_tags[df_full_tags['Bulan-Masuk'].isin(selected_months_wa)]
+                    
+            with col_filter2:
+                search_city = st.text_input("📍 Cari Asal Kota/Provinsi:", "", key="wa_search").strip()
+                if search_city:
+                    df_wa = df_wa[df_wa['Asal'].astype(str).str.contains(search_city, case=False, na=False)]
+                    df_full_tags = df_full_tags[df_full_tags['Asal'].astype(str).str.contains(search_city, case=False, na=False)]
+    
             st.markdown("---")
+    
+            if not df_wa.empty:
+                # 3. METRIK UTAMA (Logika Perhitungan yang Lebih Solid)
+                total_leads = len(df_wa)
+                # Pastikan pencarian case-insensitive agar "CLOSING", "closing", atau "Closing " tetap terhitung
+                total_closing = len(df_wa[df_wa['Status'].str.contains('Closing', case=False, na=False)])
+                conversion_rate = (total_closing / total_leads * 100) if total_leads > 0 else 0
+                
+                st.markdown('<div class="feature-header">🎯 Real-Time Lead Health Check</div>', unsafe_allow_html=True)
+                a1, a2, a3, a4 = st.columns(4)
+                a1.metric("Total Leads Terdeteksi 📲", f"{total_leads}")
+                a2.metric("Total Sukses Closing 🎓", f"{total_closing} / 45")
+                a3.metric("Conversion Rate ⚡", f"{conversion_rate:.1f}%")
+                
+                # Hitung asal yang tidak kosong/NaN agar lebih akurat
+                unique_locations = df_wa['Asal'].replace(['', 'nan', 'NaN'], pd.NA).dropna().nunique()
+                a4.metric("Unique Locations 📍", f"{unique_locations}")
+    
+                st.markdown("---")
 
             # 4. MEKARI TAG STATUS BREAKDOWN (PIE CHART)
             st.markdown('<div class="feature-header">🏷️ Mekari Tag Status Breakdown</div>', unsafe_allow_html=True)
