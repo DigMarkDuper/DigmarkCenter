@@ -73,15 +73,25 @@ def sync_leads_to_crm():
         df_wa['No Hp'] = df_wa['No Hp'].apply(clean_phone)
         df_wa = df_wa.drop_duplicates(subset=['No Hp'], keep='last')
 
-        valid_tags = ["Hot Lead", "Warm Lead", "Cold Lead", "Pending Form - L1", "Pending Form - L2", "Re-engagement", "Future Prospect", "Form Submitted", "Sales Progress"]
         mekari_col = next((c for c in df_wa.columns if 'Mekari' in c), None)
-        
         if not mekari_col:
             st.error("❌ Kolom Mekari Tag tidak ditemukan di WA Admin.")
             return
             
+        # 1. FILTER WHITELIST (Tag yang diizinkan)
+        valid_tags = ["Hot Lead", "Warm Lead", "Cold Lead", "Pending Form - L1", "Pending Form - L2", "Re-engagement", "Future Prospect", "Form Submitted", "Sales Progress"]
         new_leads = df_wa[df_wa[mekari_col].isin(valid_tags)].copy()
         
+        # 2. FILTER BLACKLIST - NOT ELIGIBLE (Lapisan Keamanan Tambahan)
+        new_leads = new_leads[~new_leads[mekari_col].astype(str).str.contains("Not Eligible|not eligible", case=False, na=False)]
+        
+        # 3. FILTER BLACKLIST - STATUS WITHDRAW
+        # Mencari apakah ada kolom bernama 'Status' di data WA Admin
+        status_col = next((c for c in new_leads.columns if 'Status' in c or 'status' in c), None)
+        if status_col:
+            new_leads = new_leads[~new_leads[status_col].astype(str).str.contains("Withdraw|withdraw", case=False, na=False)]
+
+        # --- LOGIKA ANTI DUPLIKASI DENGAN CRM ---
         if not df_crm.empty:
             existing_nos = df_crm['No Hp'].astype(str).tolist()
             new_leads = new_leads[~new_leads['No Hp'].isin(existing_nos)]
@@ -117,7 +127,7 @@ def sync_leads_to_crm():
 
         if all_new_rows:
             append_sheet_rows(4, all_new_rows) 
-            st.success(f"✅ Berhasil menarik {len(all_new_rows)} Prospek (Mapping Asal ke Domisili Berhasil)!")
+            st.success(f"✅ Berhasil menarik {len(all_new_rows)} Prospek Unik (Telah melewati filter Not Eligible & Withdraw)!")
             st.cache_data.clear()
             st.rerun()
             
