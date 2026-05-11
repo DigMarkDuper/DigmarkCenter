@@ -1434,13 +1434,14 @@ elif page == "📱 DM SOSMED":
         
         with c1:
             platform = st.selectbox("Platform 📱", ["Instagram", "Tiktok", "Facebook"])
-            username = st.text_input("Nama / Username 👤", placeholder="Contoh: @calonsiswa_123")
-            link_user = st.text_input("Link Username 🔗 (Opsional)", placeholder="https://instagram.com/...")
+            username = st.text_input("Nama / Username 👤", placeholder="Contoh: calonsiswa_123")
+            
+            # Placeholder diperbarui agar admin tahu ini otomatis
+            link_user = st.text_input("Link Username 🔗 (Otomatis)", placeholder="Kosongkan saja, sistem yang buatkan linknya!")
             
         with c2:
             no_hp = st.text_input("No HP / WhatsApp ☎️ (Opsional)", placeholder="Contoh: 08123456789")
             
-            # Opsi Status (Sesuai gambar asli)
             opsi_status = [
                 "No Response", 
                 "Follow Up", 
@@ -1454,9 +1455,8 @@ elif page == "📱 DM SOSMED":
             ]
             status_dm = st.selectbox("Status DM 📌", opsi_status)
             
-            # --- FITUR BARU: KOLOM TAG TERPISAH ---
             opsi_tag = [
-                "- Pilih Tag -", # Default agar tidak otomatis terisi Not Eligible
+                "- Pilih Tag -", 
                 "NOT ELIGIBLE",
                 "FUTURE PROSPECT",
                 "HOT LEAD",
@@ -1474,6 +1474,24 @@ elif page == "📱 DM SOSMED":
                 st.warning("⚠️ Nama / Username wajib diisi!")
             else:
                 with st.spinner("Menyimpan ke Spreadsheet..."):
+                    
+                    # --- FITUR BARU: AUTO-GENERATE LINK ---
+                    if link_user.strip() == "":
+                        # Bersihkan simbol @ jika admin terlanjur mengetiknya
+                        uname_clean = username.strip().replace("@", "")
+                        
+                        if platform == "Instagram":
+                            link_final = f"https://instagram.com/{uname_clean}"
+                        elif platform == "Tiktok":
+                            link_final = f"https://tiktok.com/@{uname_clean}"
+                        elif platform == "Facebook":
+                            link_final = f"https://facebook.com/{uname_clean}"
+                        else:
+                            link_final = ""
+                    else:
+                        # Jika admin tetap mengetik link manual, gunakan ketikan admin
+                        link_final = link_user.strip()
+
                     # Logika Auto-Convert 62 untuk No HP jika diisi
                     if no_hp:
                         no_hp_bersih = str(no_hp).replace("'", "").replace("+", "").replace("-", "").replace(" ", "").strip()
@@ -1491,23 +1509,26 @@ elif page == "📱 DM SOSMED":
                         "",              # Kolom A: No
                         platform,        # Kolom B: Platform
                         username,        # Kolom C: Nama / Username
-                        link_user,       # Kolom D: Link Username
+                        link_final,      # Kolom D: Link Username (AUTO)
                         no_hp_final,     # Kolom E: No HP / Whatsapp
                         status_dm,       # Kolom F: Status
-                        tag_final        # Kolom G: Tag Kategori (KOLOM BARU)
+                        tag_final        # Kolom G: Tag Kategori
                     ]
                     
                     try:
                         # Index 5 merujuk pada Tab ke-6 di Google Sheets
-                        if append_sheet_rows(5, [data_dm_baru]): 
-                            st.success(f"✅ Mantap! Data {username} dari {platform} berhasil disimpan.")
-                        else:
-                            st.error("❌ Gagal menyimpan. Cek kembali koneksi atau index tab-nya.")
+                        append_sheet_rows(5, [data_dm_baru])
+                        st.success(f"✅ Mantap! Data {username} dari {platform} berhasil disimpan. Link otomatis dibuat!")
                     except Exception as e:
-                        st.error(f"Terjadi kesalahan sistem: {e}")
+                        st.error(f"Terjadi kesalahan saat mengeksekusi data: {e}")
                         
     st.markdown("---")
     st.markdown("### 📊 Database DM Tersimpan")
+
+if __name__ == "__main__":
+    if not st.runtime.exists():
+        sys.argv = ["streamlit", "run", sys.argv[0]]
+        sys.exit(stcli.main())
 
 if __name__ == "__main__":
     if not st.runtime.exists():
