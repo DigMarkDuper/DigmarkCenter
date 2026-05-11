@@ -407,7 +407,7 @@ if page == "🏠 HOMEPAGE":
         </style>
     """, unsafe_allow_html=True)
 
-    # 2. HEADER & NAVIGASI 5 KOTAK
+    # 2. HEADER & NAVIGASI 6 KOTAK
     st.markdown('<div class="feature-header" style="text-align: center; margin-bottom:20px;">🚀 DIGITAL MARKETING COMMAND CENTER</div>', unsafe_allow_html=True)
     
     def create_square_card(icon, title, subtitle, target_page, button_key):
@@ -421,13 +421,15 @@ if page == "🏠 HOMEPAGE":
             """, unsafe_allow_html=True)
             st.button("Masuk ➔", key=button_key, use_container_width=True, on_click=go_to_page, args=(target_page,))
 
-    nav_cols = st.columns(5)
+    # Mengubah menjadi 6 kolom untuk menampung fitur baru
+    nav_cols = st.columns(6)
     nav_data = [
         ("📱", "Sosmed", "Jadwal PIC", "📱 SOSIAL MEDIA", "btn_sos"),
         ("🌐", "Website", "SEO Audit", "🌐 WEBSITE AUDIT", "btn_web"),
         ("📈", "Insight", "Analytics", "📈 INSIGHTS & ANALYTICS", "btn_in"),
         ("💬", "WA Admin", "Closing Funnel", "💬 WA ADMIN REPORT", "btn_wa"),
-        ("📂", "Database", "CRM Kontak", "📂 DATABASE NOMOR", "btn_db")
+        ("📂", "Database", "CRM Kontak", "📂 DATABASE NOMOR", "btn_db"),
+        ("📥", "DM Sosmed", "Tracker Inbox", "📱 DM SOSMED", "btn_dm") # Kotak navigasi baru untuk DM Sosmed
     ]
 
     for col, (icon, title, sub, target, key) in zip(nav_cols, nav_data):
