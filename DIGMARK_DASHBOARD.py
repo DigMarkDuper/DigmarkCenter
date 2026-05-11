@@ -1587,8 +1587,11 @@ elif page == "📱 DM SOSMED":
                     tag_final = "" if tag_dm == "- Pilih Tag -" else tag_dm
                     tgl_hari_ini = datetime.date.today().strftime("%Y-%m-%d")
 
+                    # --- FITUR BARU: NOMOR OTOMATIS BERDASARKAN JUMLAH DATA ---
+                    nomor_urut = len(df_dm) + 1 if not df_dm.empty else 1
+
                     data_dm_baru = [
-                        "", platform, username, link_final, no_hp_final, status_dm, tag_final, tgl_hari_ini
+                        nomor_urut, platform, username, link_final, no_hp_final, status_dm, tag_final, tgl_hari_ini
                     ]
                     
                     try:
