@@ -1435,7 +1435,6 @@ elif page == "📱 DM SOSMED":
     try:
         client = init_connection()
         if client:
-            # Mengambil data langsung dari Tab 6 (index 5)
             sheet_dm = client.open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(5)
             records_dm = sheet_dm.get_all_records()
             if records_dm:
@@ -1446,7 +1445,6 @@ elif page == "📱 DM SOSMED":
     if not df_dm.empty:
         df_dm = df_dm.fillna('')
         
-        # Persiapan Kolom Filter (Mencari kolom tanggal)
         kolom_tgl = "Tanggal Masuk" if "Tanggal Masuk" in df_dm.columns else df_dm.columns[-1]
         try:
             df_dm['Bulan'] = pd.to_datetime(df_dm[kolom_tgl], errors='coerce').dt.strftime('%Y-%m')
@@ -1455,7 +1453,6 @@ elif page == "📱 DM SOSMED":
             df_dm['Bulan'] = ''
             bulan_tersedia = []
 
-        # FILTER UI
         with st.expander("🔍 Filter Data Ringkasan", expanded=True):
             c_filt1, c_filt2 = st.columns(2)
             with c_filt1:
@@ -1464,39 +1461,72 @@ elif page == "📱 DM SOSMED":
                 platforms_available = sorted(df_dm['Platform'].unique().tolist()) if 'Platform' in df_dm.columns else ["Instagram", "Tiktok", "Facebook"]
                 sel_plat = st.multiselect("Pilih Platform:", platforms_available)
         
-        # Logika Filter
         df_filtered = df_dm.copy()
         if sel_bulan:
             df_filtered = df_filtered[df_filtered['Bulan'].isin(sel_bulan)]
         if sel_plat:
             df_filtered = df_filtered[df_filtered['Platform'].isin(sel_plat)]
         
-        # METRIK RINGKASAN ANGKA
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Total DM (Terfilter)", len(df_filtered))
-        m2.metric("📸 Instagram", len(df_filtered[df_filtered['Platform'].astype(str).str.contains('Instagram', case=False)]))
-        m3.metric("🎵 TikTok", len(df_filtered[df_filtered['Platform'].astype(str).str.contains('Tiktok', case=False)]))
-        m4.metric("📘 Facebook", len(df_filtered[df_filtered['Platform'].astype(str).str.contains('Facebook', case=False)]))
+        # --- METRIK CUSTOM DENGAN LOGO ASLI ---
+        ig_count = len(df_filtered[df_filtered['Platform'].astype(str).str.contains('Instagram', case=False)])
+        tt_count = len(df_filtered[df_filtered['Platform'].astype(str).str.contains('Tiktok', case=False)])
+        fb_count = len(df_filtered[df_filtered['Platform'].astype(str).str.contains('Facebook', case=False)])
         
-        # VISUALISASI PIE CHART
+        m1, m2, m3, m4 = st.columns(4)
+        
+        with m1:
+            with st.container(border=True):
+                st.markdown(f"""
+                <div style='font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'>📊 TOTAL TERFILTER</div>
+                <div style='font-size:32px; font-weight:bold;'>{len(df_filtered)}</div>
+                """, unsafe_allow_html=True)
+        with m2:
+            with st.container(border=True):
+                st.markdown(f"""
+                <div style='display:flex; align-items:center; gap:8px; font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'>
+                    <img src="https://img.icons8.com/fluency/48/instagram-new.png" width="20"> INSTAGRAM
+                </div>
+                <div style='font-size:32px; font-weight:bold;'>{ig_count}</div>
+                """, unsafe_allow_html=True)
+        with m3:
+            with st.container(border=True):
+                st.markdown(f"""
+                <div style='display:flex; align-items:center; gap:8px; font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'>
+                    <img src="https://img.icons8.com/color/48/tiktok--v1.png" width="20"> TIKTOK
+                </div>
+                <div style='font-size:32px; font-weight:bold;'>{tt_count}</div>
+                """, unsafe_allow_html=True)
+        with m4:
+            with st.container(border=True):
+                st.markdown(f"""
+                <div style='display:flex; align-items:center; gap:8px; font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'>
+                    <img src="https://img.icons8.com/color/48/facebook-new.png" width="20"> FACEBOOK
+                </div>
+                <div style='font-size:32px; font-weight:bold;'>{fb_count}</div>
+                """, unsafe_allow_html=True)
+        
+        # --- VISUALISASI PIE CHART TRANSPARAN ---
         st.markdown("<br>", unsafe_allow_html=True)
         c_pie1, c_pie2 = st.columns(2)
         
         with c_pie1:
             kolom_status = 'Status DM' if 'Status DM' in df_filtered.columns else 'Status'
             if kolom_status in df_filtered.columns and not df_filtered.empty:
-                fig_stat = px.pie(df_filtered, names=kolom_status, hole=0.4, title='📊 Distribusi Status DM')
+                fig_stat = px.pie(df_filtered, names=kolom_status, hole=0.4, title='Distribusi Status DM')
                 fig_stat.update_traces(textposition='inside', textinfo='percent+label')
+                # BACKGROUND TRANSPARAN
+                fig_stat.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
                 st.plotly_chart(fig_stat, use_container_width=True)
         
         with c_pie2:
             kolom_tag = 'Tag Prospek' if 'Tag Prospek' in df_filtered.columns else 'Tag'
             if kolom_tag in df_filtered.columns and not df_filtered.empty:
-                # Membuang data yang tag-nya kosong agar Pie Chart lebih rapi
                 df_tag = df_filtered[df_filtered[kolom_tag].astype(str).str.strip() != '']
                 if not df_tag.empty:
-                    fig_tag = px.pie(df_tag, names=kolom_tag, hole=0.4, title='🏷️ Distribusi Tag Prospek')
+                    fig_tag = px.pie(df_tag, names=kolom_tag, hole=0.4, title='Distribusi Tag Prospek')
                     fig_tag.update_traces(textposition='inside', textinfo='percent+label')
+                    # BACKGROUND TRANSPARAN
+                    fig_tag.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
                     st.plotly_chart(fig_tag, use_container_width=True)
                 else:
                     st.info("Belum ada data Tag Prospek untuk divisualisasikan.")
@@ -1533,7 +1563,6 @@ elif page == "📱 DM SOSMED":
         
         submit_dm = st.form_submit_button("💾 Simpan Data DM", use_container_width=True)
         
-        # LOGIKA KETIKA TOMBOL DISIMPAN
         if submit_dm:
             if username.strip() == "":
                 st.warning("⚠️ Nama / Username wajib diisi!")
@@ -1565,15 +1594,14 @@ elif page == "📱 DM SOSMED":
                     try:
                         append_sheet_rows(5, [data_dm_baru])
                         st.success(f"✅ Mantap! Data {username} dari {platform} berhasil disimpan.")
-                        st.cache_data.clear() # Membersihkan memori
-                        st.rerun() # ME-REFRESH HALAMAN OTOMATIS AGAR GRAFIK DI ATAS BERUBAH
+                        st.cache_data.clear() 
+                        st.rerun() 
                     except Exception as e:
                         st.error(f"Terjadi kesalahan saat mengeksekusi data: {e}")
                         
     # --- 3. MENAMPILKAN TABEL DATABASE DI BAWAH ---
     if not df_dm.empty:
         st.markdown('<div class="feature-header">📑 Tabel Database Terkini</div>', unsafe_allow_html=True)
-        # Tampilkan data dengan menyembunyikan kolom bantuan 'Bulan'
         st.dataframe(df_filtered.drop(columns=['Bulan'], errors='ignore'), use_container_width=True, hide_index=True)
 
 if __name__ == "__main__":
