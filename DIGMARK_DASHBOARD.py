@@ -1252,7 +1252,6 @@ elif page == "💬 WA ADMIN REPORT":
     except Exception as e:
         st.error(f"Kesalahan Teknis: {e}")
 # --- HALAMAN 5: DATABASE NOMOR (CRM) ---
-# --- HALAMAN 5: DATABASE NOMOR (CRM) ---
 elif page == "📂 DATABASE NOMOR":
     st.title("🗂️ CRM & DETAILED LEAD DATABASE")
     
@@ -1353,10 +1352,23 @@ elif page == "📂 DATABASE NOMOR":
 
             st.markdown('<div class="feature-header">📑 Management Database CRM</div>', unsafe_allow_html=True)
             
-            # Metrik
-            col_m1, col_m2 = st.columns(2)
+            # --- PENAMBAHAN FITUR METRIK TREATMENT ---
+            # Pastikan kolom Treatment ada untuk mencegah error
+            if 'Treatment 1' not in filtered_crm.columns:
+                filtered_crm['Treatment 1'] = ""
+            if 'Treatment 2' not in filtered_crm.columns:
+                filtered_crm['Treatment 2'] = ""
+                
+            # Menghitung jumlah yang tidak kosong di kolom Treatment
+            count_t1 = len(filtered_crm[filtered_crm['Treatment 1'].astype(str).str.strip() != ''])
+            count_t2 = len(filtered_crm[filtered_crm['Treatment 2'].astype(str).str.strip() != ''])
+
+            # Menampilkan 4 Kolom Metrik
+            col_m1, col_m2, col_m3, col_m4 = st.columns(4)
             col_m1.metric("Prospek Terfilter", len(filtered_crm))
             col_m2.metric("Total Database", len(df_crm))
+            col_m3.metric("Sudah Treatment 1 📢", count_t1)
+            col_m4.metric("Sudah Treatment 2 🚀", count_t2)
 
             st.dataframe(filtered_crm, use_container_width=True, hide_index=True)
         else:
