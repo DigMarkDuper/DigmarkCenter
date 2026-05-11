@@ -1422,92 +1422,92 @@ elif page == "📂 DATABASE NOMOR":
     except Exception as e:
         st.error(f"Gagal memuat data: {e}")
 # --- HALAMAN 6: DM SOSMED ---
-    elif page == "📱 DM SOSMED":
-        st.title("📥 Input & Tracker DM Sosmed")
-        st.markdown("Fitur untuk merekap calon siswa dari Instagram, TikTok, dan Facebook.")
+elif page == "📱 DM SOSMED":
+    st.title("📥 Input & Tracker DM Sosmed")
+    st.markdown("Fitur untuk merekap calon siswa dari Instagram, TikTok, dan Facebook.")
+    
+    # AREA FORM INPUT
+    with st.form("form_input_dm", clear_on_submit=True):
+        st.markdown("### 📝 Form Prospek Baru")
         
-        # AREA FORM INPUT
-        with st.form("form_input_dm", clear_on_submit=True):
-            st.markdown("### 📝 Form Prospek Baru")
+        c1, c2 = st.columns(2)
+        
+        with c1:
+            platform = st.selectbox("Platform 📱", ["Instagram", "Tiktok", "Facebook"])
+            username = st.text_input("Nama / Username 👤", placeholder="Contoh: @calonsiswa_123")
+            link_user = st.text_input("Link Username 🔗 (Opsional)", placeholder="https://instagram.com/...")
             
-            c1, c2 = st.columns(2)
+        with c2:
+            no_hp = st.text_input("No HP / WhatsApp ☎️ (Opsional)", placeholder="Contoh: 08123456789")
             
-            with c1:
-                platform = st.selectbox("Platform 📱", ["Instagram", "Tiktok", "Facebook"])
-                username = st.text_input("Nama / Username 👤", placeholder="Contoh: @calonsiswa_123")
-                link_user = st.text_input("Link Username 🔗 (Opsional)", placeholder="https://instagram.com/...")
-                
-            with c2:
-                no_hp = st.text_input("No HP / WhatsApp ☎️ (Opsional)", placeholder="Contoh: 08123456789")
-                
-                # Opsi Status (Sesuai gambar asli)
-                opsi_status = [
-                    "No Response", 
-                    "Follow Up", 
-                    "Daftar", 
-                    "Interview", 
-                    "Closing",
-                    "Lainya",
-                    "Sales Progress",
-                    "Withdraw",
-                    "Move ke Whatsapp",
-                ]
-                status_dm = st.selectbox("Status DM 📌", opsi_status)
-                
-                # --- FITUR BARU: KOLOM TAG TERPISAH ---
-                opsi_tag = [
-                    "- Pilih Tag -", # Default agar tidak otomatis terisi Not Eligible
-                    "NOT ELIGIBLE",
-                    "FUTURE PROSPECT",
-                    "HOT LEAD",
-                    "WARM LEAD",
-                    "COLD LEAD"
-                ]
-                tag_dm = st.selectbox("Tag Prospek 🏷️", opsi_tag)
+            # Opsi Status (Sesuai gambar asli)
+            opsi_status = [
+                "No Response", 
+                "Follow Up", 
+                "Daftar", 
+                "Interview", 
+                "Closing",
+                "Lainya",
+                "Sales Progress",
+                "Withdraw",
+                "Move ke Whatsapp",
+            ]
+            status_dm = st.selectbox("Status DM 📌", opsi_status)
             
-            st.markdown("---")
-            submit_dm = st.form_submit_button("💾 Simpan Data DM", use_container_width=True)
-            
-            # LOGIKA KETIKA TOMBOL DISIMPAN
-            if submit_dm:
-                if username.strip() == "":
-                    st.warning("⚠️ Nama / Username wajib diisi!")
-                else:
-                    with st.spinner("Menyimpan ke Spreadsheet..."):
-                        # Logika Auto-Convert 62 untuk No HP jika diisi
-                        if no_hp:
-                            no_hp_bersih = str(no_hp).replace("'", "").replace("+", "").replace("-", "").replace(" ", "").strip()
-                            if no_hp_bersih.startswith("0"):
-                                no_hp_bersih = "62" + no_hp_bersih[1:]
-                            no_hp_final = "'" + no_hp_bersih 
-                        else:
-                            no_hp_final = ""
-
-                        # Bersihkan pilihan default tag
-                        tag_final = "" if tag_dm == "- Pilih Tag -" else tag_dm
-
-                        # Struktur data SEKARANG ADA 7 KOLOM: No, Platform, Nama/Username, Link, No HP, Status, Tag
-                        data_dm_baru = [
-                            "",              # Kolom A: No
-                            platform,        # Kolom B: Platform
-                            username,        # Kolom C: Nama / Username
-                            link_user,       # Kolom D: Link Username
-                            no_hp_final,     # Kolom E: No HP / Whatsapp
-                            status_dm,       # Kolom F: Status
-                            tag_final        # Kolom G: Tag Kategori (KOLOM BARU)
-                        ]
-                        
-                        try:
-                            # Index 5 merujuk pada Tab ke-6 di Google Sheets
-                            if append_sheet_rows(5, [data_dm_baru]): 
-                                st.success(f"✅ Mantap! Data {username} dari {platform} berhasil disimpan.")
-                            else:
-                                st.error("❌ Gagal menyimpan. Cek kembali koneksi atau index tab-nya.")
-                        except Exception as e:
-                            st.error(f"Terjadi kesalahan sistem: {e}")
-                            
+            # --- FITUR BARU: KOLOM TAG TERPISAH ---
+            opsi_tag = [
+                "- Pilih Tag -", # Default agar tidak otomatis terisi Not Eligible
+                "NOT ELIGIBLE",
+                "FUTURE PROSPECT",
+                "HOT LEAD",
+                "WARM LEAD",
+                "COLD LEAD"
+            ]
+            tag_dm = st.selectbox("Tag Prospek 🏷️", opsi_tag)
+        
         st.markdown("---")
-        st.markdown("### 📊 Database DM Tersimpan")
+        submit_dm = st.form_submit_button("💾 Simpan Data DM", use_container_width=True)
+        
+        # LOGIKA KETIKA TOMBOL DISIMPAN
+        if submit_dm:
+            if username.strip() == "":
+                st.warning("⚠️ Nama / Username wajib diisi!")
+            else:
+                with st.spinner("Menyimpan ke Spreadsheet..."):
+                    # Logika Auto-Convert 62 untuk No HP jika diisi
+                    if no_hp:
+                        no_hp_bersih = str(no_hp).replace("'", "").replace("+", "").replace("-", "").replace(" ", "").strip()
+                        if no_hp_bersih.startswith("0"):
+                            no_hp_bersih = "62" + no_hp_bersih[1:]
+                        no_hp_final = "'" + no_hp_bersih 
+                    else:
+                        no_hp_final = ""
+
+                    # Bersihkan pilihan default tag
+                    tag_final = "" if tag_dm == "- Pilih Tag -" else tag_dm
+
+                    # Struktur data SEKARANG ADA 7 KOLOM: No, Platform, Nama/Username, Link, No HP, Status, Tag
+                    data_dm_baru = [
+                        "",              # Kolom A: No
+                        platform,        # Kolom B: Platform
+                        username,        # Kolom C: Nama / Username
+                        link_user,       # Kolom D: Link Username
+                        no_hp_final,     # Kolom E: No HP / Whatsapp
+                        status_dm,       # Kolom F: Status
+                        tag_final        # Kolom G: Tag Kategori (KOLOM BARU)
+                    ]
+                    
+                    try:
+                        # Index 5 merujuk pada Tab ke-6 di Google Sheets
+                        if append_sheet_rows(5, [data_dm_baru]): 
+                            st.success(f"✅ Mantap! Data {username} dari {platform} berhasil disimpan.")
+                        else:
+                            st.error("❌ Gagal menyimpan. Cek kembali koneksi atau index tab-nya.")
+                    except Exception as e:
+                        st.error(f"Terjadi kesalahan sistem: {e}")
+                        
+    st.markdown("---")
+    st.markdown("### 📊 Database DM Tersimpan")
 
 if __name__ == "__main__":
     if not st.runtime.exists():
