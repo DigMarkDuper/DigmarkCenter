@@ -1252,7 +1252,6 @@ elif page == "💬 WA ADMIN REPORT":
     except Exception as e:
         st.error(f"Kesalahan Teknis: {e}")
 # --- HALAMAN 5: DATABASE NOMOR (CRM) ---
-# --- HALAMAN 5: DATABASE NOMOR (CRM) ---
     elif page == "📂 DATABASE NOMOR":
         st.title("🗂️ CRM & DETAILED LEAD DATABASE")
         
@@ -1265,7 +1264,7 @@ elif page == "💬 WA ADMIN REPORT":
         c_sync, c_upload = st.columns([1, 1])
         with c_sync:
             st.markdown("### 🔄 Sinkronisasi")
-            if st.button("Tarik Data Unik dari WA Admin", use_container_width=True, key="sync_crm_final_v7"):
+            if st.button("Tarik Data Unik dari WA Admin", use_container_width=True, key="sync_crm_final_v8"):
                 sync_leads_to_crm() 
                 st.success("Berhasil sinkronisasi!")
                 st.rerun()
@@ -1281,16 +1280,16 @@ elif page == "💬 WA ADMIN REPORT":
                 with pd.ExcelWriter(buffer_template, engine='xlsxwriter') as writer:
                     df_template.to_excel(writer, index=False, sheet_name='Template')
                 
-                st.download_button(label="📥 Download Template Mekari", data=buffer_template.getvalue(), file_name="Template_CRM.xlsx", use_container_width=True, key="dl_final_v7")
+                st.download_button(label="📥 Download Template Mekari", data=buffer_template.getvalue(), file_name="Template_CRM.xlsx", use_container_width=True, key="dl_final_v8")
                 
                 # --- FITUR UPLOAD ---
-                uploaded_file = st.file_uploader("Upload file Excel", type=["xlsx"], key="up_final_v7")
+                uploaded_file = st.file_uploader("Upload file Excel", type=["xlsx"], key="up_final_v8")
                 if uploaded_file is not None:
                     try:
                         df_upload = pd.read_excel(uploaded_file)
                         df_upload.columns = [str(c).strip().lower() for c in df_upload.columns]
                         
-                        if st.button("📥 Konfirmasi Import Massal", use_container_width=True, key="conf_final_v7"):
+                        if st.button("📥 Konfirmasi Import Massal", use_container_width=True, key="conf_final_v8"):
                             with st.spinner("Mengirim data ke Google Sheets..."):
                                 tgl_hari_ini = datetime.date.today().strftime("%d-%m-%Y")
                                 df_upload = df_upload.fillna("")
@@ -1303,7 +1302,7 @@ elif page == "💬 WA ADMIN REPORT":
                                         "'" + str(row['phone_number']).strip(), # Kolom C (No Hp)
                                         str(row['company']).strip(),            # Kolom D (Domisili)
                                         "",                                     # Kolom E (DILONCATI: Tanggal Lahir)
-                                        "",                                     # Buffer (hapus jika meleset)
+                                        "",                                     # Buffer
                                         tgl_hari_ini                            # Kolom F/G (TANGGAL MASUK DATABASE)
                                     ]
                                     bulk_data.append(data_baris)
@@ -1337,18 +1336,18 @@ elif page == "💬 WA ADMIN REPORT":
 
                 # Filter UI
                 with st.expander("🔍 Filter Strategis Database", expanded=True):
-                    search_crm = st.text_input("🔎 Cari Nama/HP:", placeholder="Ketik...", key="search_final_v7")
+                    search_crm = st.text_input("🔎 Cari Nama/HP:", placeholder="Ketik...", key="search_final_v8")
                     c1, c2, c3 = st.columns(3)
                     with c1:
                         m_tag_col = 'Mekari Tag (Status Terakhir)'
                         opts_mekari = sorted(df_crm[m_tag_col].unique().tolist()) if m_tag_col in df_crm.columns else []
-                        sel_mekari = st.multiselect("Mekari Tag:", options=opts_mekari, key="f_mek_final_v7")
+                        sel_mekari = st.multiselect("Mekari Tag:", options=opts_mekari, key="f_mek_final_v8")
                     with c2:
                         opts_daerah = sorted(df_crm['Domisili'].unique().tolist()) if 'Domisili' in df_crm.columns else []
-                        sel_daerah = st.multiselect("Pilih Daerah:", options=opts_daerah, key="f_daer_final_v7")
+                        sel_daerah = st.multiselect("Pilih Daerah:", options=opts_daerah, key="f_daer_final_v8")
                     with c3:
                         opts_treatment = ["Belum Treatment", "Sudah Treatment 1", "Sudah Treatment 2"]
-                        sel_treatment = st.multiselect("Status Treatment:", options=opts_treatment, key="f_treat_final_v7")
+                        sel_treatment = st.multiselect("Status Treatment:", options=opts_treatment, key="f_treat_final_v8")
 
                 # Logika Filter
                 mask = pd.Series([True] * len(df_crm))
