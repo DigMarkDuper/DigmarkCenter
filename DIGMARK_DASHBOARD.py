@@ -645,23 +645,27 @@ if page == "🏠 HOMEPAGE":
             
             st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
             
-            # Grafik Bar (Full Width dengan Shadow)
+            # --- GRAFIK TREEMAP (Menggantikan Bar Chart) ---
             with st.container(border=True):
-                st.markdown("<div style='font-size:14px; color:gray; font-weight:bold; margin-bottom:10px;'>Top 10 Asal Leads Terbanyak</div>", unsafe_allow_html=True)
-                top_10_asal = asal_counts.head(10)
-                fig_bar = px.bar(top_10_asal, y='Lokasi', x='Jumlah', text_auto=True, orientation='h', color_discrete_sequence=[BRAND_BLUE])
-                fig_bar.update_layout(
-                    margin={"r":0,"t":0,"l":0,"b":0}, height=350, 
-                    xaxis_title="Jumlah Prospek (Leads)", yaxis_title="", 
-                    yaxis={'categoryorder':'total ascending'}, 
-                    paper_bgcolor='white', plot_bgcolor='white'
-                )
-                fig_bar.update_yaxes(tickfont=dict(color="#000000", size=11, family="Arial Black"))
-                st.plotly_chart(fig_bar, use_container_width=True)
+                st.markdown("<div style='font-size:14px; color:gray; font-weight:bold; margin-bottom:10px;'>📍 Sebaran Domisili Prospek (TreeMap)</div>", unsafe_allow_html=True)
+                if not asal_counts.empty:
+                    # Menggunakan asal_counts dan kolom 'Lokasi' agar datanya bersih dan seragam
+                    fig_asal = px.treemap(
+                        asal_counts, 
+                        path=[px.Constant("Seluruh Wilayah"), 'Lokasi'], 
+                        values='Jumlah',
+                        color='Jumlah', 
+                        color_continuous_scale='GnBu'
+                    )
+                    fig_asal.update_traces(textinfo="label+value", texttemplate="<b>%{label}</b><br>%{value} Leads")
+                    fig_asal.update_layout(height=500, margin=dict(t=10, l=10, r=10, b=10), coloraxis_showscale=False)
+                    st.plotly_chart(fig_asal, use_container_width=True)
+                else:
+                    st.info("Data Asal belum tersedia untuk dibuatkan TreeMap.")
         else:
             st.info("Data Asal belum tersedia untuk dipetakan.")
     except Exception as e:
-        st.error(f"Gagal memuat Peta: {e}")
+        st.error(f"Gagal memuat Peta/TreeMap: {e}")
 
     st.markdown("<br>", unsafe_allow_html=True)
         
