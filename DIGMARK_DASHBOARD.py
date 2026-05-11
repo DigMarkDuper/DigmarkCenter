@@ -1496,6 +1496,7 @@ elif page == "📂 DATABASE NOMOR":
         # Jika Ejak sudah punya fungsi untuk load data tab ini, bisa dipanggil di sini.
         # df_dm = load_database_dm() 
         # st.dataframe(df_dm, use_container_width=True)
+
 if __name__ == "__main__":
     if not st.runtime.exists():
         sys.argv = ["streamlit", "run", sys.argv[0]]
