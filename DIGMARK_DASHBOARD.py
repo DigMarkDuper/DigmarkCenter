@@ -644,8 +644,6 @@ if page == "🏠 HOMEPAGE":
                     st.warning("⚠️ Belum ada koordinat peta yang terdeteksi dari data Asal.")
             
             st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-    except Exception as e:
-        st.error(f"Gagal memuat peta: {e}")
             
             # Grafik Bar (Full Width dengan Shadow)
             with st.container(border=True):
