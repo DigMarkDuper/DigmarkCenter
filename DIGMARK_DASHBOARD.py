@@ -628,22 +628,24 @@ if page == "🏠 HOMEPAGE":
             asal_counts['Lat'], asal_counts['Lon'] = lats, lons
             map_data = asal_counts.dropna(subset=['Lat', 'Lon'])
             
-            # Peta (Full Width dengan Shadow)
+            # --- PETA FULL INDONESIA ---
             with st.container(border=True):
-                st.markdown("<div style='font-size:14px; color:gray; font-weight:bold; margin-bottom:10px;'>Titik Persebaran (Heatmap)</div>", unsafe_allow_html=True)
+                st.markdown("<div style='font-size:14px; color:gray; font-weight:bold; margin-bottom:10px;'>Titik Persebaran (Heatmap) - Seluruh Indonesia</div>", unsafe_allow_html=True)
                 if not map_data.empty:
                     fig_map = px.scatter_mapbox(
                         map_data, lat="Lat", lon="Lon", size="Jumlah", color="Jumlah", 
                         color_continuous_scale=["#FF8C00", "#FF0000", "#8B0000"], 
-                        size_max=50, zoom=5.0, center=dict(lat=-7.0, lon=110.0), 
+                        size_max=40, zoom=3.8, center=dict(lat=-2.5, lon=118.0), 
                         mapbox_style="carto-positron", hover_name="Lokasi", hover_data={"Lat":False, "Lon":False, "Jumlah":True}
                     )
-                    fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, height=400, coloraxis_showscale=False)
+                    fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, height=600, coloraxis_showscale=False)
                     st.plotly_chart(fig_map, use_container_width=True)
                 else:
                     st.warning("⚠️ Belum ada koordinat peta yang terdeteksi dari data Asal.")
             
             st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+    except Exception as e:
+        st.error(f"Gagal memuat peta: {e}")
             
             # Grafik Bar (Full Width dengan Shadow)
             with st.container(border=True):
