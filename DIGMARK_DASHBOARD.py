@@ -1427,6 +1427,20 @@ elif page == "📱 DM SOSMED":
     st.markdown("Fitur untuk merekap calon siswa dari Instagram, TikTok, dan Facebook.")
     
     import datetime
+    # METRIK RINGKASAN
+                m1, m2, m3, m4 = st.columns(4)
+                m1.metric("Total DM (Sesuai Filter)", len(df_filtered))
+                m2.metric("📸 Instagram", len(df_filtered[df_filtered['Platform'].astype(str).str.contains('Instagram', case=False)]))
+                m3.metric("🎵 TikTok", len(df_filtered[df_filtered['Platform'].astype(str).str.contains('Tiktok', case=False)]))
+                m4.metric("📘 Facebook", len(df_filtered[df_filtered['Platform'].astype(str).str.contains('Facebook', case=False)]))
+                
+                st.markdown('<div class="feature-header">📑 Tabel Database Terkini</div>', unsafe_allow_html=True)
+                # Tampilkan dataframe, sembunyikan kolom bantuan 'Bulan'
+                st.dataframe(df_filtered.drop(columns=['Bulan'], errors='ignore'), use_container_width=True, hide_index=True)
+            else:
+                st.info("Database DM masih kosong. Silakan input prospek pertama Anda di atas!")
+    except Exception as e:
+        st.error(f"Gagal memuat database ke layar: {e}")
     
     # AREA FORM INPUT
     with st.form("form_input_dm", clear_on_submit=True):
