@@ -1427,22 +1427,85 @@ elif page == "📱 DM SOSMED":
     st.markdown("Fitur untuk merekap calon siswa dari Instagram, TikTok, dan Facebook.")
     
     import datetime
-    # METRIK RINGKASAN
-                m1, m2, m3, m4 = st.columns(4)
-                m1.metric("Total DM (Sesuai Filter)", len(df_filtered))
-                m2.metric("📸 Instagram", len(df_filtered[df_filtered['Platform'].astype(str).str.contains('Instagram', case=False)]))
-                m3.metric("🎵 TikTok", len(df_filtered[df_filtered['Platform'].astype(str).str.contains('Tiktok', case=False)]))
-                m4.metric("📘 Facebook", len(df_filtered[df_filtered['Platform'].astype(str).str.contains('Facebook', case=False)]))
-                
-                st.markdown('<div class="feature-header">📑 Tabel Database Terkini</div>', unsafe_allow_html=True)
-                # Tampilkan dataframe, sembunyikan kolom bantuan 'Bulan'
-                st.dataframe(df_filtered.drop(columns=['Bulan'], errors='ignore'), use_container_width=True, hide_index=True)
-            else:
-                st.info("Database DM masih kosong. Silakan input prospek pertama Anda di atas!")
-    except Exception as e:
-        st.error(f"Gagal memuat database ke layar: {e}")
     
-    # AREA FORM INPUT
+    # --- 1. LOAD DATA & RINGKASAN DI ATAS ---
+    st.markdown("### 📊 Ringkasan Performa DM")
+    
+    df_dm = pd.DataFrame()
+    try:
+        client = init_connection()
+        if client:
+            # Mengambil data langsung dari Tab 6 (index 5)
+            sheet_dm = client.open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(5)
+            records_dm = sheet_dm.get_all_records()
+            if records_dm:
+                df_dm = pd.DataFrame(records_dm)
+    except Exception as e:
+        st.error(f"Gagal memuat database: {e}")
+
+    if not df_dm.empty:
+        df_dm = df_dm.fillna('')
+        
+        # Persiapan Kolom Filter (Mencari kolom tanggal)
+        kolom_tgl = "Tanggal Masuk" if "Tanggal Masuk" in df_dm.columns else df_dm.columns[-1]
+        try:
+            df_dm['Bulan'] = pd.to_datetime(df_dm[kolom_tgl], errors='coerce').dt.strftime('%Y-%m')
+            bulan_tersedia = sorted(df_dm['Bulan'].dropna().unique().tolist(), reverse=True)
+        except:
+            df_dm['Bulan'] = ''
+            bulan_tersedia = []
+
+        # FILTER UI
+        with st.expander("🔍 Filter Data Ringkasan", expanded=True):
+            c_filt1, c_filt2 = st.columns(2)
+            with c_filt1:
+                sel_bulan = st.multiselect("Pilih Bulan Masuk:", bulan_tersedia)
+            with c_filt2:
+                platforms_available = sorted(df_dm['Platform'].unique().tolist()) if 'Platform' in df_dm.columns else ["Instagram", "Tiktok", "Facebook"]
+                sel_plat = st.multiselect("Pilih Platform:", platforms_available)
+        
+        # Logika Filter
+        df_filtered = df_dm.copy()
+        if sel_bulan:
+            df_filtered = df_filtered[df_filtered['Bulan'].isin(sel_bulan)]
+        if sel_plat:
+            df_filtered = df_filtered[df_filtered['Platform'].isin(sel_plat)]
+        
+        # METRIK RINGKASAN ANGKA
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Total DM (Terfilter)", len(df_filtered))
+        m2.metric("📸 Instagram", len(df_filtered[df_filtered['Platform'].astype(str).str.contains('Instagram', case=False)]))
+        m3.metric("🎵 TikTok", len(df_filtered[df_filtered['Platform'].astype(str).str.contains('Tiktok', case=False)]))
+        m4.metric("📘 Facebook", len(df_filtered[df_filtered['Platform'].astype(str).str.contains('Facebook', case=False)]))
+        
+        # VISUALISASI PIE CHART
+        st.markdown("<br>", unsafe_allow_html=True)
+        c_pie1, c_pie2 = st.columns(2)
+        
+        with c_pie1:
+            kolom_status = 'Status DM' if 'Status DM' in df_filtered.columns else 'Status'
+            if kolom_status in df_filtered.columns and not df_filtered.empty:
+                fig_stat = px.pie(df_filtered, names=kolom_status, hole=0.4, title='📊 Distribusi Status DM')
+                fig_stat.update_traces(textposition='inside', textinfo='percent+label')
+                st.plotly_chart(fig_stat, use_container_width=True)
+        
+        with c_pie2:
+            kolom_tag = 'Tag Prospek' if 'Tag Prospek' in df_filtered.columns else 'Tag'
+            if kolom_tag in df_filtered.columns and not df_filtered.empty:
+                # Membuang data yang tag-nya kosong agar Pie Chart lebih rapi
+                df_tag = df_filtered[df_filtered[kolom_tag].astype(str).str.strip() != '']
+                if not df_tag.empty:
+                    fig_tag = px.pie(df_tag, names=kolom_tag, hole=0.4, title='🏷️ Distribusi Tag Prospek')
+                    fig_tag.update_traces(textposition='inside', textinfo='percent+label')
+                    st.plotly_chart(fig_tag, use_container_width=True)
+                else:
+                    st.info("Belum ada data Tag Prospek untuk divisualisasikan.")
+    else:
+        st.info("Database DM masih kosong. Visualisasi akan muncul setelah ada data pertama.")
+
+    st.markdown("---")
+
+    # --- 2. AREA FORM INPUT ---
     with st.form("form_input_dm", clear_on_submit=True):
         st.markdown("### 📝 Form Prospek Baru")
         
@@ -1457,29 +1520,17 @@ elif page == "📱 DM SOSMED":
             no_hp = st.text_input("No HP / WhatsApp ☎️ (Opsional)", placeholder="Contoh: 08123456789")
             
             opsi_status = [
-                "No Response", 
-                "Follow Up", 
-                "Daftar", 
-                "Interview", 
-                "Closing",
-                "Lainya",
-                "Sales Progress",
-                "Withdraw",
-                "Move ke Whatsapp",
+                "No Response", "Follow Up", "Daftar", "Interview", 
+                "Closing", "Lainya", "Sales Progress", "Withdraw", "Move ke Whatsapp"
             ]
             status_dm = st.selectbox("Status DM 📌", opsi_status)
             
             opsi_tag = [
-                "- Pilih Tag -", 
-                "NOT ELIGIBLE",
-                "FUTURE PROSPECT",
-                "HOT LEAD",
-                "WARM LEAD",
-                "COLD LEAD"
+                "- Pilih Tag -", "NOT ELIGIBLE", "FUTURE PROSPECT", 
+                "HOT LEAD", "WARM LEAD", "COLD LEAD"
             ]
             tag_dm = st.selectbox("Tag Prospek 🏷️", opsi_tag)
         
-        st.markdown("---")
         submit_dm = st.form_submit_button("💾 Simpan Data DM", use_container_width=True)
         
         # LOGIKA KETIKA TOMBOL DISIMPAN
@@ -1488,7 +1539,6 @@ elif page == "📱 DM SOSMED":
                 st.warning("⚠️ Nama / Username wajib diisi!")
             else:
                 with st.spinner("Menyimpan ke Spreadsheet..."):
-                    # Auto-Generate Link
                     if link_user.strip() == "":
                         uname_clean = username.strip().replace("@", "")
                         if platform == "Instagram": link_final = f"https://instagram.com/{uname_clean}"
@@ -1498,7 +1548,6 @@ elif page == "📱 DM SOSMED":
                     else:
                         link_final = link_user.strip()
 
-                    # Auto-Convert 62
                     if no_hp:
                         no_hp_bersih = str(no_hp).replace("'", "").replace("+", "").replace("-", "").replace(" ", "").strip()
                         if no_hp_bersih.startswith("0"): no_hp_bersih = "62" + no_hp_bersih[1:]
@@ -1507,11 +1556,8 @@ elif page == "📱 DM SOSMED":
                         no_hp_final = ""
 
                     tag_final = "" if tag_dm == "- Pilih Tag -" else tag_dm
-                    
-                    # FITUR BARU: Tanggal Masuk Otomatis
                     tgl_hari_ini = datetime.date.today().strftime("%Y-%m-%d")
 
-                    # Struktur data ADA 8 KOLOM SEKARANG (Ditambah Tanggal di ujung)
                     data_dm_baru = [
                         "", platform, username, link_final, no_hp_final, status_dm, tag_final, tgl_hari_ini
                     ]
@@ -1519,69 +1565,16 @@ elif page == "📱 DM SOSMED":
                     try:
                         append_sheet_rows(5, [data_dm_baru])
                         st.success(f"✅ Mantap! Data {username} dari {platform} berhasil disimpan.")
-                        st.cache_data.clear() # Me-refresh cache agar tabel di bawah langsung terupdate
+                        st.cache_data.clear() # Membersihkan memori
+                        st.rerun() # ME-REFRESH HALAMAN OTOMATIS AGAR GRAFIK DI ATAS BERUBAH
                     except Exception as e:
                         st.error(f"Terjadi kesalahan saat mengeksekusi data: {e}")
                         
-    st.markdown("---")
-    
-    # --- MENAMPILKAN DATABASE & FILTER ---
-    st.markdown("### 📊 Ringkasan & Database DM")
-    
-    try:
-        client = init_connection() # Memanggil fungsi koneksi di atas
-        if client:
-            # Mengambil data langsung dari Tab 6 (index 5)
-            sheet_dm = client.open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(5)
-            records_dm = sheet_dm.get_all_records()
-            df_dm = pd.DataFrame(records_dm)
-            
-            if not df_dm.empty:
-                df_dm = df_dm.fillna('')
-                
-                # Memastikan kolom tanggal ada untuk filter bulan
-                kolom_tgl = "Tanggal Masuk"
-                if kolom_tgl not in df_dm.columns:
-                    kolom_tgl = df_dm.columns[-1] # Fallback jika namanya beda
-                
-                # Buat kolom bantuan 'Bulan' untuk filter
-                try:
-                    df_dm['Bulan'] = pd.to_datetime(df_dm[kolom_tgl], errors='coerce').dt.strftime('%Y-%m')
-                    bulan_tersedia = sorted(df_dm['Bulan'].dropna().unique().tolist(), reverse=True)
-                except:
-                    df_dm['Bulan'] = ''
-                    bulan_tersedia = []
-
-                # FILTER UI
-                with st.expander("🔍 Filter Data", expanded=True):
-                    c_filt1, c_filt2 = st.columns(2)
-                    with c_filt1:
-                        sel_bulan = st.multiselect("Pilih Bulan Masuk:", bulan_tersedia)
-                    with c_filt2:
-                        platforms_available = sorted(df_dm['Platform'].unique().tolist()) if 'Platform' in df_dm.columns else ["Instagram", "Tiktok", "Facebook"]
-                        sel_plat = st.multiselect("Pilih Platform:", platforms_available)
-                
-                # Logika Filter
-                df_filtered = df_dm.copy()
-                if sel_bulan:
-                    df_filtered = df_filtered[df_filtered['Bulan'].isin(sel_bulan)]
-                if sel_plat:
-                    df_filtered = df_filtered[df_filtered['Platform'].isin(sel_plat)]
-                
-                # METRIK RINGKASAN
-                m1, m2, m3, m4 = st.columns(4)
-                m1.metric("Total DM (Sesuai Filter)", len(df_filtered))
-                m2.metric("📸 Instagram", len(df_filtered[df_filtered['Platform'].astype(str).str.contains('Instagram', case=False)]))
-                m3.metric("🎵 TikTok", len(df_filtered[df_filtered['Platform'].astype(str).str.contains('Tiktok', case=False)]))
-                m4.metric("📘 Facebook", len(df_filtered[df_filtered['Platform'].astype(str).str.contains('Facebook', case=False)]))
-                
-                st.markdown('<div class="feature-header">📑 Tabel Database Terkini</div>', unsafe_allow_html=True)
-                # Tampilkan dataframe, sembunyikan kolom bantuan 'Bulan'
-                st.dataframe(df_filtered.drop(columns=['Bulan'], errors='ignore'), use_container_width=True, hide_index=True)
-            else:
-                st.info("Database DM masih kosong. Silakan input prospek pertama Anda di atas!")
-    except Exception as e:
-        st.error(f"Gagal memuat database ke layar: {e}")
+    # --- 3. MENAMPILKAN TABEL DATABASE DI BAWAH ---
+    if not df_dm.empty:
+        st.markdown('<div class="feature-header">📑 Tabel Database Terkini</div>', unsafe_allow_html=True)
+        # Tampilkan data dengan menyembunyikan kolom bantuan 'Bulan'
+        st.dataframe(df_filtered.drop(columns=['Bulan'], errors='ignore'), use_container_width=True, hide_index=True)
 
 if __name__ == "__main__":
     if not st.runtime.exists():
