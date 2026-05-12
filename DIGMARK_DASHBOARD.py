@@ -242,33 +242,37 @@ def check_password():
     if st.session_state.get("password_correct"): 
         return True
     
-    # Render Background di halaman login
+    # Render Background agar muncul di halaman login
     set_bg_local('bg.png') 
     
     _, col_mid, _ = st.columns([1, 2, 1])
     with col_mid:
-        # Perubahan Judul di sini
+        # Panel Login Box
         st.markdown(f'''
-            <div style="text-align:center; background-color: rgba(255,255,255,0.8); padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
-                <img src="{LOGO_URL}" width="180">
-                <h2 style="color: #8B0000; margin-top: 15px;">DIGITAL MARKETING DASHBOARD</h2>
+            <div style="text-align:center; background-color: rgba(255,255,255,0.9); 
+                        padding: 40px 20px; border-radius: 20px; 
+                        box-shadow: 0 10px 25px rgba(0,0,0,0.2); margin-top: 50px;">
+                
+                <img src="{LOGO_URL}" width="200" style="mix-blend-mode: multiply; margin-bottom: 20px;">
+                
+                <h2 style="color: #8B0000; font-weight: 800; letter-spacing: 1px; font-size: 24px; margin-bottom: 5px;">
+                    DIGITAL MARKETING DASHBOARD
+                </h2>
+                <p style="color: #666; font-size: 14px; margin-bottom: 20px;">LPK Duta Persada Yogyakarta</p>
             </div>
         ''', unsafe_allow_html=True)
         
+        # Form login diletakkan di bawah atau di dalam div (disarankan pakai container agar rapi)
         with st.form("login_form"):
-            user = st.text_input("Username:").strip().lower()
-            pwd = st.text_input("Password:", type="password")
-            if st.form_submit_button("Masuk"):
+            user = st.text_input("Username").strip().lower()
+            pwd = st.text_input("Password", type="password")
+            if st.form_submit_button("MASUK SISTEM", use_container_width=True):
                 if "credentials" in st.secrets and user in st.secrets["credentials"] and st.secrets["credentials"][user] == pwd:
                     st.session_state["password_correct"] = True
                     st.rerun()
                 else: 
                     st.error("Username/Password Salah")
     return False
-
-# Jalankan Login Check
-if not check_password():
-    st.stop()
 
 # Jika sudah login, set background lagi untuk halaman utama (opsional jika ingin background yang sama)
 set_bg_local('bg.png')
