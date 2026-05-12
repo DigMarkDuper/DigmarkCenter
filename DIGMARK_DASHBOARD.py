@@ -7,6 +7,49 @@ import plotly.graph_objects as go
 import base64
 import datetime
 import sys
+
+# =====================================================================
+# SYSTEM OPTIMIZATION: BATCH LOADING & GLOBAL CACHING
+# =====================================================================
+
+@st.cache_data(ttl=600)
+def fetch_all_master_data():
+    """Menarik semua tab sekaligus dalam 1 koneksi untuk efisiensi API"""
+    client = init_connection()
+    if not client: return None
+    try:
+        master = client.open("MASTER DATA DIGITAL MARKETING 2.0")
+        def get_df(idx):
+            try:
+                data = master.get_worksheet(idx).get_all_records()
+                return pd.DataFrame(data) if data else pd.DataFrame()
+            except: return pd.DataFrame()
+        
+        return {
+            0: get_df(0), 1: get_df(1), 2: get_df(2), 
+            3: get_df(3), 4: get_df(4), 6: get_df(6), 
+            7: get_df(7), 8: get_df(8)
+        }
+    except Exception as e:
+        st.error(f"Gagal Sinkronisasi Master: {e}")
+        return None
+
+# Override fungsi load lama agar mengambil dari bundle (tanpa merubah nama fungsi)
+def get_from_bundle(idx):
+    if 'bundle' not in st.session_state or st.session_state.bundle is None:
+        st.session_state.bundle = fetch_all_master_data()
+    return st.session_state.bundle.get(idx, pd.DataFrame()).copy()
+
+def load_sosmed(): return get_from_bundle(0)
+def load_website(): return get_from_bundle(1)
+def load_insight(): return get_from_bundle(2)
+def load_wa_admin(): 
+    df = get_from_bundle(3)
+    # Tetap jalankan logika pembersihan data hantu yang spesifik di sini
+    kolom_penting = [col for col in ['Tanggal Masuk', 'No Hp', 'Status'] if col in df.columns]
+    if kolom_penting: df = df.dropna(subset=kolom_penting, how='all')
+    return df
+def load_database_nomor(): return get_from_bundle(4)
 @st.cache_resource
 def init_connection():
     """Membuka kunci akses ke Google Sheets menggunakan Secrets"""
@@ -29,7 +72,7 @@ def append_sheet_rows(sheet_index, all_data_list):
             spreadsheet = client.open("MASTER DATA DIGITAL MARKETING 2.0")
             sheet = spreadsheet.get_worksheet(sheet_index)
             # Menggunakan append_rows (dengan 's') untuk batch update
-            sheet.append_rows(all_data_list)
+            cleaned_data = [[str(x) if not isinstance(x, (int, float)) else x for x in row] for row in all_data_list]\n            sheet.append_rows(cleaned_data, value_input_option='USER_ENTERED')
         except Exception as e:
             st.error(f"Gagal batch update ke Google Sheets: {e}")
 
