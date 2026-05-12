@@ -978,21 +978,20 @@ elif page == "🌐 WEBSITE AUDIT":
     except Exception as e:
         st.error(f"Kesalahan Teknis Website: {e}")
 
-# --- HALAMAN 3: INSIGHTS & ANALYTICS (ULTRA-SMART IMPORTER) ---
+# --- HALAMAN 3: INSIGHTS & ANALYTICS ---
 if page == "📈 INSIGHTS & ANALYTICS":
     st.title("📈 PERFORMA & ANALITIK KONTEN")
     
     with st.expander("🚀 Ultra-Smart Importer (TikTok & Instagram)", expanded=True):
-        st.info("💡 Upload file Overview TikTok & CSV Instagram sekaligus. Sistem akan menggabungkannya otomatis.")
+        st.info("💡 Upload file Overview TikTok & CSV Instagram sekaligus.")
         files = st.file_uploader("Pilih file CSV", type=["csv"], accept_multiple_files=True)
         
         if files:
-            all_data = []
+            all_processed = []
             ig_frames = []
             logs = []
 
             for f in files:
-                # FIX UNICODE ERROR: Coba berbagai encoding
                 try:
                     raw_bytes = f.getvalue()
                     try: content = raw_bytes.decode("utf-8").splitlines()
@@ -1002,20 +1001,19 @@ if page == "📈 INSIGHTS & ANALYTICS":
                     
                     f_name = f.name.lower()
                     
-                    # LOGIKA TIKTOK
                     if "overview" in f_name:
                         df_tk = pd.read_csv(io.StringIO("\n".join(content)))
                         if 'Video Views' in df_tk.columns:
                             res = pd.DataFrame()
                             res['Date'] = pd.to_datetime(df_tk['Date']).dt.strftime('%d-%m-%Y')
-                            res['Platform'] = 'TikTok'; res['View'] = df_tk['Video Views']
+                            res['Platform'] = 'TikTok'
+                            res['View'] = df_tk['Video Views']
                             res['Reach'] = df_tk['Video Views']
                             res['Interaction'] = df_tk['Likes'] + df_tk['Comments'] + df_tk['Shares']
                             res['Profile Visit'] = df_tk['Profile Views']
                             res['Link Clicks'] = 0; res['Follow'] = 0
-                            all_data.append(res); logs.append(f"✅ TikTok: {f.name}")
+                            all_processed.append(res); logs.append(f"✅ TikTok: {f.name}")
                     
-                    # LOGIKA INSTAGRAM
                     else:
                         label = ""
                         for line in content[:5]:
@@ -1043,24 +1041,23 @@ if page == "📈 INSIGHTS & ANALYTICS":
                 m_ig['Platform'] = 'Instagram'
                 for c in ["View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]:
                     if c not in m_ig.columns: m_ig[c] = 0
-                all_data.append(m_ig.fillna(0))
+                all_processed.append(m_ig.fillna(0))
 
-            if all_data:
-                df_final = pd.concat(all_data, ignore_index=True)
-                st.write("🔍 **Preview Data Gabungan:**")
+            if all_processed:
+                df_final = pd.concat(all_processed, ignore_index=True)
                 st.dataframe(df_final.head(10), use_container_width=True)
-                if st.button("🚀 KIRIM KE TAB INSIGHT (TAB 3)", use_container_width=True):
-                    # Kirim ke Tab Index 2 (Urutan ke-3 di GSheets)
-                    rows = df_final[["Date", "Platform", "View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]].values.tolist()
-                    if append_sheet_rows(2, rows):
-                        st.success("Berhasil diimpor!"); st.cache_data.clear(); st.rerun()
+                if st.button("🚀 KONFIRMASI SIMPAN KE TAB INSIGHT", use_container_width=True):
+                    final_list = df_final[["Date", "Platform", "View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]].values.tolist()
+                    if append_sheet_rows(2, final_list):
+                        st.success("Data berhasil masuk!"); st.cache_data.clear(); st.rerun()
 
-    # Visualisasi Insight
-    df_in = st.session_state.bundle.get(2, pd.DataFrame())
+    # Tampilkan Data dari Bundle secara aman
+    df_in = bundle_data.get(2, pd.DataFrame())
     if not df_in.empty:
-        st.markdown("### 🎯 Performa Konten")
-        st.dataframe(df_in.tail(10), use_container_width=True)
-    else: st.info("Database Insight Kosong.")
+        st.markdown("### 🎯 Data Historis Content Insight")
+        st.dataframe(df_in.tail(15), use_container_width=True, hide_index=True)
+    else:
+        st.info("Database Insight masih kosong atau sedang sinkron.")
 
 # --- HALAMAN 4: WA ADMIN REPORT ---
 elif page == "💬 WA ADMIN REPORT":
