@@ -1511,7 +1511,7 @@ elif page == "📈 ADS ANALYTICS":
     # --- 2. UPLOAD AREA ---
     with st.container(border=True):
         st.markdown("### 📤 Upload Laporan Ads Baru")
-        st.info("💡 Data yang diunggah akan **ditambahkan** ke database utama di atas.")
+        st.info("💡 Sistem ini sudah kebal terhadap baris 'Total' bawaan dari TikTok.")
         
         uploaded_ads = st.file_uploader("Upload File Laporan TikTok Ads", type=['csv', 'xlsx'], key="up_ads")
         
@@ -1523,13 +1523,10 @@ elif page == "📈 ADS ANALYTICS":
                 else:
                     df_ads = pd.read_excel(uploaded_ads)
                 
-                # --- FILTER PALING AMPUH: PENDETEKSI AWALAN "Total" ---
-                # Mengambil nama kolom pertama (biasanya 'Ad name' atau 'Campaign name')
-                col_pertama = df_ads.columns[0]
-                
-                # Membuang baris yang kolom pertamanya diawali dengan kata "Total" (case-insensitive)
-                # Ini akan menyingkirkan "Total", "Total of X results", dll.
-                df_ads_bersih = df_ads[~df_ads[col_pertama].astype(str).str.strip().str.lower().str.startswith('total')].copy()
+                # --- FILTER SAPU JAGAT PENDETEKSI KATA "TOTAL" ---
+                # Cek ke SEMUA sel di baris tersebut. Jika ada kata "total" (mau itu "Total", "total of 39 results", dsb), langsung dibuang!
+                mask_total = df_ads.apply(lambda row: row.astype(str).str.contains('total', case=False, na=False).any(), axis=1)
+                df_ads_bersih = df_ads[~mask_total].copy()
                 
                 # Hitung budget yang mau masuk dari data yang sudah bersih
                 df_calc_up = df_ads_bersih.copy()
@@ -1541,9 +1538,9 @@ elif page == "📈 ADS ANALYTICS":
                     df_calc_up[col_cost_up] = pd.to_numeric(df_calc_up[col_cost_up], errors='coerce').fillna(0)
                     up_spend = df_calc_up[col_cost_up].sum()
                     
-                st.success(f"✅ File siap! Budget yang akan ditambahkan: **Rp {up_spend:,.0f}**. Tekan Import untuk menyatukan ke Database.")
+                st.success(f"✅ File siap! Budget Murni yang akan ditambahkan: **Rp {up_spend:,.0f}**.")
                 
-                with st.expander("Preview File yang Akan Diimpor (Tanpa Baris Total)", expanded=False):
+                with st.expander("Preview File yang Akan Diimpor (Baris Total Sudah Hilang!)", expanded=False):
                     st.dataframe(df_ads_bersih, use_container_width=True)
 
                 if st.button("📥 Import Data Ini ke Spreadsheet", use_container_width=True):
@@ -1568,11 +1565,28 @@ elif page == "📈 ADS ANALYTICS":
             except Exception as e:
                 st.error(f"Gagal membaca file upload: {e}")
 
-    # --- 3. TABEL DATABASE SPREADSHEET (PREVIEW) ---
+    # --- 3. TABEL DATABASE SPREADSHEET (PREVIEW & RESET) ---
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("### 📑 Database Iklan Tersimpan")
+    
     if not df_ads_db.empty:
         st.dataframe(df_ads_db, use_container_width=True, hide_index=True)
+        
+        # --- TOMBOL SAKTI: RESET DATABASE ---
+        st.markdown("<br>", unsafe_allow_html=True)
+        with st.expander("⚠️ Zona Bahaya (Reset Database)"):
+            st.warning("Jika angka di atas terasa salah/dobel, tekan tombol di bawah ini untuk menghapus seluruh data Ads di Spreadsheet dan memulai dari awal.")
+            if st.button("🗑️ Kosongkan Database Ads", use_container_width=True):
+                try:
+                    with st.spinner("Sedang membersihkan Spreadsheet..."):
+                        client = init_connection()
+                        sheet_ads_reset = client.open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(6)
+                        sheet_ads_reset.clear() # Menghapus bersih tab ke-7
+                        st.success("✅ Database Ads berhasil dikosongkan! Halaman akan dimuat ulang...")
+                        st.cache_data.clear()
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"Gagal mengosongkan database: {e}")
     else:
         st.info("Tab 'report ads tiktok' saat ini masih kosong. Silakan import laporan pertama Anda.")
 
