@@ -978,135 +978,89 @@ elif page == "🌐 WEBSITE AUDIT":
     except Exception as e:
         st.error(f"Kesalahan Teknis Website: {e}")
 
-# --- HALAMAN 3: INSIGHTS & ANALYTICS (FIXED VERSION) ---
-elif page == "📈 INSIGHTS & ANALYTICS":
+# --- HALAMAN 3: INSIGHTS & ANALYTICS (ULTRA-SMART IMPORTER) ---
+if page == "📈 INSIGHTS & ANALYTICS":
     st.title("📈 PERFORMA & ANALITIK KONTEN")
-    st.markdown("---")
     
-    import io
-    import pandas as pd
-
-    # 1. SMART IMPORTER (TAB KE-3 / INDEX 2)
     with st.expander("🚀 Ultra-Smart Importer (TikTok & Instagram)", expanded=True):
-        st.info("💡 Pilih semua file CSV sekaligus. Tombol konfirmasi akan muncul otomatis jika file terbaca.")
+        st.info("💡 Upload file Overview TikTok & CSV Instagram sekaligus. Sistem akan menggabungkannya otomatis.")
+        files = st.file_uploader("Pilih file CSV", type=["csv"], accept_multiple_files=True)
         
-        uploaded_files = st.file_uploader("Upload CSV di sini", type=["csv"], accept_multiple_files=True, key="smart_v3")
-        
-        if uploaded_files:
-            all_processed_data = []
+        if files:
+            all_data = []
             ig_frames = []
-            
-            # Tracker untuk memberi tahu user apa yang sedang terjadi
-            status_logs = []
+            logs = []
 
-            for file in uploaded_files:
-                f_name = file.name.lower()
-                
-                # Membaca mentah untuk deteksi header
-                content = file.getvalue().decode("utf-8").splitlines()
-                
-                # A. LOGIKA TIKTOK (Mencari kolom 'Video Views')
-                if "overview" in f_name:
-                    try:
-                        df_tk = pd.read_csv(file)
+            for f in files:
+                # FIX UNICODE ERROR: Coba berbagai encoding
+                try:
+                    raw_bytes = f.getvalue()
+                    try: content = raw_bytes.decode("utf-8").splitlines()
+                    except:
+                        try: content = raw_bytes.decode("utf-8-sig").splitlines()
+                        except: content = raw_bytes.decode("latin-1").splitlines()
+                    
+                    f_name = f.name.lower()
+                    
+                    # LOGIKA TIKTOK
+                    if "overview" in f_name:
+                        df_tk = pd.read_csv(io.StringIO("\n".join(content)))
                         if 'Video Views' in df_tk.columns:
-                            res_tk = pd.DataFrame()
-                            res_tk['Date'] = pd.to_datetime(df_tk['Date']).dt.strftime('%d-%m-%Y')
-                            res_tk['Platform'] = 'TikTok'
-                            res_tk['View'] = df_tk['Video Views']
-                            res_tk['Reach'] = df_tk['Video Views']
-                            res_tk['Interaction'] = df_tk['Likes'] + df_tk['Comments'] + df_tk['Shares']
-                            res_tk['Profile Visit'] = df_tk['Profile Views']
-                            res_tk['Link Clicks'] = 0
-                            res_tk['Follow'] = 0
-                            all_processed_data.append(res_tk)
-                            status_logs.append(f"✅ TikTok: {file.name}")
-                    except: status_logs.append(f"❌ TikTok Error: {file.name}")
-
-                # B. LOGIKA INSTAGRAM (Mencari Label di Baris 1 atau 2)
-                else:
-                    try:
-                        # Mencari label metric di 5 baris pertama (antisipasi format meta yang berubah)
+                            res = pd.DataFrame()
+                            res['Date'] = pd.to_datetime(df_tk['Date']).dt.strftime('%d-%m-%Y')
+                            res['Platform'] = 'TikTok'; res['View'] = df_tk['Video Views']
+                            res['Reach'] = df_tk['Video Views']
+                            res['Interaction'] = df_tk['Likes'] + df_tk['Comments'] + df_tk['Shares']
+                            res['Profile Visit'] = df_tk['Profile Views']
+                            res['Link Clicks'] = 0; res['Follow'] = 0
+                            all_data.append(res); logs.append(f"✅ TikTok: {f.name}")
+                    
+                    # LOGIKA INSTAGRAM
+                    else:
                         label = ""
                         for line in content[:5]:
-                            clean_line = line.replace('"', '').replace('sep=', '').strip()
-                            if clean_line in ["Reach", "Views", "Instagram profile visits", "Content interactions", "Instagram link clicks", "Instagram follows"]:
-                                label = clean_line
-                                break
+                            c_line = line.replace('"', '').replace('sep=', '').strip()
+                            if c_line in ["Reach", "Views", "Instagram profile visits", "Content interactions", "Instagram link clicks", "Instagram follows"]:
+                                label = c_line; break
                         
-                        # Mapping Label ke Kolom Dashboard
-                        mapping = {
-                            "Reach": "Reach", "Views": "View", 
-                            "Instagram profile visits": "Profile Visit",
-                            "Content interactions": "Interaction",
-                            "Instagram link clicks": "Link Clicks",
-                            "Instagram follows": "Follow"
-                        }
-                        
+                        mapping = {"Reach":"Reach", "Views":"View", "Instagram profile visits":"Profile Visit", "Content interactions":"Interaction", "Instagram link clicks":"Link Clicks", "Instagram follows":"Follow"}
                         target = mapping.get(label)
                         if target:
-                            # Cari baris di mana data "Date,Primary" dimulai
-                            skip_n = 0
-                            for i, line in enumerate(content):
-                                if "Date,Primary" in line:
-                                    skip_n = i
-                                    break
-                            
-                            df_ig = pd.read_csv(io.StringIO("\n".join(content[skip_n:])))
-                            if 'Date' in df_ig.columns:
-                                df_ig['Date'] = pd.to_datetime(df_ig['Date']).dt.strftime('%d-%m-%Y')
-                                ig_frames.append(df_ig[['Date', 'Primary']].rename(columns={'Primary': target}))
-                                status_logs.append(f"✅ Instagram {target}: {file.name}")
-                    except: status_logs.append(f"❌ IG Error: {file.name}")
+                            skip = 0
+                            for i, l in enumerate(content):
+                                if "Date,Primary" in l: skip = i; break
+                            df_ig = pd.read_csv(io.StringIO("\n".join(content[skip:])))
+                            df_ig['Date'] = pd.to_datetime(df_ig['Date']).dt.strftime('%d-%m-%Y')
+                            ig_frames.append(df_ig[['Date', 'Primary']].rename(columns={'Primary': target}))
+                            logs.append(f"✅ Instagram {target}: {f.name}")
+                except Exception as e: logs.append(f"❌ Error {f.name}: {e}")
 
-            # Menampilkan Log Proses
-            for log in status_logs:
-                st.caption(log)
+            for l in logs: st.caption(l)
 
-            # Gabungkan Data Instagram (Jika ada beberapa file IG yang diupload)
             if ig_frames:
-                df_ig_merged = ig_frames[0]
-                for d in ig_frames[1:]:
-                    df_ig_merged = pd.merge(df_ig_merged, d, on='Date', how='outer')
-                
-                df_ig_merged['Platform'] = 'Instagram'
-                # Pastikan semua kolom dashboard ada
-                for col in ["View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]:
-                    if col not in df_ig_merged.columns: df_ig_merged[col] = 0
-                
-                all_processed_data.append(df_ig_merged.fillna(0))
+                m_ig = ig_frames[0]
+                for d in ig_frames[1:]: m_ig = pd.merge(m_ig, d, on='Date', how='outer')
+                m_ig['Platform'] = 'Instagram'
+                for c in ["View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]:
+                    if c not in m_ig.columns: m_ig[c] = 0
+                all_data.append(m_ig.fillna(0))
 
-            # TAMPILKAN PREVIEW & TOMBOL KONFIRMASI
-            if all_processed_data:
-                df_ready = pd.concat(all_processed_data, ignore_index=True)
-                st.write("### Preview Data Gabungan")
-                st.dataframe(df_ready.head(10), use_container_width=True)
-                
-                if st.button("🚀 KIRIM SEMUA DATA KE GOOGLE SHEETS", use_container_width=True):
-                    # Urutan kolom: Date, Platform, View, Reach, Interaction, Profile Visit, Link Clicks, Follow
-                    final_rows = df_ready[["Date", "Platform", "View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]].values.tolist()
-                    
-                    # Kirim ke Tab Index 2 (Tab ke-3)
-                    if append_sheet_rows(2, final_rows):
-                        st.success(f"🔥 Selesai! {len(final_rows)} data berhasil masuk ke Tab Insight.")
-                        st.cache_data.clear()
-                        st.rerun()
-            else:
-                st.warning("⚠️ File tidak dikenali. Pastikan file adalah export asli dari TikTok/Meta.")
+            if all_data:
+                df_final = pd.concat(all_data, ignore_index=True)
+                st.write("🔍 **Preview Data Gabungan:**")
+                st.dataframe(df_final.head(10), use_container_width=True)
+                if st.button("🚀 KIRIM KE TAB INSIGHT (TAB 3)", use_container_width=True):
+                    # Kirim ke Tab Index 2 (Urutan ke-3 di GSheets)
+                    rows = df_final[["Date", "Platform", "View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]].values.tolist()
+                    if append_sheet_rows(2, rows):
+                        st.success("Berhasil diimpor!"); st.cache_data.clear(); st.rerun()
 
-    st.markdown("---")
-
-    # 2. VISUALISASI DASHBOARD (TAB KE-3 / INDEX 2)
-    try:
-        df_in = load_insight() # load_insight harus mengambil data dari bundle[2]
-        if not df_in.empty:
-            st.markdown('<div class="feature-header">🎯 Total Kinerja Aggregat</div>', unsafe_allow_html=True)
-            # Logika metrik views, reach, dll di sini...
-            st.dataframe(df_in, use_container_width=True, hide_index=True)
-        else:
-            st.info("Database Insight masih kosong.")
-    except Exception as e:
-        st.error(f"Gagal memuat visualisasi: {e}")
+    # Visualisasi Insight
+    df_in = st.session_state.bundle.get(2, pd.DataFrame())
+    if not df_in.empty:
+        st.markdown("### 🎯 Performa Konten")
+        st.dataframe(df_in.tail(10), use_container_width=True)
+    else: st.info("Database Insight Kosong.")
 
 # --- HALAMAN 4: WA ADMIN REPORT ---
 elif page == "💬 WA ADMIN REPORT":
