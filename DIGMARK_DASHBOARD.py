@@ -985,8 +985,20 @@ elif page == "🌐 WEBSITE AUDIT":
 # Baris kunci: Mengambil data dari session state agar bisa digunakan di semua halaman
 bundle_data = st.session_state.get('bundle', {})
 
+Penyebab error SyntaxError tersebut bukan karena baris elif-nya, melainkan karena ada instruksi if yang menggantung (tidak ada isinya) tepat di baris sebelumnya.
+
+Pada kode yang Anda tempel, baris terakhirnya adalah if not df_in.empty:. Di dalam Python, sebuah if harus memiliki isi (body). Jika setelah baris itu Anda langsung menulis elif, maka Python akan bingung dan mengeluarkan pesan error tersebut.
+
+Berikut adalah perbaikan lengkap untuk bagian Halaman 3 dan Halaman 4. Saya sudah menutup blok if yang menggantung tersebut dan merapikan indentasinya agar sejajar sempurna:
+
+Python
+# =====================================================================
+# 4. PAGE LOGIC (PASTIKAN INDENTASI SEJAJAR)
+# =====================================================================
+
 # --- HALAMAN 3: INSIGHTS & ANALYTICS ---
 elif page == "📈 INSIGHTS & ANALYTICS":
+    import io 
     st.title("📈 ANALITIK KONTEN")
     
     with st.expander("🚀 Ultra-Smart Importer (TikTok & Instagram)", expanded=True):
@@ -1077,6 +1089,13 @@ elif page == "📈 INSIGHTS & ANALYTICS":
                         st.success("Data berhasil masuk!")
                         st.cache_data.clear()
                         st.rerun()
+
+    # Tampilkan Tabel Historis (Perbaikan baris yang menggantung)
+    df_in = bundle_data.get(2, pd.DataFrame())
+    if not df_in.empty:
+        st.markdown("---")
+        st.markdown("### 📊 Historis Data")
+        st.dataframe(df_in.tail(20), use_container_width=True, hide_index=True)
 
 # --- HALAMAN 4: WA ADMIN REPORT ---
 elif page == "💬 WA ADMIN REPORT":
