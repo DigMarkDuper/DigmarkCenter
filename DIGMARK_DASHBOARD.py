@@ -72,7 +72,8 @@ def append_sheet_rows(sheet_index, all_data_list):
             spreadsheet = client.open("MASTER DATA DIGITAL MARKETING 2.0")
             sheet = spreadsheet.get_worksheet(sheet_index)
             # Menggunakan append_rows (dengan 's') untuk batch update
-            cleaned_data = [[str(x) if not isinstance(x, (int, float)) else x for x in row] for row in all_data_list]\n            sheet.append_rows(cleaned_data, value_input_option='USER_ENTERED')
+            cleaned_data = [[str(x) if not isinstance(x, (int, float)) else x for x in row] for row in all_data_list]            
+            sheet.append_rows(cleaned_data, value_input_option='USER_ENTERED')
         except Exception as e:
             st.error(f"Gagal batch update ke Google Sheets: {e}")
 
