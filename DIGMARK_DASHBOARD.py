@@ -1605,8 +1605,13 @@ elif page == "📈 ADS ANALYTICS":
                 else:
                     df_ads = pd.read_excel(uploaded_ads)
                 
+                # --- PERBAIKAN BUG DOUBLE CALCULATION ---
+                # Membuang baris yang mengandung kata 'Total' agar angkanya tidak terhitung dua kali
+                col_pertama = df_ads.columns[0]
+                df_ads_bersih = df_ads[~df_ads[col_pertama].astype(str).str.contains('total', case=False, na=False)].copy()
+                
                 # Buat salinan khusus untuk menghitung kalkulasi di web
-                df_calc = df_ads.copy()
+                df_calc = df_ads_bersih.copy()
                 df_calc.columns = [str(c).strip().lower() for c in df_calc.columns]
                 
                 # Mencari kolom Cost dan Clicks untuk Dashboard
@@ -1616,6 +1621,7 @@ elif page == "📈 ADS ANALYTICS":
                     col_clicks = next((c for c in df_calc.columns if 'clicks (all)' in c or 'clicks' in c), None)
                 
                 if col_cost:
+                    # Menghitung Total Angka (Sekarang Pasti Akurat)
                     df_calc[col_cost] = pd.to_numeric(df_calc[col_cost], errors='coerce').fillna(0)
                     total_spend = df_calc[col_cost].sum()
                     
@@ -1624,7 +1630,7 @@ elif page == "📈 ADS ANALYTICS":
                         df_calc[col_clicks] = pd.to_numeric(df_calc[col_clicks], errors='coerce').fillna(0)
                         total_clicks = df_calc[col_clicks].sum()
 
-                    st.success(f"✅ File dibaca! Total Budget terdeteksi: **Rp {total_spend:,.0f}**")
+                    st.success(f"✅ File dibaca! Total Budget terdeteksi (Akurat): **Rp {total_spend:,.0f}**")
                     
                     # --- 2. INTEGRASI DENGAN DATABASE CRM ---
                     st.markdown("---")
@@ -1664,29 +1670,24 @@ elif page == "📈 ADS ANALYTICS":
 
                         st.markdown("<br>", unsafe_allow_html=True)
                         
-                        # --- 4. FITUR SIMPAN DATA MENTAH (SUDAH DIPERBAIKI) ---
+                        # --- 4. FITUR SIMPAN DATA MENTAH ---
                         st.markdown("### 💾 Import Data Iklan ke Spreadsheet")
-                        st.info(f"Sistem akan memindahkan seluruh **Judul Kolom + {len(df_ads)} baris** data mentah ini langsung ke Tab 'report ads tiktok'.")
-                        
-                        with st.expander("Lihat Preview Data Asli yang Akan Disimpan", expanded=False):
-                            st.dataframe(df_ads, use_container_width=True)
+                        st.info(f"Sistem akan memindahkan seluruh **Judul Kolom + {len(df_ads_bersih)} baris** data mentah (tanpa baris Total) ke Tab 'report ads tiktok'.")
 
                         if st.button("📥 Import Semua Data ke Tab 'report ads tiktok'", use_container_width=True):
                             with st.spinner("Mengirim data massal ke Google Sheets..."):
-                                df_upload_clean = df_ads.fillna("")
+                                df_upload_clean = df_ads_bersih.fillna("")
                                 
-                                # 1. MENGAMBIL JUDUL KOLOM ASLI
+                                # Mengambil judul kolom asli
                                 header_asli = df_upload_clean.columns.tolist()
-                                
-                                # 2. MENGGABUNGKAN JUDUL DI BARIS PERTAMA DIIKUTI DATANYA
+                                # Menggabungkan judul di baris pertama diikuti datanya
                                 bulk_data = [header_asli] + df_upload_clean.values.tolist()
                                 
                                 try:
-                                    # 3. LANGSUNG EKSEKUSI (Hilangkan 'if' agar tidak muncul error palsu)
+                                    # Langsung Eksekusi (Tab ke-7 / Index 6)
                                     append_sheet_rows(6, bulk_data)
-                                    
-                                    st.success(f"✅ Mantap! Judul kolom dan {len(df_ads)} baris data iklan telah berhasil mendarat dengan rapi di Spreadsheet.")
-                                    st.balloons() # Efek perayaan 🎈
+                                    st.success(f"✅ Mantap! Judul kolom dan {len(df_ads_bersih)} baris data iklan telah berhasil mendarat dengan rapi di Spreadsheet.")
+                                    st.balloons()
                                 except Exception as e:
                                     st.error(f"❌ Terjadi kesalahan sistem saat mengirim: {e}")
                                 
@@ -1696,6 +1697,26 @@ elif page == "📈 ADS ANALYTICS":
                     st.error("❌ Tidak dapat menemukan kolom 'Cost' untuk dihitung. Pastikan format ekspor benar.")
             except Exception as e:
                 st.error(f"Gagal memproses file: {e}")
+                
+    st.markdown("---")
+
+    # --- 5. TAMPILAN PREVIEW DATA DARI SPREADSHEET (REAL-TIME) ---
+    st.markdown("### 📊 Database Ads Tersimpan")
+    st.info("💡 Data di bawah ini ditarik langsung secara real-time dari Tab **'report ads tiktok'**.")
+    
+    try:
+        client = init_connection()
+        if client:
+            # Mengambil data dari Tab ke-7 (index 6)
+            sheet_ads = client.open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(6)
+            records_ads = sheet_ads.get_all_records()
+            if records_ads:
+                df_ads_db = pd.DataFrame(records_ads)
+                st.dataframe(df_ads_db, use_container_width=True, hide_index=True)
+            else:
+                st.info("Tab 'report ads tiktok' saat ini masih kosong. Silakan import laporan baru di atas.")
+    except Exception as e:
+        st.error(f"Gagal memuat database dari Spreadsheet: {e}")
 
 if __name__ == "__main__":
     if not st.runtime.exists():
