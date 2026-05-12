@@ -1572,6 +1572,112 @@ elif page == "📱 DM SOSMED":
         st.markdown('<div class="feature-header">📑 Tabel Database Terkini</div>', unsafe_allow_html=True)
         st.dataframe(df_filtered.drop(columns=['Bulan'], errors='ignore'), use_container_width=True, hide_index=True)
 
+# --- HALAMAN 7: ADS ANALYTICS (PROTOTYPE) ---
+elif page == "📈 ADS ANALYTICS":
+    st.title("📈 Ads & Budget Analytics (ROI Engine)")
+    st.markdown("Unggah laporan iklan untuk melihat **Cost Per Lead (CPL)** dan efektivitas budget.")
+    
+    import io
+
+    # --- 1. UPLOAD AREA ---
+    with st.container(border=True):
+        st.markdown("### 📤 Upload Laporan Ads")
+        st.info("💡 Sistem saat ini mendukung format ekspor dari **TikTok Ads Manager** (CSV/Excel).")
+        
+        uploaded_ads = st.file_uploader("Upload File Laporan TikTok Ads", type=['csv', 'xlsx'], key="up_ads")
+        
+        if uploaded_ads is not None:
+            try:
+                # Membaca file (mendukung CSV atau Excel)
+                if uploaded_ads.name.endswith('.csv'):
+                    df_ads = pd.read_csv(uploaded_ads)
+                else:
+                    df_ads = pd.read_excel(uploaded_ads)
+                
+                # Membersihkan nama kolom agar seragam (huruf kecil semua)
+                df_ads.columns = [str(c).strip().lower() for c in df_ads.columns]
+                
+                # Mencari kolom Cost dan Clicks
+                col_cost = next((c for c in df_ads.columns if 'cost' in c), None)
+                col_clicks = next((c for c in df_ads.columns if 'destination' in c and 'click' in c), None)
+                if not col_clicks: # Fallback jika tidak ada destination clicks
+                    col_clicks = next((c for c in df_ads.columns if 'clicks (all)' in c or 'clicks' in c), None)
+                
+                if col_cost:
+                    # Menghitung Total Angka dari Iklan
+                    # Konversi ke numerik, abaikan teks yang error
+                    df_ads[col_cost] = pd.to_numeric(df_ads[col_cost], errors='coerce').fillna(0)
+                    total_spend = df_ads[col_cost].sum()
+                    
+                    total_clicks = 0
+                    if col_clicks:
+                        df_ads[col_clicks] = pd.to_numeric(df_ads[col_clicks], errors='coerce').fillna(0)
+                        total_clicks = df_ads[col_clicks].sum()
+
+                    st.success(f"✅ File berhasil dibaca! Total Budget TikTok terdeteksi: **Rp {total_spend:,.0f}**")
+                    
+                    # --- 2. INTEGRASI DENGAN DATABASE CRM ---
+                    st.markdown("---")
+                    st.markdown("### 🧮 Kalkulasi Efektivitas (TikTok vs CRM)")
+                    
+                    # Kita coba tarik data dari CRM
+                    try:
+                        df_crm = load_database_nomor() # Memanggil fungsi load database kamu
+                    except:
+                        df_crm = pd.DataFrame()
+                        
+                    if not df_crm.empty:
+                        # Mencari berapa banyak leads yang berasal dari TikTok
+                        # Asumsi ada kolom 'Platform' atau 'Asal' yang menyimpan kata "Tiktok"
+                        kolom_sumber = next((c for c in df_crm.columns if c in ['Platform', 'Sumber', 'Source']), None)
+                        
+                        total_leads_tiktok = 0
+                        if kolom_sumber:
+                            total_leads_tiktok = len(df_crm[df_crm[kolom_sumber].astype(str).str.contains('Tiktok', case=False)])
+                        else:
+                            st.warning("⚠️ Kolom 'Platform' tidak ditemukan di CRM. Kalkulasi CPL mungkin tidak akurat.")
+                        
+                        # MENGHITUNG COST PER LEAD (CPL)
+                        cpl = 0
+                        if total_leads_tiktok > 0:
+                            cpl = total_spend / total_leads_tiktok
+                            
+                        # --- 3. MENAMPILKAN METRIK DASHBOARD ---
+                        m1, m2, m3, m4 = st.columns(4)
+                        
+                        with m1:
+                            with st.container(border=True):
+                                st.markdown(f"<div style='font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'>💸 TOTAL SPEND (TIKTOK)</div><div style='font-size:24px; font-weight:bold; color:#B22222;'>Rp {total_spend:,.0f}</div>", unsafe_allow_html=True)
+                        with m2:
+                            with st.container(border=True):
+                                st.markdown(f"<div style='font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'>🖱️ TOTAL KLIK (LINK)</div><div style='font-size:24px; font-weight:bold;'>{total_clicks:,.0f}</div>", unsafe_allow_html=True)
+                        with m3:
+                            with st.container(border=True):
+                                st.markdown(f"<div style='font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'>👥 LEADS MASUK (CRM)</div><div style='font-size:24px; font-weight:bold; color:#006400;'>{total_leads_tiktok}</div>", unsafe_allow_html=True)
+                        with m4:
+                            with st.container(border=True):
+                                st.markdown(f"<div style='font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'>🎯 COST PER LEAD (CPL)</div><div style='font-size:24px; font-weight:bold; color:#1E3A8A;'>Rp {cpl:,.0f}</div>", unsafe_allow_html=True)
+
+                        # Analisa Singkat
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        if cpl > 0:
+                            st.info(f"💡 **Analisa:** Untuk mendapatkan 1 nomor kontak/prospek dari TikTok, kamu mengeluarkan biaya rata-rata **Rp {cpl:,.0f}**. Bandingkan angka ini dengan margin profit untuk melihat apakah iklan sudah menguntungkan.")
+                        elif total_spend > 0 and total_leads_tiktok == 0:
+                            st.error("⚠️ Budget iklan sudah keluar, tapi belum ada leads TikTok yang tercatat di CRM. Cek apakah ada kebocoran di Funnel (misal: link rusak, atau admin telat follow up).")
+                            
+                        # Tampilkan Data Mentah Iklan untuk di-review
+                        with st.expander("Lihat Rincian Data Iklan"):
+                            st.dataframe(df_ads, use_container_width=True)
+                            
+                    else:
+                        st.warning("Database CRM kosong atau tidak bisa ditarik. Silakan cek Halaman Database Nomor.")
+
+                else:
+                    st.error("❌ Tidak dapat menemukan kolom 'Cost' di dalam file ini. Pastikan format ekspor dari TikTok benar.")
+
+            except Exception as e:
+                st.error(f"Gagal membaca file: {e}")
+
 if __name__ == "__main__":
     if not st.runtime.exists():
         sys.argv = ["streamlit", "run", sys.argv[0]]
