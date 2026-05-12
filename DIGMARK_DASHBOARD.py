@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 import base64
 import datetime
 import sys
-import io
+
 # =====================================================================
 # SYSTEM OPTIMIZATION: BATCH LOADING & GLOBAL CACHING
 # =====================================================================
@@ -260,15 +260,7 @@ def check_password():
 # D. EKSEKUSI: Panggil fungsi login
 if not check_password():
     st.stop()
-# 2. Pastikan data sudah ditarik ke session_state
-if 'bundle' not in st.session_state:
-    st.session_state.bundle = fetch_all_master_data()
 
-# ==========================================
-# DI SINI TEMPATNYA (DI LUAR IF/ELIF PAGE)
-# ==========================================
-bundle_data = st.session_state.get('bundle', {})
-# ==========================================
 # E. Pasang kembali background untuk halaman utama
 set_bg_local('bg.png')
 # =====================================================================
@@ -986,15 +978,20 @@ elif page == "🌐 WEBSITE AUDIT":
     except Exception as e:
         st.error(f"Kesalahan Teknis Website: {e}")
 
-# ==========================================
+# =====================================================================
+# 4. PAGE LOGIC (PASTIKAN INISIALISASI INI ADA DI ATAS)
+# =====================================================================
+
+# Baris kunci: Mengambil data dari session state agar bisa digunakan di semua halaman
 bundle_data = st.session_state.get('bundle', {})
 
 # --- HALAMAN 3: INSIGHTS & ANALYTICS ---
-elif page == "📈 INSIGHTS & ANALYTICS":
-    st.title("📈 ANALITIK KONTEN")
+if page == "📈 INSIGHTS & ANALYTICS":
+    st.title("📈 PERFORMA & ANALITIK KONTEN")
     
     with st.expander("🚀 Ultra-Smart Importer (TikTok & Instagram)", expanded=True):
-        files = st.file_uploader("Upload CSV TikTok/IG", type=["csv"], accept_multiple_files=True, key="ins_up_v4")
+        st.info("💡 Upload file Overview TikTok & CSV Instagram sekaligus.")
+        files = st.file_uploader("Pilih file CSV", type=["csv"], accept_multiple_files=True, key="ins_up_v4")
         
         if files:
             all_processed = []
@@ -1003,88 +1000,75 @@ elif page == "📈 INSIGHTS & ANALYTICS":
 
             for f in files:
                 try:
-                    # Baca Mentah
                     raw_bytes = f.getvalue()
-                    try:
-                        content = raw_bytes.decode("utf-8").splitlines()
+                    # Deteksi Encoding
+                    try: content = raw_bytes.decode("utf-8").splitlines()
                     except:
-                        try:
-                            content = raw_bytes.decode("utf-8-sig").splitlines()
-                        except:
-                            content = raw_bytes.decode("latin-1").splitlines()
+                        try: content = raw_bytes.decode("utf-8-sig").splitlines()
+                        except: content = raw_bytes.decode("latin-1").splitlines()
                     
-                    full_text_start = "\n".join(content[:10]).lower() # Ambil 10 baris pertama
+                    f_name = f.name.lower()
                     
-                    # 1. DETEKSI TIKTOK
-                    if "video views" in full_text_start:
+                    # LOGIKA TIKTOK
+                    if "overview" in f_name:
                         df_tk = pd.read_csv(io.StringIO("\n".join(content)))
-                        res_tk = pd.DataFrame()
-                        res_tk['Date'] = pd.to_datetime(df_tk['Date']).dt.strftime('%d-%m-%Y')
-                        res_tk['Platform'] = 'TikTok'
-                        res_tk['View'] = df_tk.get('Video Views', 0)
-                        res_tk['Reach'] = df_tk.get('Video Views', 0)
-                        res_tk['Interaction'] = df_tk.get('Likes', 0) + df_tk.get('Comments', 0) + df_tk.get('Shares', 0)
-                        res_tk['Profile Visit'] = df_tk.get('Profile Views', 0)
-                        res_tk['Link Clicks'] = 0
-                        res_tk['Follow'] = 0
-                        all_processed.append(res_tk)
-                        logs.append(f"✅ TikTok: {f.name}")
+                        if 'Video Views' in df_tk.columns:
+                            res = pd.DataFrame()
+                            res['Date'] = pd.to_datetime(df_tk['Date']).dt.strftime('%d-%m-%Y')
+                            res['Platform'] = 'TikTok'
+                            res['View'] = df_tk['Video Views']
+                            res['Reach'] = df_tk['Video Views']
+                            res['Interaction'] = df_tk['Likes'] + df_tk['Comments'] + df_tk['Shares']
+                            res['Profile Visit'] = df_tk['Profile Views']
+                            res['Link Clicks'] = 0; res['Follow'] = 0
+                            all_processed.append(res); logs.append(f"✅ TikTok: {f.name}")
                     
-                    # 2. DETEKSI INSTAGRAM (FLEXIBLE KEYWORD SCANNER)
+                    # LOGIKA INSTAGRAM
                     else:
-                        target = ""
-                        if "follows" in full_text_start: target = "Follow"
-                        elif "interactions" in full_text_start: target = "Interaction"
-                        elif "profile visits" in full_text_start: target = "Profile Visit"
-                        elif "reach" in full_text_start: target = "Reach"
-                        elif "views" in full_text_start: target = "View"
-                        elif "link clicks" in full_text_start: target = "Link Clicks"
+                        label = ""
+                        for line in content[:5]:
+                            c_line = line.replace('"', '').replace('sep=', '').strip()
+                            if c_line in ["Reach", "Views", "Instagram profile visits", "Content interactions", "Instagram link clicks", "Instagram follows"]:
+                                label = c_line; break
                         
+                        mapping = {"Reach":"Reach", "Views":"View", "Instagram profile visits":"Profile Visit", "Content interactions":"Interaction", "Instagram link clicks":"Link Clicks", "Instagram follows":"Follow"}
+                        target = mapping.get(label)
                         if target:
-                            # Cari baris header (Date, Primary)
                             skip = 0
-                            for i, line in enumerate(content):
-                                if "date" in line.lower() and "primary" in line.lower():
-                                    skip = i
-                                    break
-                            
+                            for i, l in enumerate(content):
+                                if "Date,Primary" in l: skip = i; break
                             df_ig = pd.read_csv(io.StringIO("\n".join(content[skip:])))
                             df_ig['Date'] = pd.to_datetime(df_ig['Date']).dt.strftime('%d-%m-%Y')
                             ig_frames.append(df_ig[['Date', 'Primary']].rename(columns={'Primary': target}))
                             logs.append(f"✅ Instagram {target}: {f.name}")
-                        else:
-                            logs.append(f"❓ File tidak dikenali: {f.name}")
-                except Exception as e:
-                    logs.append(f"❌ Error {f.name}: {e}")
+                except Exception as e: logs.append(f"❌ Error {f.name}: {e}")
 
-            for l in logs:
-                st.caption(l)
+            for l in logs: st.caption(l)
 
             if ig_frames:
                 m_ig = ig_frames[0]
-                for d in ig_frames[1:]:
-                    m_ig = pd.merge(m_ig, d, on='Date', how='outer')
-                
+                for d in ig_frames[1:]: m_ig = pd.merge(m_ig, d, on='Date', how='outer')
                 m_ig['Platform'] = 'Instagram'
                 for c in ["View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]:
-                    if c not in m_ig.columns:
-                        m_ig[c] = 0
+                    if c not in m_ig.columns: m_ig[c] = 0
                 all_processed.append(m_ig.fillna(0))
 
             if all_processed:
                 df_final = pd.concat(all_processed, ignore_index=True)
                 st.dataframe(df_final.head(10), use_container_width=True)
-                if st.button("🚀 SIMPAN DATA KE SPREADSHEET (TAB 3)", use_container_width=True):
+                if st.button("🚀 KONFIRMASI SIMPAN KE TAB INSIGHT", use_container_width=True):
                     final_list = df_final[["Date", "Platform", "View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]].values.tolist()
                     if append_sheet_rows(2, final_list):
-                        st.success("Data berhasil masuk!")
-                        st.cache_data.clear()
-                        st.rerun()
+                        st.success("Data berhasil masuk!"); st.cache_data.clear(); st.rerun()
 
-    # Tampilkan Tabel Historis
-    # Pastikan bundle_data sudah didefinisikan di bagian global (di luar elif)
+    # BAGIAN VISUALISASI (Menggunakan bundle_data secara aman)
     df_in = bundle_data.get(2, pd.DataFrame())
     if not df_in.empty:
+        st.markdown("---")
+        st.markdown("### 🎯 Data Historis Content Insight")
+        st.dataframe(df_in.tail(15), use_container_width=True, hide_index=True)
+    else:
+        st.info("Database Insight masih kosong atau sedang sinkron.")
 
 # --- HALAMAN 4: WA ADMIN REPORT ---
 elif page == "💬 WA ADMIN REPORT":
