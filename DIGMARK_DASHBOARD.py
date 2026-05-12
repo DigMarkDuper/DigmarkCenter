@@ -991,120 +991,116 @@ bundle_data = st.session_state.get('bundle', {})
 
 # --- HALAMAN 3: INSIGHTS & ANALYTICS ---
 if page == "📈 INSIGHTS & ANALYTICS":
-    # Ambil data historis dari Tab ke-3 (Index 2)
+    # Pastikan variabel bundle_data sudah ada (diambil dari session_state di bagian global)
     bundle_data = st.session_state.get('bundle', {})
     df_in = bundle_data.get(2, pd.DataFrame())
     
     st.title("📈 PERFORMA & ANALITIK KONTEN")
     
     with st.expander("🚀 Ultra-Smart Importer (TikTok & Instagram)", expanded=True):
-        st.info("💡 Upload file Overview TikTok & CSV Instagram sekaligus. Sistem akan mengenali metrik secara otomatis.")
-        files = st.file_uploader("Pilih file CSV", type=["csv"], accept_multiple_files=True, key="up_ins_vfinal")
+        st.info("💡 Upload file Overview TikTok & semua CSV Instagram sekaligus. Sistem akan mendeteksi otomatis.")
+        files = st.file_uploader("Pilih file CSV", type=["csv"], accept_multiple_files=True, key="up_ins_v_final")
         
         if files:
-            all_processed = []
+            all_ready = []
             ig_frames = []
             logs = []
 
-            # Master Mapping Instagram (Huruf kecil agar pencarian lebih akurat)
-            mapping_ig = {
-                "reach": "Reach", 
-                "views": "View", 
-                "profile visits": "Profile Visit", 
-                "interactions": "Interaction", 
-                "link clicks": "Link Clicks", 
-                "follows": "Follow"
-            }
-
             for f in files:
                 try:
+                    # Ambil data mentah
                     raw_bytes = f.getvalue()
-                    # Deteksi Encoding (Tahan Banting)
+                    
+                    # Deteksi Encoding
                     try: content = raw_bytes.decode("utf-8").splitlines()
                     except:
                         try: content = raw_bytes.decode("utf-8-sig").splitlines()
                         except: content = raw_bytes.decode("latin-1").splitlines()
                     
                     f_name = f.name.lower()
-                    
-                    # 1. LOGIKA TIKTOK
-                    if "overview" in f_name:
-                        df_tk = pd.read_csv(io.StringIO("\n".join(content)))
-                        if 'Video Views' in df_tk.columns:
-                            res = pd.DataFrame()
-                            res['Date'] = pd.to_datetime(df_tk['Date']).dt.strftime('%d-%m-%Y')
-                            res['Platform'] = 'TikTok'
-                            res['View'] = df_tk['Video Views']
-                            res['Reach'] = df_tk['Video Views']
-                            res['Interaction'] = df_tk['Likes'] + df_tk['Comments'] + df_tk['Shares']
-                            res['Profile Visit'] = df_tk['Profile Views']
-                            res['Link Clicks'] = 0; res['Follow'] = 0
-                            all_processed.append(res); logs.append(f"✅ TikTok: {f.name}")
-                            continue
+                    label_detected = ""
 
-                    # 2. LOGIKA INSTAGRAM (DIPERKUAT)
-                    label_found = ""
-                    # Pindai 5 baris pertama untuk mencari kata kunci metrik
-                    for line in content[:5]:
-                        clean_line = line.replace('"', '').replace('sep=', '').strip().lower()
-                        for key, col_name in mapping_ig.items():
-                            if key in clean_line: # Mencari apakah kata kunci ada di baris tersebut
-                                label_found = col_name
-                                break
-                        if label_found: break
+                    # 1. SCANNER KATA KUNCI (Mencari identitas file)
+                    text_to_scan = "\n".join(content[:10]).lower() # Scan 10 baris pertama
                     
-                    if label_found:
+                    # Cek TikTok dulu
+                    if "video views" in text_to_scan and "profile views" in text_to_scan:
+                        df_tk = pd.read_csv(io.StringIO("\n".join(content)))
+                        res_tk = pd.DataFrame()
+                        res_tk['Date'] = pd.to_datetime(df_tk['Date']).dt.strftime('%d-%m-%Y')
+                        res_tk['Platform'] = 'TikTok'
+                        res_tk['View'] = df_tk.get('Video Views', 0)
+                        res_tk['Reach'] = df_tk.get('Video Views', 0)
+                        res_tk['Interaction'] = df_tk.get('Likes', 0) + df_tk.get('Comments', 0) + df_tk.get('Shares', 0)
+                        res_tk['Profile Visit'] = df_tk.get('Profile Views', 0)
+                        res_tk['Link Clicks'] = 0
+                        res_tk['Follow'] = 0
+                        all_ready.append(res_tk)
+                        logs.append(f"✅ TikTok Berhasil: {f.name}")
+                        continue
+
+                    # Cek Instagram (Keyword Matching)
+                    if "reach" in text_to_scan: label_detected = "Reach"
+                    elif "views" in text_to_scan: label_detected = "View"
+                    elif "profile visits" in text_to_scan: label_detected = "Profile Visit"
+                    elif "interactions" in text_to_scan: label_detected = "Interaction"
+                    elif "link clicks" in text_to_scan: label_detected = "Link Clicks"
+                    elif "follows" in text_to_scan: label_detected = "Follow"
+
+                    if label_detected:
                         # Cari baris di mana data "Date,Primary" dimulai
                         skip_n = 0
-                        for i, l in enumerate(content):
-                            if "Date" in l and "Primary" in l: 
+                        for i, line in enumerate(content):
+                            if "date" in line.lower() and "primary" in line.lower():
                                 skip_n = i
                                 break
                         
-                        # Baca data mulai dari header yang ditemukan
                         df_ig = pd.read_csv(io.StringIO("\n".join(content[skip_n:])))
                         if 'Date' in df_ig.columns:
-                            # Bersihkan format tanggal Meta
+                            # Konversi tanggal (Format Meta: 2026-01-01T00:00:00)
                             df_ig['Date'] = pd.to_datetime(df_ig['Date']).dt.strftime('%d-%m-%Y')
-                            ig_frames.append(df_ig[['Date', 'Primary']].rename(columns={'Primary': label_found}))
-                            logs.append(f"✅ Instagram {label_found}: {f.name}")
+                            ig_frames.append(df_ig[['Date', 'Primary']].rename(columns={'Primary': label_detected}))
+                            logs.append(f"✅ Instagram {label_detected}: {f.name}")
                     else:
                         logs.append(f"❓ File tidak dikenali: {f.name}")
 
                 except Exception as e:
                     logs.append(f"❌ Error {f.name}: {e}")
 
-            # Tampilkan Status Log
+            # Munculkan Log Status
             for l in logs:
                 st.caption(l)
 
-            # Gabungkan Data Instagram (Jika ada banyak file)
+            # Proses Gabung Instagram
             if ig_frames:
-                m_ig = ig_frames[0]
-                for d in ig_frames[1:]:
-                    m_ig = pd.merge(m_ig, d, on='Date', how='outer')
-                m_ig['Platform'] = 'Instagram'
-                for c in ["View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]:
-                    if c not in m_ig.columns: m_ig[c] = 0
-                all_processed.append(m_ig.fillna(0))
-
-            # --- RENDER PREVIEW & TOMBOL SIMPAN ---
-            if all_processed:
-                df_final = pd.concat(all_processed, ignore_index=True)
-                st.write("🔍 **Preview Data yang akan di-import:**")
-                st.dataframe(df_final.head(10), use_container_width=True)
+                df_ig_final = ig_frames[0]
+                for next_df in ig_frames[1:]:
+                    df_ig_final = pd.merge(df_ig_final, next_df, on='Date', how='outer')
                 
-                if st.button("🚀 KONFIRMASI SIMPAN KE GOOGLE SHEETS", use_container_width=True):
-                    # Urutan Kolom: Date, Platform, View, Reach, Interaction, Profile Visit, Link Clicks, Follow
-                    final_list = df_final[["Date", "Platform", "View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]].values.tolist()
-                    if append_sheet_rows(2, final_list): # Kirim ke Tab Index 2 (Tab ke-3)
+                df_ig_final['Platform'] = 'Instagram'
+                # Pastikan semua kolom dashboard ada
+                for c in ["View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]:
+                    if c not in df_ig_final.columns: df_ig_final[c] = 0
+                
+                all_ready.append(df_ig_final.fillna(0))
+
+            # Preview & Simpan
+            if all_ready:
+                df_upload = pd.concat(all_ready, ignore_index=True)
+                st.write("🔍 **Preview Data Gabungan:**")
+                st.dataframe(df_upload.head(10), use_container_width=True)
+                
+                if st.button("🚀 KONFIRMASI SIMPAN SEMUA DATA", use_container_width=True):
+                    # Urutan Kolom Tab 3: Date, Platform, View, Reach, Interaction, Profile Visit, Link Clicks, Follow
+                    final_data = df_upload[["Date", "Platform", "View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]].values.tolist()
+                    if append_sheet_rows(2, final_data):
                         st.success("🔥 Sempurna! Data berhasil masuk ke Spreadsheet."); st.cache_data.clear(); st.rerun()
 
-    st.markdown("---")
     # Visualisasi Historis
+    st.markdown("---")
     if not df_in.empty:
-        st.markdown("### 🎯 Riwayat Data Insight")
-        st.dataframe(df_in.tail(15), use_container_width=True, hide_index=True)
+        st.markdown("### 📊 Ringkasan Performa Konten")
+        st.dataframe(df_in.tail(20), use_container_width=True, hide_index=True)
 
 # --- HALAMAN 4: WA ADMIN REPORT ---
 elif page == "💬 WA ADMIN REPORT":
