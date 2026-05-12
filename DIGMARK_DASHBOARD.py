@@ -1426,7 +1426,7 @@ elif page == "📈 ADS ANALYTICS":
             st.markdown(f"<div style='font-size:12px; color:gray; font-weight:800; margin-bottom:5px;'>🚀 ROAS (KEUNTUNGAN)</div><div style='font-size:24px; font-weight:bold; color:#1E3A8A;'>{global_roas:,.1f}x Lipat</div>", unsafe_allow_html=True)
 
     if global_roas > 0:
-        st.success(f"🔥 **Status Iklan:** Dengan total pengeluaran **Rp {global_spend:,.0f}**, kamu menghasilkan omzet kotor sekitar **Rp {global_omzet:,.0f}**. Nilai investasimu kembali **{global_roas:,.1f} kali lipat**!")
+        st.success(f"🔥 **Status Bisnis:** Dengan total investasi pengadaan prospek & perawatan leads **Rp {global_spend:,.0f}**, kamu menghasilkan omzet kotor **Rp {global_omzet:,.0f}**. Nilai investasimu kembali **{global_roas:,.1f} kali lipat**!")
     elif global_spend > 0 and global_closing == 0:
         st.error("⚠️ **Peringatan:** Saldo (Iklan/Mekari) sudah digunakan, namun belum ada siswa yang Closing. Segera evaluasi materi iklan atau proses follow-up CS!")
 
@@ -1474,7 +1474,7 @@ elif page == "📈 ADS ANALYTICS":
                 except Exception as e:
                     st.error(f"Gagal memproses: {e}")
 
-        with st.expander("📑 Database TikTok Tersimpan (Klik untuk lihat & Reset)", expanded=False):
+        with st.expander("📑 Database TikTok Tersimpan", expanded=False):
             if not df_ads_tiktok_db.empty:
                 st.dataframe(df_ads_tiktok_db, use_container_width=True, hide_index=True)
                 if st.button("🗑️ Kosongkan Database TikTok", use_container_width=True, key="rst_tk"):
@@ -1518,7 +1518,7 @@ elif page == "📈 ADS ANALYTICS":
                 except Exception as e:
                     st.error(f"Gagal memproses: {e}")
 
-        with st.expander("📑 Database Meta Tersimpan (Klik untuk lihat & Reset)", expanded=False):
+        with st.expander("📑 Database Meta Tersimpan", expanded=False):
             if not df_ads_meta_db.empty:
                 st.dataframe(df_ads_meta_db, use_container_width=True, hide_index=True)
                 if st.button("🗑️ Kosongkan Database Meta", use_container_width=True, key="rst_mt"):
@@ -1555,16 +1555,16 @@ elif page == "📈 ADS ANALYTICS":
                         col_cost = next((c for c in df_calc_mk.columns if 'deducted balance' in c), None)
                         col_pesan = next((c for c in df_calc_mk.columns if 'broadcast amount' in c), None)
                         
-                        up_spend_mk = pd.to_numeric(df_calc_mk[col_cost], errors='coerce').fillna(0).sum() if col_cost else 0
-                        up_pesan_mk = pd.to_numeric(df_calc_mk[col_pesan], errors='coerce').fillna(0).sum() if col_pesan else 0
+                        up_spend_mk = float(pd.to_numeric(df_calc_mk[col_cost], errors='coerce').fillna(0).sum()) if col_cost else 0.0
+                        up_pesan_mk = int(pd.to_numeric(df_calc_mk[col_pesan], errors='coerce').fillna(0).sum()) if col_pesan else 0
                         
                     # 2. Deteksi File: CONVERSATION / BILLING LOGS (Chat Individu)
                     elif 'credit' in df_calc_mk.columns and 'conversation_id' in df_calc_mk.columns:
                         jenis_laporan = "WA Conversation (Billing/Follow Up)"
                         col_cost = next((c for c in df_calc_mk.columns if 'credit' in c), None)
                         
-                        up_spend_mk = pd.to_numeric(df_calc_mk[col_cost], errors='coerce').fillna(0).sum() if col_cost else 0
-                        up_pesan_mk = len(df_calc_mk) # 1 Baris di CSV ini = 1 Pesan/Percakapan
+                        up_spend_mk = float(pd.to_numeric(df_calc_mk[col_cost], errors='coerce').fillna(0).sum()) if col_cost else 0.0
+                        up_pesan_mk = int(len(df_calc_mk))
                         
                     st.success(f"✅ Format terdeteksi sebagai: **{jenis_laporan}**")
                     st.info(f"📊 Menemukan Total Saldo: **Rp {up_spend_mk:,.0f}** | Jumlah Pesan: **{up_pesan_mk:,.0f}**")
@@ -1574,9 +1574,9 @@ elif page == "📈 ADS ANALYTICS":
                             import datetime
                             tgl_sekarang = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                             
-                            # Membentuk Baris Struk Ringkas
+                            # MEMBUNGKUS DENGAN FUNGSI PYTHON ASLI AGAR JSON TIDAK ERROR
+                            baris_data_mk = [str(tgl_sekarang), str(jenis_laporan), int(up_pesan_mk), float(up_spend_mk)]
                             header_mk = ["Tanggal Import", "Jenis Laporan WA", "Total Interaksi", "Total Biaya (Rp)"]
-                            baris_data_mk = [tgl_sekarang, jenis_laporan, up_pesan_mk, up_spend_mk]
                             
                             bulk_data_mk = [header_mk, baris_data_mk] if df_ads_mekari_db.empty else [baris_data_mk]
                             
