@@ -1341,13 +1341,16 @@ elif page == "📈 ADS ANALYTICS":
     except:
         pass
 
-    # --- C. LOAD DATA BUDGET IKLAN DARI SPREADSHEET ---
+    # --- C. LOAD DATA BUDGET IKLAN DARI SPREADSHEET (OPTIMASI QUOTA API) ---
     try:
         client = init_connection()
         if client:
-            # TIKTOK ADS
+            # OPTIMASI: Buka master file-nya SEKALI SAJA untuk menghemat Quota API
+            master_spreadsheet = client.open("MASTER DATA DIGITAL MARKETING 2.0")
+
+            # TIKTOK ADS (INDEX 6)
             try:
-                sheet_tiktok = client.open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(6)
+                sheet_tiktok = master_spreadsheet.get_worksheet(6)
                 records_tiktok = sheet_tiktok.get_all_records()
                 if records_tiktok:
                     df_ads_tiktok_db = pd.DataFrame(records_tiktok)
@@ -1359,9 +1362,9 @@ elif page == "📈 ADS ANALYTICS":
                         total_spend_tiktok = df_calc_tk[col_cost_tk].sum()
             except: pass
 
-            # META ADS
+            # META ADS (INDEX 7)
             try:
-                sheet_meta = client.open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(7)
+                sheet_meta = master_spreadsheet.get_worksheet(7)
                 records_meta = sheet_meta.get_all_records()
                 if records_meta:
                     df_ads_meta_db = pd.DataFrame(records_meta)
@@ -1373,22 +1376,20 @@ elif page == "📈 ADS ANALYTICS":
                         total_spend_meta = df_calc_mt[col_cost_mt].sum()
             except: pass
 
-            # MEKARI WA (TAB 9 / INDEX 8)
+            # MEKARI WA (INDEX 8)
             try:
-                sheet_mekari = client.open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(8)
+                sheet_mekari = master_spreadsheet.get_worksheet(8)
                 records_mekari = sheet_mekari.get_all_records()
                 if records_mekari:
                     df_ads_mekari_db = pd.DataFrame(records_mekari)
                     df_calc_mk = df_ads_mekari_db.copy()
                     df_calc_mk.columns = [str(c).strip().lower() for c in df_calc_mk.columns]
                     
-                    # Mencari kolom Biaya dengan Format Baru/Lama
                     col_cost_mk = next((c for c in df_calc_mk.columns if 'biaya' in c or 'deducted balance' in c or 'balance' in c), None)
                     if col_cost_mk:
                         df_calc_mk[col_cost_mk] = pd.to_numeric(df_calc_mk[col_cost_mk].astype(str).str.replace(r'[^\d.]', '', regex=True), errors='coerce').fillna(0)
                         total_spend_mekari = df_calc_mk[col_cost_mk].sum()
                         
-                    # Mencari kolom Pesan dengan Format Baru/Lama
                     col_pesan_mk = next((c for c in df_calc_mk.columns if 'interaksi' in c or 'pesan' in c or 'broadcast amount' in c or 'amount' in c), None)
                     if col_pesan_mk:
                         df_calc_mk[col_pesan_mk] = pd.to_numeric(df_calc_mk[col_pesan_mk].astype(str).str.replace(r'[^\d.]', '', regex=True), errors='coerce').fillna(0)
@@ -1574,7 +1575,6 @@ elif page == "📈 ADS ANALYTICS":
                             import datetime
                             tgl_sekarang = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                             
-                            # MEMBUNGKUS DENGAN FUNGSI PYTHON ASLI AGAR JSON TIDAK ERROR
                             baris_data_mk = [str(tgl_sekarang), str(jenis_laporan), int(up_pesan_mk), float(up_spend_mk)]
                             header_mk = ["Tanggal Import", "Jenis Laporan WA", "Total Interaksi", "Total Biaya (Rp)"]
                             
