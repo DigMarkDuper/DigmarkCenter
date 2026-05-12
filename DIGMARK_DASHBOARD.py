@@ -234,18 +234,18 @@ def check_password():
     with col_mid:
         # Panel Login Box dengan Glassmorphism
         st.markdown(f'''
-            <div style="text-align:center; background-color: rgba(255,255,255,0.9); 
-                        padding: 40px 20px 20px 20px; border-radius: 20px; 
-                        box-shadow: 0 10px 25px rgba(0,0,0,0.2); margin-top: 50px;">
-                
-                <img src="{LOGO_URL}" width="200" style="mix-blend-mode: multiply; margin-bottom: 20px;">
-                
-                <h2 style="color: #8B0000; font-weight: 800; letter-spacing: 1px; font-size: 24px; margin-bottom: 5px;">
-                    DIGITAL MARKETING DASHBOARD
-                </h2>
-                <p style="color: #666; font-size: 14px; margin-bottom: 10px;">LPK Duta Persada Yogyakarta</p>
-            </div>
-        ''', unsafe_allow_html=True)
+    <div style="text-align:center; background-color: rgba(255,255,255,0.9); 
+                padding: 40px 20px 20px 20px; border-radius: 20px; 
+                box-shadow: 0 10px 25px rgba(0,0,0,0.2); margin-top: 50px;">
+        
+        <img src="https://dutapersadajogja.com/wp-content/uploads/2023/11/logo-duta-persada.png" width="200" style="mix-blend-mode: multiply; margin-bottom: 20px;">
+        
+        <h2 style="color: #8B0000; font-weight: 800; letter-spacing: 1px; font-size: 24px; margin-bottom: 5px;">
+            DIGITAL MARKETING DASHBOARD
+        </h2>
+        <p style="color: #666; font-size: 14px; margin-bottom: 10px;">LPK Duta Persada Yogyakarta</p>
+    </div>
+''', unsafe_allow_html=True)
         
         # Form Login
         with st.form("login_form"):
