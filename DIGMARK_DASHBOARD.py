@@ -1295,6 +1295,7 @@ elif page == "📈 ADS ANALYTICS":
     df_crm = pd.DataFrame()
     df_wa = pd.DataFrame()
     
+    # Variabel Penampung
     total_spend_tiktok, total_clicks_tiktok, total_leads_tiktok, closing_tiktok = 0, 0, 0, 0
     total_spend_meta, total_clicks_meta, total_leads_meta, closing_meta = 0, 0, 0, 0
     global_closing = 0
@@ -1399,7 +1400,7 @@ elif page == "📈 ADS ANALYTICS":
     g1, g2, g3, g4, g5 = st.columns(5)
     with g1:
         with st.container(border=True):
-            st.markdown(f"<div style='font-size:12px; color:gray; font-weight:800; margin-bottom:5px;'>💸 TOTAL SPEND</div><div style='font-size:24px; font-weight:bold; color:#8B0000;'>Rp {global_spend/1000000:,.1f}Jt</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:12px; color:gray; font-weight:800; margin-bottom:5px;'>💸 TOTAL SPEND</div><div style='font-size:24px; font-weight:bold; color:#8B0000;'>Rp {global_spend:,.0f}</div>", unsafe_allow_html=True)
     with g2:
         with st.container(border=True):
             st.markdown(f"<div style='font-size:12px; color:gray; font-weight:800; margin-bottom:5px;'>👥 LEADS CRM</div><div style='font-size:24px; font-weight:bold;'>{global_leads}</div>", unsafe_allow_html=True)
@@ -1408,7 +1409,7 @@ elif page == "📈 ADS ANALYTICS":
             st.markdown(f"<div style='font-size:12px; color:gray; font-weight:800; margin-bottom:5px;'>🎓 TOTAL CLOSING</div><div style='font-size:24px; font-weight:bold; color:#006400;'>{global_closing} Siswa</div>", unsafe_allow_html=True)
     with g4:
         with st.container(border=True):
-            st.markdown(f"<div style='font-size:12px; color:gray; font-weight:800; margin-bottom:5px;'>🎯 BIAYA/SISWA (CAC)</div><div style='font-size:24px; font-weight:bold; color:#D2691E;'>Rp {global_cac/1000000:,.1f}Jt</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:12px; color:gray; font-weight:800; margin-bottom:5px;'>🎯 BIAYA/SISWA (CAC)</div><div style='font-size:24px; font-weight:bold; color:#D2691E;'>Rp {global_cac:,.0f}</div>", unsafe_allow_html=True)
     with g5:
         with st.container(border=True):
             st.markdown(f"<div style='font-size:12px; color:gray; font-weight:800; margin-bottom:5px;'>🚀 ROAS (KEUNTUNGAN)</div><div style='font-size:24px; font-weight:bold; color:#1E3A8A;'>{global_roas:,.1f}x Lipat</div>", unsafe_allow_html=True)
@@ -1431,7 +1432,7 @@ elif page == "📈 ADS ANALYTICS":
         cac_tk = total_spend_tiktok / closing_tiktok if closing_tiktok > 0 else 0
         
         t1, t2, t3, t4, t5 = st.columns(5)
-        t1.metric("💸 Spend TikTok", f"Rp {total_spend_tiktok/1000000:,.1f}Jt")
+        t1.metric("💸 Spend TikTok", f"Rp {total_spend_tiktok:,.0f}")
         t2.metric("👥 Leads Masuk", total_leads_tiktok)
         t3.metric("🎯 Cost Per Lead", f"Rp {cpl_tk:,.0f}")
         t4.metric("🎓 Closing TikTok", closing_tiktok)
@@ -1475,7 +1476,7 @@ elif page == "📈 ADS ANALYTICS":
         cac_mt = total_spend_meta / closing_meta if closing_meta > 0 else 0
         
         m1, m2, m3, m4, m5 = st.columns(5)
-        m1.metric("💸 Spend Meta", f"Rp {total_spend_meta/1000000:,.1f}Jt")
+        m1.metric("💸 Spend Meta", f"Rp {total_spend_meta:,.0f}")
         m2.metric("👥 Leads Masuk", total_leads_meta)
         m3.metric("🎯 Cost Per Lead", f"Rp {cpl_mt:,.0f}")
         m4.metric("🎓 Closing Meta", closing_meta)
@@ -1513,3 +1514,13 @@ elif page == "📈 ADS ANALYTICS":
                 if st.button("🗑️ Kosongkan Database Meta", use_container_width=True, key="rst_mt"):
                     init_connection().open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(7).clear() 
                     st.cache_data.clear(); st.rerun()
+
+# =====================================================================
+# SYSTEM RUNNER (JANGAN DIHAPUS, PASTIKAN ADA DI PALING BAWAH FILE)
+# =====================================================================
+if __name__ == "__main__":
+    if not st.runtime.exists():
+        import sys
+        from streamlit.web import cli as stcli
+        sys.argv = ["streamlit", "run", sys.argv[0]]
+        sys.exit(stcli.main())
