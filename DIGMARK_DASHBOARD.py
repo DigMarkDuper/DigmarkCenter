@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 import base64
 import datetime
 import sys
-
+import io
 # =====================================================================
 # SYSTEM OPTIMIZATION: BATCH LOADING & GLOBAL CACHING
 # =====================================================================
