@@ -1670,16 +1670,10 @@ elif page == "📈 ADS ANALYTICS":
                 else:
                     df_ads = pd.read_excel(uploaded_ads)
                 
-                df_ads_bersih = df_ads.copy()
-                
-                # --- FILTER CERDAS PENDETEKSI BARIS TOTAL ---
-                # Cek baris PERTAMA (jika ada tulisan Total, hapus baris pertama)
-                if not df_ads_bersih.empty and df_ads_bersih.astype(str).iloc[0].str.contains('total', case=False, na=False).any():
-                    df_ads_bersih = df_ads_bersih.iloc[1:].reset_index(drop=True)
-                
-                # Cek baris TERAKHIR (jika ada tulisan Total, hapus baris terakhir)
-                if not df_ads_bersih.empty and df_ads_bersih.astype(str).iloc[-1].str.contains('total', case=False, na=False).any():
-                    df_ads_bersih = df_ads_bersih.iloc[:-1].reset_index(drop=True)
+                # --- FILTER ABSOLUT PENDETEKSI BARIS TOTAL ---
+                # Mencari baris yang memiliki sel dengan kata "Total" persis dan menghapusnya
+                mask_total = df_ads.apply(lambda row: row.astype(str).str.strip().str.lower().eq('total').any(), axis=1)
+                df_ads_bersih = df_ads[~mask_total].copy()
                 
                 # Hitung budget yang mau masuk
                 df_calc_up = df_ads_bersih.copy()
@@ -1691,9 +1685,9 @@ elif page == "📈 ADS ANALYTICS":
                     df_calc_up[col_cost_up] = pd.to_numeric(df_calc_up[col_cost_up], errors='coerce').fillna(0)
                     up_spend = df_calc_up[col_cost_up].sum()
                     
-                st.success(f"✅ File siap! Budget tambahan terdeteksi: **Rp {up_spend:,.0f}**. Tekan Import untuk menyatukan ke Database.")
+                st.success(f"✅ File siap! Budget yang akan ditambahkan: **Rp {up_spend:,.0f}**. Tekan Import untuk menyatukan ke Database.")
                 
-                with st.expander("Preview File yang Akan Diimpor", expanded=False):
+                with st.expander("Preview File yang Akan Diimpor (Tanpa Baris Total)", expanded=False):
                     st.dataframe(df_ads_bersih, use_container_width=True)
 
                 if st.button("📥 Import Data Ini ke Spreadsheet", use_container_width=True):
@@ -1708,7 +1702,7 @@ elif page == "📈 ADS ANALYTICS":
                         
                         try:
                             append_sheet_rows(6, bulk_data) 
-                            st.success(f"✅ Berhasil mengimpor {len(df_ads_bersih)} baris data baru ke Spreadsheet!")
+                            st.success(f"✅ Berhasil mengimpor {len(df_ads_bersih)} baris data murni ke Spreadsheet!")
                             st.balloons()
                             st.cache_data.clear() 
                             st.rerun() 
