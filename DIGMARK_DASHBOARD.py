@@ -987,322 +987,120 @@ bundle_data = st.session_state.get('bundle', {})
 
 # --- HALAMAN 3: INSIGHTS & ANALYTICS ---
 if page == "📈 INSIGHTS & ANALYTICS":
-
-    import io
-
+    import io 
     st.title("📈 ANALITIK KONTEN")
-
-    with st.expander(
-        "🚀 Ultra-Smart Importer (TikTok & Instagram)",
-        expanded=True
-    ):
-
-        st.info(
-            "💡 Pilih file CSV TikTok/Instagram. "
-            "Tombol simpan muncul jika file dikenali."
-        )
-
-        files = st.file_uploader(
-            "Upload CSV",
-            type=["csv"],
-            accept_multiple_files=True,
-            key="ins_up_v4"
-        )
-
+    
+    with st.expander("🚀 Ultra-Smart Importer (TikTok & Instagram)", expanded=True):
+        st.info("💡 Pilih file CSV TikTok/Instagram. Tombol simpan muncul jika file dikenali.")
+        files = st.file_uploader("Upload CSV", type=["csv"], accept_multiple_files=True, key="ins_up_v4")
+        
         if files:
-
             all_processed = []
             ig_frames = []
             logs = []
 
             for f in files:
-
                 try:
                     raw_bytes = f.getvalue()
-
+                    
                     # ==================================================
-                    # 1. DETEKSI ENCODING YANG LEBIH KUAT
+                    # 1. DETEKSI ENCODING YANG LEBIH KUAT (UTF-16 LE)
                     # ==================================================
                     content = []
-
                     try:
-                        content = raw_bytes.decode(
-                            "utf-8"
-                        ).splitlines()
-
+                        content = raw_bytes.decode("utf-8").splitlines()
                     except:
                         try:
-                            content = raw_bytes.decode(
-                                "utf-8-sig"
-                            ).splitlines()
-
+                            content = raw_bytes.decode("utf-8-sig").splitlines()
                         except:
                             try:
-                                # Penting untuk file Instagram
-                                content = raw_bytes.decode(
-                                    "utf-16"
-                                ).splitlines()
-
+                                # Penting untuk file Instagram "Follows (1).csv"
+                                content = raw_bytes.decode("utf-16").splitlines()
                             except:
-                                content = raw_bytes.decode(
-                                    "latin-1"
-                                ).splitlines()
-
+                                content = raw_bytes.decode("latin-1").splitlines()
+                    
                     # ==================================================
-                    # 2. PEMBERSIHAN NULL BYTE
+                    # 2. PEMBERSIHAN NULL BYTE & KARAKTER ANEH
                     # ==================================================
-                    sample_text = (
-                        "\n".join(content[:10])
-                        .lower()
-                        .replace('"', '')
-                        .replace('\x00', '')
-                        .replace(' ', '')
-                    )
-
-                    # ==================================================
+                    # Kita bersihkan \x00 agar keyword scanner bisa membaca teks dengan normal
+                    sample_text = "\n".join(content[:10]).lower().replace('"', '').replace('\x00', '').replace(' ', '')
+                    
                     # 3. DETEKSI TIKTOK
-                    # ==================================================
                     if "videoviews" in sample_text:
-
-                        df_tk = pd.read_csv(
-                            io.StringIO("\n".join(content))
-                        )
-
+                        df_tk = pd.read_csv(io.StringIO("\n".join(content)))
                         res_tk = pd.DataFrame()
-
-                        res_tk['Date'] = pd.to_datetime(
-                            df_tk['Date']
-                        ).dt.strftime('%d-%m-%Y')
-
+                        res_tk['Date'] = pd.to_datetime(df_tk['Date']).dt.strftime('%d-%m-%Y')
                         res_tk['Platform'] = 'TikTok'
-
-                        res_tk['View'] = df_tk.get(
-                            'Video Views',
-                            0
-                        )
-
-                        res_tk['Reach'] = df_tk.get(
-                            'Video Views',
-                            0
-                        )
-
-                        res_tk['Interaction'] = (
-                            df_tk.get('Likes', 0)
-                            + df_tk.get('Comments', 0)
-                            + df_tk.get('Shares', 0)
-                        )
-
-                        res_tk['Profile Visit'] = df_tk.get(
-                            'Profile Views',
-                            0
-                        )
-
-                        res_tk['Link Clicks'] = 0
-                        res_tk['Follow'] = 0
-
+                        res_tk['View'] = df_tk.get('Video Views', 0)
+                        res_tk['Reach'] = df_tk.get('Video Views', 0)
+                        res_tk['Interaction'] = df_tk.get('Likes', 0) + df_tk.get('Comments', 0) + df_tk.get('Shares', 0)
+                        res_tk['Profile Visit'] = df_tk.get('Profile Views', 0)
+                        res_tk['Link Clicks'] = 0; res_tk['Follow'] = 0
                         all_processed.append(res_tk)
-
-                        logs.append(
-                            f"✅ TikTok Berhasil: {f.name}"
-                        )
-
-                    # ==================================================
-                    # 4. DETEKSI INSTAGRAM
-                    # ==================================================
+                        logs.append(f"✅ TikTok Berhasil: {f.name}")
+                    
+                    # 4. DETEKSI INSTAGRAM (Keyword Matching)
                     else:
-
                         target = ""
-
-                        if "follows" in sample_text:
-                            target = "Follow"
-
-                        elif "interactions" in sample_text:
-                            target = "Interaction"
-
-                        elif "profilevisits" in sample_text:
-                            target = "Profile Visit"
-
-                        elif "reach" in sample_text:
-                            target = "Reach"
-
-                        elif "views" in sample_text:
-                            target = "View"
-
-                        elif "linkclicks" in sample_text:
-                            target = "Link Clicks"
-
+                        if "follows" in sample_text: target = "Follow"
+                        elif "interactions" in sample_text: target = "Interaction"
+                        elif "profilevisits" in sample_text: target = "Profile Visit"
+                        elif "reach" in sample_text: target = "Reach"
+                        elif "views" in sample_text: target = "View"
+                        elif "linkclicks" in sample_text: target = "Link Clicks"
+                        
                         if target:
-
-                            # Cari header Date + Primary
+                            # Cari baris data asli (Header: Date, Primary)
                             skip = 0
-
                             for i, line in enumerate(content):
-
-                                clean_l = (
-                                    line.lower()
-                                    .replace('"', '')
-                                    .replace('\x00', '')
-                                )
-
-                                if (
-                                    "date" in clean_l
-                                    and "primary" in clean_l
-                                ):
+                                # Bersihkan baris dari null byte sebelum pengecekan header
+                                clean_l = line.lower().replace('"', '').replace('\x00', '')
+                                if "date" in clean_l and "primary" in clean_l:
                                     skip = i
                                     break
-
-                            # Bersihkan seluruh data
-                            data_str = (
-                                "\n".join(content[skip:])
-                                .replace('\x00', '')
-                            )
-
-                            df_ig = pd.read_csv(
-                                io.StringIO(data_str)
-                            )
-
-                            # Format tanggal
-                            df_ig['Date'] = pd.to_datetime(
-                                df_ig['Date']
-                            ).dt.strftime('%d-%m-%Y')
-
-                            ig_frames.append(
-                                df_ig[['Date', 'Primary']]
-                                .rename(
-                                    columns={
-                                        'Primary': target
-                                    }
-                                )
-                            )
-
-                            logs.append(
-                                f"✅ Instagram {target}: {f.name}"
-                            )
-
+                            
+                            # Baca dataframe dengan menangani kemungkinan null bytes di seluruh file
+                            data_str = "\n".join(content[skip:]).replace('\x00', '')
+                            df_ig = pd.read_csv(io.StringIO(data_str))
+                            
+                            # Bersihkan format tanggal ISO Meta
+                            df_ig['Date'] = pd.to_datetime(df_ig['Date']).dt.strftime('%d-%m-%Y')
+                            ig_frames.append(df_ig[['Date', 'Primary']].rename(columns={'Primary': target}))
+                            logs.append(f"✅ Instagram {target}: {f.name}")
                         else:
-                            logs.append(
-                                f"❓ File tidak dikenali: {f.name}"
-                            )
-
+                            logs.append(f"❓ File tidak dikenali: {f.name}")
+                            
                 except Exception as e:
+                    logs.append(f"❌ Error {f.name}: {e}")
 
-                    logs.append(
-                        f"❌ Error {f.name}: {e}"
-                    )
+            for l in logs: st.caption(l)
 
-            # ==================================================
-            # TAMPILKAN LOG
-            # ==================================================
-            for l in logs:
-                st.caption(l)
-
-            # ==================================================
-            # GABUNGKAN DATA INSTAGRAM
-            # ==================================================
+            # Gabungkan Data Instagram
             if ig_frames:
-
                 m_ig = ig_frames[0]
-
                 for d in ig_frames[1:]:
-
-                    m_ig = pd.merge(
-                        m_ig,
-                        d,
-                        on='Date',
-                        how='outer'
-                    )
-
+                    m_ig = pd.merge(m_ig, d, on='Date', how='outer')
                 m_ig['Platform'] = 'Instagram'
+                for c in ["View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]:
+                    if c not in m_ig.columns: m_ig[c] = 0
+                all_processed.append(m_ig.fillna(0))
 
-                for c in [
-                    "View",
-                    "Reach",
-                    "Interaction",
-                    "Profile Visit",
-                    "Link Clicks",
-                    "Follow"
-                ]:
-
-                    if c not in m_ig.columns:
-                        m_ig[c] = 0
-
-                all_processed.append(
-                    m_ig.fillna(0)
-                )
-
-            # ==================================================
-            # PREVIEW & SIMPAN
-            # ==================================================
             if all_processed:
+                df_final = pd.concat(all_processed, ignore_index=True)
+                st.write("🔍 **Preview Data Gabungan:**")
+                st.dataframe(df_final.head(10), use_container_width=True)
+                
+                if st.button("🚀 SIMPAN KE SPREADSHEET (TAB 3)", use_container_width=True):
+                    final_list = df_final[["Date", "Platform", "View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]].values.tolist()
+                    if append_sheet_rows(2, final_list):
+                        st.success("Data berhasil masuk!"); st.cache_data.clear(); st.rerun()
 
-                df_final = pd.concat(
-                    all_processed,
-                    ignore_index=True
-                )
-
-                st.write(
-                    "🔍 **Preview Data Gabungan:**"
-                )
-
-                st.dataframe(
-                    df_final.head(10),
-                    use_container_width=True
-                )
-
-                if st.button(
-                    "🚀 SIMPAN KE SPREADSHEET (TAB 3)",
-                    use_container_width=True
-                ):
-
-                    final_list = df_final[
-                        [
-                            "Date",
-                            "Platform",
-                            "View",
-                            "Reach",
-                            "Interaction",
-                            "Profile Visit",
-                            "Link Clicks",
-                            "Follow"
-                        ]
-                    ].values.tolist()
-
-                    if append_sheet_rows(
-                        2,
-                        final_list
-                    ):
-
-                        st.success(
-                            "Data berhasil masuk!"
-                        )
-
-                        st.cache_data.clear()
-
-                        st.rerun()
-
-    # ==================================================
-    # TABEL HISTORIS
-    # ==================================================
+    # --- TABEL HISTORIS ---
     st.markdown("---")
-
-    df_in = bundle_data.get(
-        2,
-        pd.DataFrame()
-    )
-
+    df_in = bundle_data.get(2, pd.DataFrame())
     if not df_in.empty:
-
-        st.markdown(
-            "### 📊 Data Historis Content Insight"
-        )
-
-        st.dataframe(
-            df_in.tail(15),
-            use_container_width=True,
-            hide_index=True
-        )
-
-        
+        st.markdown("### 📊 Data Historis Content Insight")
+        st.dataframe(df_in.tail(15), use_container_width=True, hide_index=True)       
 # --- HALAMAN 4: WA ADMIN REPORT ---
 elif page == "💬 WA ADMIN REPORT":
     
