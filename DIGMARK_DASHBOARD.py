@@ -223,31 +223,33 @@ def set_bg_local(main_bg):
     except:
         pass
 
+# 1. DEFINISI URL LOGO TERBARU
+LOGO_URL = "https://dutapersadajogja.com/wp-content/uploads/2023/11/logo-duta-persada.png"
+
 def check_password():
     if st.session_state.get("password_correct"): 
         return True
     
-    # Pasang background di halaman login
+    # Render Background agar muncul di halaman login
     set_bg_local('bg.png') 
     
     _, col_mid, _ = st.columns([1, 2, 1])
     with col_mid:
-        # Panel Login Box dengan Glassmorphism
+        # PANEL LOGIN BOX
         st.markdown(f'''
-    <div style="text-align:center; background-color: rgba(255,255,255,0.9); 
-                padding: 40px 20px 20px 20px; border-radius: 20px; 
-                box-shadow: 0 10px 25px rgba(0,0,0,0.2); margin-top: 50px;">
+            <div style="text-align:center; background-color: rgba(255,255,255,0.9); 
+                        padding: 40px 20px; border-radius: 20px; 
+                        box-shadow: 0 10px 25px rgba(0,0,0,0.2); margin-top: 50px;">
+                
+                <img src="{LOGO_URL}" width="200" style="mix-blend-mode: multiply; margin-bottom: 20px;">
+                
+                <h2 style="color: #8B0000; font-weight: 800; letter-spacing: 1px; font-size: 24px; margin-bottom: 5px;">
+                    DIGITAL MARKETING DASHBOARD
+                </h2>
+                <p style="color: #666; font-size: 14px; margin-bottom: 20px;">LPK Duta Persada Yogyakarta</p>
+            </div>
+        ''', unsafe_allow_html=True) # <-- INI WAJIB ADA AGAR LOGO MUNCUL
         
-        <img src="https://dutapersadajogja.com/wp-content/uploads/2023/11/logo-duta-persada.png" width="200" style="mix-blend-mode: multiply; margin-bottom: 20px;">
-        
-        <h2 style="color: #8B0000; font-weight: 800; letter-spacing: 1px; font-size: 24px; margin-bottom: 5px;">
-            DIGITAL MARKETING DASHBOARD
-        </h2>
-        <p style="color: #666; font-size: 14px; margin-bottom: 10px;">LPK Duta Persada Yogyakarta</p>
-    </div>
-''', unsafe_allow_html=True)
-        
-        # Form Login
         with st.form("login_form"):
             user = st.text_input("Username").strip().lower()
             pwd = st.text_input("Password", type="password")
@@ -258,8 +260,8 @@ def check_password():
                 else: 
                     st.error("Username/Password Salah")
     return False
-# --- BAGIAN KRUSIAL: JANGAN DIHAPUS ---
-# Kode ini yang memerintahkan aplikasi berhenti jika login gagal
+
+# Jalankan Login Check
 if not check_password():
     st.stop()
 
