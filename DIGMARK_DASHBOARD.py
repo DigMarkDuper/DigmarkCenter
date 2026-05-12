@@ -1477,92 +1477,55 @@ elif page == "📱 DM SOSMED":
         fb_count = len(df_filtered[df_filtered['Platform'].astype(str).str.contains('Facebook', case=False)])
         
         m1, m2, m3, m4 = st.columns(4)
-        
         with m1:
             with st.container(border=True):
-                st.markdown(f"""
-                <div style='font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'>📊 TOTAL TERFILTER</div>
-                <div style='font-size:32px; font-weight:bold;'>{len(df_filtered)}</div>
-                """, unsafe_allow_html=True)
+                st.markdown(f"<div style='font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'>📊 TOTAL TERFILTER</div><div style='font-size:32px; font-weight:bold;'>{len(df_filtered)}</div>", unsafe_allow_html=True)
         with m2:
             with st.container(border=True):
-                st.markdown(f"""
-                <div style='display:flex; align-items:center; gap:8px; font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'>
-                    <img src="https://img.icons8.com/fluency/48/instagram-new.png" width="20"> INSTAGRAM
-                </div>
-                <div style='font-size:32px; font-weight:bold;'>{ig_count}</div>
-                """, unsafe_allow_html=True)
+                st.markdown(f"<div style='display:flex; align-items:center; gap:8px; font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'><img src='https://img.icons8.com/fluency/48/instagram-new.png' width='20'> INSTAGRAM</div><div style='font-size:32px; font-weight:bold;'>{ig_count}</div>", unsafe_allow_html=True)
         with m3:
             with st.container(border=True):
-                st.markdown(f"""
-                <div style='display:flex; align-items:center; gap:8px; font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'>
-                    <img src="https://img.icons8.com/color/48/tiktok--v1.png" width="20"> TIKTOK
-                </div>
-                <div style='font-size:32px; font-weight:bold;'>{tt_count}</div>
-                """, unsafe_allow_html=True)
+                st.markdown(f"<div style='display:flex; align-items:center; gap:8px; font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'><img src='https://img.icons8.com/color/48/tiktok--v1.png' width='20'> TIKTOK</div><div style='font-size:32px; font-weight:bold;'>{tt_count}</div>", unsafe_allow_html=True)
         with m4:
             with st.container(border=True):
-                st.markdown(f"""
-                <div style='display:flex; align-items:center; gap:8px; font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'>
-                    <img src="https://img.icons8.com/color/48/facebook-new.png" width="20"> FACEBOOK
-                </div>
-                <div style='font-size:32px; font-weight:bold;'>{fb_count}</div>
-                """, unsafe_allow_html=True)
+                st.markdown(f"<div style='display:flex; align-items:center; gap:8px; font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'><img src='https://img.icons8.com/color/48/facebook-new.png' width='20'> FACEBOOK</div><div style='font-size:32px; font-weight:bold;'>{fb_count}</div>", unsafe_allow_html=True)
         
-        # --- VISUALISASI PIE CHART TRANSPARAN ---
+        # --- PIE CHART TRANSPARAN ---
         st.markdown("<br>", unsafe_allow_html=True)
         c_pie1, c_pie2 = st.columns(2)
-        
         with c_pie1:
             kolom_status = 'Status DM' if 'Status DM' in df_filtered.columns else 'Status'
             if kolom_status in df_filtered.columns and not df_filtered.empty:
                 fig_stat = px.pie(df_filtered, names=kolom_status, hole=0.4, title='Distribusi Status DM')
-                fig_stat.update_traces(textposition='inside', textinfo='percent+label')
-                # BACKGROUND TRANSPARAN
                 fig_stat.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
                 st.plotly_chart(fig_stat, use_container_width=True)
-        
         with c_pie2:
             kolom_tag = 'Tag Prospek' if 'Tag Prospek' in df_filtered.columns else 'Tag'
             if kolom_tag in df_filtered.columns and not df_filtered.empty:
                 df_tag = df_filtered[df_filtered[kolom_tag].astype(str).str.strip() != '']
                 if not df_tag.empty:
                     fig_tag = px.pie(df_tag, names=kolom_tag, hole=0.4, title='Distribusi Tag Prospek')
-                    fig_tag.update_traces(textposition='inside', textinfo='percent+label')
-                    # BACKGROUND TRANSPARAN
                     fig_tag.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
                     st.plotly_chart(fig_tag, use_container_width=True)
-                else:
-                    st.info("Belum ada data Tag Prospek untuk divisualisasikan.")
-    else:
-        st.info("Database DM masih kosong. Visualisasi akan muncul setelah ada data pertama.")
 
     st.markdown("---")
 
-    # --- 2. AREA FORM INPUT ---
+    # --- 2. AREA FORM INPUT DENGAN KOLOM DOMISILI ---
     with st.form("form_input_dm", clear_on_submit=True):
         st.markdown("### 📝 Form Prospek Baru")
-        
         c1, c2 = st.columns(2)
         
         with c1:
             platform = st.selectbox("Platform 📱", ["Instagram", "Tiktok", "Facebook"])
             username = st.text_input("Nama / Username 👤", placeholder="Contoh: calonsiswa_123")
-            link_user = st.text_input("Link Username 🔗 (Otomatis)", placeholder="Kosongkan saja, sistem yang buatkan linknya!")
+            link_user = st.text_input("Link Username 🔗 (Otomatis)", placeholder="Kosongkan saja...")
+            domisili = st.text_input("Domisili / Asal Daerah 📍", placeholder="Contoh: Yogyakarta")
             
         with c2:
             no_hp = st.text_input("No HP / WhatsApp ☎️ (Opsional)", placeholder="Contoh: 08123456789")
-            
-            opsi_status = [
-                "No Response", "Follow Up", "Daftar", "Interview", 
-                "Closing", "Lainya", "Sales Progress", "Withdraw", "Move ke Whatsapp"
-            ]
+            opsi_status = ["No Response", "Follow Up", "Daftar", "Interview", "Closing", "Lainya", "Sales Progress", "Withdraw", "Move ke Whatsapp"]
             status_dm = st.selectbox("Status DM 📌", opsi_status)
-            
-            opsi_tag = [
-                "- Pilih Tag -", "NOT ELIGIBLE", "FUTURE PROSPECT", 
-                "HOT LEAD", "WARM LEAD", "COLD LEAD"
-            ]
+            opsi_tag = ["- Pilih Tag -", "NOT ELIGIBLE", "FUTURE PROSPECT", "HOT LEAD", "WARM LEAD", "COLD LEAD"]
             tag_dm = st.selectbox("Tag Prospek 🏷️", opsi_tag)
         
         submit_dm = st.form_submit_button("💾 Simpan Data DM", use_container_width=True)
@@ -1572,41 +1535,39 @@ elif page == "📱 DM SOSMED":
                 st.warning("⚠️ Nama / Username wajib diisi!")
             else:
                 with st.spinner("Menyimpan ke Spreadsheet..."):
+                    # Auto Link
+                    uname_clean = username.strip().replace("@", "")
                     if link_user.strip() == "":
-                        uname_clean = username.strip().replace("@", "")
                         if platform == "Instagram": link_final = f"https://instagram.com/{uname_clean}"
                         elif platform == "Tiktok": link_final = f"https://tiktok.com/@{uname_clean}"
                         elif platform == "Facebook": link_final = f"https://facebook.com/{uname_clean}"
                         else: link_final = ""
-                    else:
-                        link_final = link_user.strip()
+                    else: link_final = link_user.strip()
 
+                    # Format No HP
                     if no_hp:
-                        no_hp_bersih = str(no_hp).replace("'", "").replace("+", "").replace("-", "").replace(" ", "").strip()
-                        if no_hp_bersih.startswith("0"): no_hp_bersih = "62" + no_hp_bersih[1:]
-                        no_hp_final = "'" + no_hp_bersih 
-                    else:
-                        no_hp_final = ""
+                        n = str(no_hp).replace("'", "").replace("+", "").replace(" ", "").replace("-", "").strip()
+                        no_hp_final = "'" + ("62" + n[1:] if n.startswith("0") else n)
+                    else: no_hp_final = ""
 
-                    tag_final = "" if tag_dm == "- Pilih Tag -" else tag_dm
                     tgl_hari_ini = datetime.date.today().strftime("%Y-%m-%d")
-
-                    # --- FITUR BARU: NOMOR OTOMATIS BERDASARKAN JUMLAH DATA ---
                     nomor_urut = len(df_dm) + 1 if not df_dm.empty else 1
+                    tag_final = "" if tag_dm == "- Pilih Tag -" else tag_dm
 
+                    # STRUKTUR 9 KOLOM: No, Platform, Username, Link, No HP, Domisili, Status, Tag, Tanggal
                     data_dm_baru = [
-                        nomor_urut, platform, username, link_final, no_hp_final, status_dm, tag_final, tgl_hari_ini
+                        nomor_urut, platform, username, link_final, no_hp_final, domisili, status_dm, tag_final, tgl_hari_ini
                     ]
                     
                     try:
                         append_sheet_rows(5, [data_dm_baru])
-                        st.success(f"✅ Mantap! Data {username} dari {platform} berhasil disimpan.")
+                        st.success(f"✅ Berhasil menyimpan {username}!")
                         st.cache_data.clear() 
                         st.rerun() 
                     except Exception as e:
-                        st.error(f"Terjadi kesalahan saat mengeksekusi data: {e}")
+                        st.error(f"Gagal eksekusi: {e}")
                         
-    # --- 3. MENAMPILKAN TABEL DATABASE DI BAWAH ---
+    # --- 3. TABEL DATABASE ---
     if not df_dm.empty:
         st.markdown('<div class="feature-header">📑 Tabel Database Terkini</div>', unsafe_allow_html=True)
         st.dataframe(df_filtered.drop(columns=['Bulan'], errors='ignore'), use_container_width=True, hide_index=True)
