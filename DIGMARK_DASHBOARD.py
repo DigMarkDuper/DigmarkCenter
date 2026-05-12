@@ -986,18 +986,15 @@ elif page == "🌐 WEBSITE AUDIT":
     except Exception as e:
         st.error(f"Kesalahan Teknis Website: {e}")
 
-# =====================================================================
-# 4. PAGE LOGIC (PASTIKAN INISIALISASI INI ADA DI ATAS)
-# =====================================================================
-
-# Baris kunci: Mengambil data dari session state agar bisa digunakan di semua halaman
+# ==========================================
 bundle_data = st.session_state.get('bundle', {})
 
 # --- HALAMAN 3: INSIGHTS & ANALYTICS ---
+# PASTIKAN teks "📈 INSIGHTS & ANALYTICS" ini sama persis dengan di selectbox sidebar
 if page == "📈 INSIGHTS & ANALYTICS":
-    df_in = bundle_data.get(2)
     st.title("📈 PERFORMA & ANALITIK KONTEN")
     
+    # --- BAGIAN 1: IMPORTER ---
     with st.expander("🚀 Ultra-Smart Importer (TikTok & Instagram)", expanded=True):
         st.info("💡 Upload file Overview TikTok & CSV Instagram sekaligus.")
         files = st.file_uploader("Pilih file CSV", type=["csv"], accept_multiple_files=True, key="ins_up_v4")
@@ -1029,8 +1026,10 @@ if page == "📈 INSIGHTS & ANALYTICS":
                             res['Reach'] = df_tk['Video Views']
                             res['Interaction'] = df_tk['Likes'] + df_tk['Comments'] + df_tk['Shares']
                             res['Profile Visit'] = df_tk['Profile Views']
-                            res['Link Clicks'] = 0; res['Follow'] = 0
-                            all_processed.append(res); logs.append(f"✅ TikTok: {f.name}")
+                            res['Link Clicks'] = 0
+                            res['Follow'] = 0
+                            all_processed.append(res)
+                            logs.append(f"✅ TikTok: {f.name}")
                     
                     # LOGIKA INSTAGRAM
                     else:
@@ -1038,42 +1037,66 @@ if page == "📈 INSIGHTS & ANALYTICS":
                         for line in content[:5]:
                             c_line = line.replace('"', '').replace('sep=', '').strip()
                             if c_line in ["Reach", "Views", "Instagram profile visits", "Content interactions", "Instagram link clicks", "Instagram follows"]:
-                                label = c_line; break
+                                label = c_line
+                                break
                         
-                        mapping = {"Reach":"Reach", "Views":"View", "Instagram profile visits":"Profile Visit", "Content interactions":"Interaction", "Instagram link clicks":"Link Clicks", "Instagram follows":"Follow"}
+                        mapping = {
+                            "Reach":"Reach", "Views":"View", 
+                            "Instagram profile visits":"Profile Visit", 
+                            "Content interactions":"Interaction", 
+                            "Instagram link clicks":"Link Clicks", 
+                            "Instagram follows":"Follow"
+                        }
                         target = mapping.get(label)
+                        
                         if target:
                             skip = 0
                             for i, l in enumerate(content):
-                                if "Date,Primary" in l: skip = i; break
+                                if "Date,Primary" in l: 
+                                    skip = i
+                                    break
                             df_ig = pd.read_csv(io.StringIO("\n".join(content[skip:])))
                             df_ig['Date'] = pd.to_datetime(df_ig['Date']).dt.strftime('%d-%m-%Y')
                             ig_frames.append(df_ig[['Date', 'Primary']].rename(columns={'Primary': target}))
                             logs.append(f"✅ Instagram {target}: {f.name}")
-                except Exception as e: logs.append(f"❌ Error {f.name}: {e}")
+                except Exception as e: 
+                    logs.append(f"❌ Error {f.name}: {e}")
 
-            for l in logs: st.caption(l)
+            # Tampilkan Log Proses
+            for l in logs:
+                st.caption(l)
 
+            # Gabungkan Data Instagram jika ada beberapa file
             if ig_frames:
                 m_ig = ig_frames[0]
-                for d in ig_frames[1:]: m_ig = pd.merge(m_ig, d, on='Date', how='outer')
+                for d in ig_frames[1:]: 
+                    m_ig = pd.merge(m_ig, d, on='Date', how='outer')
+                
                 m_ig['Platform'] = 'Instagram'
                 for c in ["View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]:
-                    if c not in m_ig.columns: m_ig[c] = 0
+                    if c not in m_ig.columns: 
+                        m_ig[c] = 0
                 all_processed.append(m_ig.fillna(0))
 
+            # Preview & Tombol Simpan
             if all_processed:
                 df_final = pd.concat(all_processed, ignore_index=True)
+                st.write("🔍 **Preview Data Gabungan:**")
                 st.dataframe(df_final.head(10), use_container_width=True)
+                
                 if st.button("🚀 KONFIRMASI SIMPAN KE TAB INSIGHT", use_container_width=True):
                     final_list = df_final[["Date", "Platform", "View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]].values.tolist()
                     if append_sheet_rows(2, final_list):
-                        st.success("Data berhasil masuk!"); st.cache_data.clear(); st.rerun()
+                        st.success("Data berhasil masuk!")
+                        st.cache_data.clear()
+                        st.rerun()
 
-    # BAGIAN VISUALISASI (Menggunakan bundle_data secara aman)
+    # --- BAGIAN 2: VISUALISASI ---
+    st.markdown("---")
+    # Mengambil data dari Tab ke-3 (Index 2)
     df_in = bundle_data.get(2, pd.DataFrame())
+    
     if not df_in.empty:
-        st.markdown("---")
         st.markdown("### 🎯 Data Historis Content Insight")
         st.dataframe(df_in.tail(15), use_container_width=True, hide_index=True)
     else:
