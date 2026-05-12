@@ -1436,153 +1436,6 @@ elif page == "📂 DATABASE NOMOR":
             st.info("Database masih kosong. Silakan import data.")
     except Exception as e:
         st.error(f"Gagal memuat data: {e}")
-# --- HALAMAN 6: DM SOSMED ---
-elif page == "📱 DM SOSMED":
-    st.title("📥 Input & Tracker DM Sosmed")
-    st.markdown("Fitur untuk merekap calon siswa dari Instagram, TikTok, dan Facebook.")
-    
-    import datetime
-    
-    # --- 1. LOAD DATA & RINGKASAN DI ATAS ---
-    st.markdown("### 📊 Ringkasan Performa DM")
-    
-    df_dm = pd.DataFrame()
-    try:
-        client = init_connection()
-        if client:
-            sheet_dm = client.open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(5)
-            records_dm = sheet_dm.get_all_records()
-            if records_dm:
-                df_dm = pd.DataFrame(records_dm)
-    except Exception as e:
-        st.error(f"Gagal memuat database: {e}")
-
-    if not df_dm.empty:
-        df_dm = df_dm.fillna('')
-        
-        kolom_tgl = "Tanggal Masuk" if "Tanggal Masuk" in df_dm.columns else df_dm.columns[-1]
-        try:
-            df_dm['Bulan'] = pd.to_datetime(df_dm[kolom_tgl], errors='coerce').dt.strftime('%Y-%m')
-            bulan_tersedia = sorted(df_dm['Bulan'].dropna().unique().tolist(), reverse=True)
-        except:
-            df_dm['Bulan'] = ''
-            bulan_tersedia = []
-
-        with st.expander("🔍 Filter Data Ringkasan", expanded=True):
-            c_filt1, c_filt2 = st.columns(2)
-            with c_filt1:
-                sel_bulan = st.multiselect("Pilih Bulan Masuk:", bulan_tersedia)
-            with c_filt2:
-                platforms_available = sorted(df_dm['Platform'].unique().tolist()) if 'Platform' in df_dm.columns else ["Instagram", "Tiktok", "Facebook"]
-                sel_plat = st.multiselect("Pilih Platform:", platforms_available)
-        
-        df_filtered = df_dm.copy()
-        if sel_bulan:
-            df_filtered = df_filtered[df_filtered['Bulan'].isin(sel_bulan)]
-        if sel_plat:
-            df_filtered = df_filtered[df_filtered['Platform'].isin(sel_plat)]
-        
-        # --- METRIK CUSTOM DENGAN LOGO ASLI ---
-        ig_count = len(df_filtered[df_filtered['Platform'].astype(str).str.contains('Instagram', case=False)])
-        tt_count = len(df_filtered[df_filtered['Platform'].astype(str).str.contains('Tiktok', case=False)])
-        fb_count = len(df_filtered[df_filtered['Platform'].astype(str).str.contains('Facebook', case=False)])
-        
-        m1, m2, m3, m4 = st.columns(4)
-        with m1:
-            with st.container(border=True):
-                st.markdown(f"<div style='font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'>📊 TOTAL TERFILTER</div><div style='font-size:32px; font-weight:bold;'>{len(df_filtered)}</div>", unsafe_allow_html=True)
-        with m2:
-            with st.container(border=True):
-                st.markdown(f"<div style='display:flex; align-items:center; gap:8px; font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'><img src='https://img.icons8.com/fluency/48/instagram-new.png' width='20'> INSTAGRAM</div><div style='font-size:32px; font-weight:bold;'>{ig_count}</div>", unsafe_allow_html=True)
-        with m3:
-            with st.container(border=True):
-                st.markdown(f"<div style='display:flex; align-items:center; gap:8px; font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'><img src='https://img.icons8.com/color/48/tiktok--v1.png' width='20'> TIKTOK</div><div style='font-size:32px; font-weight:bold;'>{tt_count}</div>", unsafe_allow_html=True)
-        with m4:
-            with st.container(border=True):
-                st.markdown(f"<div style='display:flex; align-items:center; gap:8px; font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'><img src='https://img.icons8.com/color/48/facebook-new.png' width='20'> FACEBOOK</div><div style='font-size:32px; font-weight:bold;'>{fb_count}</div>", unsafe_allow_html=True)
-        
-        # --- PIE CHART TRANSPARAN ---
-        st.markdown("<br>", unsafe_allow_html=True)
-        c_pie1, c_pie2 = st.columns(2)
-        with c_pie1:
-            kolom_status = 'Status DM' if 'Status DM' in df_filtered.columns else 'Status'
-            if kolom_status in df_filtered.columns and not df_filtered.empty:
-                fig_stat = px.pie(df_filtered, names=kolom_status, hole=0.4, title='Distribusi Status DM')
-                fig_stat.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-                st.plotly_chart(fig_stat, use_container_width=True)
-        with c_pie2:
-            kolom_tag = 'Tag Prospek' if 'Tag Prospek' in df_filtered.columns else 'Tag'
-            if kolom_tag in df_filtered.columns and not df_filtered.empty:
-                df_tag = df_filtered[df_filtered[kolom_tag].astype(str).str.strip() != '']
-                if not df_tag.empty:
-                    fig_tag = px.pie(df_tag, names=kolom_tag, hole=0.4, title='Distribusi Tag Prospek')
-                    fig_tag.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-                    st.plotly_chart(fig_tag, use_container_width=True)
-
-    st.markdown("---")
-
-    # --- 2. AREA FORM INPUT DENGAN KOLOM DOMISILI ---
-    with st.form("form_input_dm", clear_on_submit=True):
-        st.markdown("### 📝 Form Prospek Baru")
-        c1, c2 = st.columns(2)
-        
-        with c1:
-            platform = st.selectbox("Platform 📱", ["Instagram", "Tiktok", "Facebook"])
-            username = st.text_input("Nama / Username 👤", placeholder="Contoh: calonsiswa_123")
-            link_user = st.text_input("Link Username 🔗 (Otomatis)", placeholder="Kosongkan saja...")
-            domisili = st.text_input("Domisili / Asal Daerah 📍", placeholder="Contoh: Yogyakarta")
-            
-        with c2:
-            no_hp = st.text_input("No HP / WhatsApp ☎️ (Opsional)", placeholder="Contoh: 08123456789")
-            opsi_status = ["No Response", "Follow Up", "Daftar", "Interview", "Closing", "Lainya", "Sales Progress", "Withdraw", "Move ke Whatsapp"]
-            status_dm = st.selectbox("Status DM 📌", opsi_status)
-            opsi_tag = ["- Pilih Tag -", "NOT ELIGIBLE", "FUTURE PROSPECT", "HOT LEAD", "WARM LEAD", "COLD LEAD"]
-            tag_dm = st.selectbox("Tag Prospek 🏷️", opsi_tag)
-        
-        submit_dm = st.form_submit_button("💾 Simpan Data DM", use_container_width=True)
-        
-        if submit_dm:
-            if username.strip() == "":
-                st.warning("⚠️ Nama / Username wajib diisi!")
-            else:
-                with st.spinner("Menyimpan ke Spreadsheet..."):
-                    # Auto Link
-                    uname_clean = username.strip().replace("@", "")
-                    if link_user.strip() == "":
-                        if platform == "Instagram": link_final = f"https://instagram.com/{uname_clean}"
-                        elif platform == "Tiktok": link_final = f"https://tiktok.com/@{uname_clean}"
-                        elif platform == "Facebook": link_final = f"https://facebook.com/{uname_clean}"
-                        else: link_final = ""
-                    else: link_final = link_user.strip()
-
-                    # Format No HP
-                    if no_hp:
-                        n = str(no_hp).replace("'", "").replace("+", "").replace(" ", "").replace("-", "").strip()
-                        no_hp_final = "'" + ("62" + n[1:] if n.startswith("0") else n)
-                    else: no_hp_final = ""
-
-                    tgl_hari_ini = datetime.date.today().strftime("%Y-%m-%d")
-                    nomor_urut = len(df_dm) + 1 if not df_dm.empty else 1
-                    tag_final = "" if tag_dm == "- Pilih Tag -" else tag_dm
-
-                    # STRUKTUR 9 KOLOM: No, Platform, Username, Link, No HP, Domisili, Status, Tag, Tanggal
-                    data_dm_baru = [
-                        nomor_urut, platform, username, link_final, no_hp_final, domisili, status_dm, tag_final, tgl_hari_ini
-                    ]
-                    
-                    try:
-                        append_sheet_rows(5, [data_dm_baru])
-                        st.success(f"✅ Berhasil menyimpan {username}!")
-                        st.cache_data.clear() 
-                        st.rerun() 
-                    except Exception as e:
-                        st.error(f"Gagal eksekusi: {e}")
-                        
-    # --- 3. TABEL DATABASE ---
-    if not df_dm.empty:
-        st.markdown('<div class="feature-header">📑 Tabel Database Terkini</div>', unsafe_allow_html=True)
-        st.dataframe(df_filtered.drop(columns=['Bulan'], errors='ignore'), use_container_width=True, hide_index=True)
-
 # --- HALAMAN 7: ADS ANALYTICS ---
 elif page == "📈 ADS ANALYTICS":
     st.title("📈 Ads & Budget Analytics (ROI Engine)")
@@ -1670,12 +1523,15 @@ elif page == "📈 ADS ANALYTICS":
                 else:
                     df_ads = pd.read_excel(uploaded_ads)
                 
-                # --- FILTER ABSOLUT PENDETEKSI BARIS TOTAL ---
-                # Mencari baris yang memiliki sel dengan kata "Total" persis dan menghapusnya
-                mask_total = df_ads.apply(lambda row: row.astype(str).str.strip().str.lower().eq('total').any(), axis=1)
-                df_ads_bersih = df_ads[~mask_total].copy()
+                # --- FILTER PALING AMPUH: PENDETEKSI AWALAN "Total" ---
+                # Mengambil nama kolom pertama (biasanya 'Ad name' atau 'Campaign name')
+                col_pertama = df_ads.columns[0]
                 
-                # Hitung budget yang mau masuk
+                # Membuang baris yang kolom pertamanya diawali dengan kata "Total" (case-insensitive)
+                # Ini akan menyingkirkan "Total", "Total of X results", dll.
+                df_ads_bersih = df_ads[~df_ads[col_pertama].astype(str).str.strip().str.lower().str.startswith('total')].copy()
+                
+                # Hitung budget yang mau masuk dari data yang sudah bersih
                 df_calc_up = df_ads_bersih.copy()
                 df_calc_up.columns = [str(c).strip().lower() for c in df_calc_up.columns]
                 col_cost_up = next((c for c in df_calc_up.columns if 'cost' in c), None)
