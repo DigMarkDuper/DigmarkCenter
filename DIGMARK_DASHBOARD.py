@@ -260,7 +260,15 @@ def check_password():
 # D. EKSEKUSI: Panggil fungsi login
 if not check_password():
     st.stop()
+# 2. Pastikan data sudah ditarik ke session_state
+if 'bundle' not in st.session_state:
+    st.session_state.bundle = fetch_all_master_data()
 
+# ==========================================
+# DI SINI TEMPATNYA (DI LUAR IF/ELIF PAGE)
+# ==========================================
+bundle_data = st.session_state.get('bundle', {})
+# ==========================================
 # E. Pasang kembali background untuk halaman utama
 set_bg_local('bg.png')
 # =====================================================================
