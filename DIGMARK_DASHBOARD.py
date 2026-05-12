@@ -1278,7 +1278,163 @@ elif page == "💬 WA ADMIN REPORT":
             
     except Exception as e:
         st.error(f"Kesalahan Teknis: {e}")
-# ---------------- TAB META ----------------
+# --- HALAMAN 7: ADS ANALYTICS ---
+elif page == "📈 ADS ANALYTICS":
+    st.title("📈 Ads & Budget Analytics (ROI Engine)")
+    st.markdown("Pantau **Cost Per Lead (CPL)**, **Customer Acquisition Cost (CAC)**, dan **ROAS** dari seluruh platform.")
+    
+    import io
+    
+    # Asumsi Nilai 1 Closing (Bisa kamu ubah jika ada perubahan harga)
+    BIAYA_PELATIHAN = 15000000 
+    
+    # =====================================================================
+    # 1. LOAD DATA CRM & SPREADSHEET (DIPROSES DI AWAL UNTUK GLOBAL)
+    # =====================================================================
+    df_crm = pd.DataFrame()
+    kolom_sumber = None
+    kolom_status = None
+    
+    # Variabel Penampung
+    total_spend_tiktok, total_clicks_tiktok, total_leads_tiktok, closing_tiktok = 0, 0, 0, 0
+    total_spend_meta, total_clicks_meta, total_leads_meta, closing_meta = 0, 0, 0, 0
+    df_ads_tiktok_db, df_ads_meta_db = pd.DataFrame(), pd.DataFrame()
+    
+    try:
+        # A. Load CRM (Mencari Kolom Sumber & Status Closing)
+        df_crm = load_database_nomor()
+        if not df_crm.empty:
+            kolom_sumber = next((c for c in df_crm.columns if c in ['Platform', 'Sumber', 'Source', 'Asal']), None)
+            kolom_status = next((c for c in df_crm.columns if 'status' in c.lower() or 'tag' in c.lower() or 'mekari' in c.lower()), None)
+            
+        client = init_connection()
+        if client:
+            # B. Load TikTok (Tab 7 / Index 6) & Hitung Leads + Closing
+            if kolom_sumber and not df_crm.empty:
+                mask_tk_crm = df_crm[kolom_sumber].astype(str).str.contains('Tiktok', case=False)
+                total_leads_tiktok = len(df_crm[mask_tk_crm])
+                if kolom_status:
+                    closing_tiktok = len(df_crm[mask_tk_crm & df_crm[kolom_status].astype(str).str.contains('closing|won|daftar|lunas', case=False)])
+                
+            sheet_tiktok = client.open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(6)
+            records_tiktok = sheet_tiktok.get_all_records()
+            if records_tiktok:
+                df_ads_tiktok_db = pd.DataFrame(records_tiktok)
+                df_calc_tk = df_ads_tiktok_db.copy()
+                df_calc_tk.columns = [str(c).strip().lower() for c in df_calc_tk.columns]
+                
+                col_cost_tk = next((c for c in df_calc_tk.columns if 'cost' in c), None)
+                if col_cost_tk:
+                    df_calc_tk[col_cost_tk] = pd.to_numeric(df_calc_tk[col_cost_tk].astype(str).str.replace(r'[^\d.]', '', regex=True), errors='coerce').fillna(0)
+                    total_spend_tiktok = df_calc_tk[col_cost_tk].sum()
+
+            # C. Load Meta (Tab 8 / Index 7) & Hitung Leads + Closing
+            if kolom_sumber and not df_crm.empty:
+                mask_mt_crm = df_crm[kolom_sumber].astype(str).str.contains(r'Instagram|Facebook|IG|FB|Meta', case=False, regex=True)
+                total_leads_meta = len(df_crm[mask_mt_crm])
+                if kolom_status:
+                    closing_meta = len(df_crm[mask_mt_crm & df_crm[kolom_status].astype(str).str.contains('closing|won|daftar|lunas', case=False)])
+                
+            sheet_meta = client.open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(7)
+            records_meta = sheet_meta.get_all_records()
+            if records_meta:
+                df_ads_meta_db = pd.DataFrame(records_meta)
+                df_calc_mt = df_ads_meta_db.copy()
+                df_calc_mt.columns = [str(c).strip().lower() for c in df_calc_mt.columns]
+                
+                col_cost_mt = next((c for c in df_calc_mt.columns if 'spent' in c or 'spend' in c or 'cost' in c), None)
+                if col_cost_mt:
+                    df_calc_mt[col_cost_mt] = pd.to_numeric(df_calc_mt[col_cost_mt].astype(str).str.replace(r'[^\d.]', '', regex=True), errors='coerce').fillna(0)
+                    total_spend_meta = df_calc_mt[col_cost_mt].sum()
+                    
+    except Exception as e:
+        st.warning(f"Sistem sedang dimuat atau database masih kosong.")
+
+    # =====================================================================
+    # 2. TAMPILAN RINGKASAN GLOBAL (ULTIMATE ROI)
+    # =====================================================================
+    global_spend = total_spend_tiktok + total_spend_meta
+    global_leads = total_leads_tiktok + total_leads_meta
+    global_closing = closing_tiktok + closing_meta
+    global_omzet = global_closing * BIAYA_PELATIHAN
+    
+    global_cpl = global_spend / global_leads if global_leads > 0 else 0
+    global_cac = global_spend / global_closing if global_closing > 0 else 0
+    global_roas = (global_omzet / global_spend) if global_spend > 0 else 0
+
+    st.markdown('<div class="feature-header">🌍 ULTIMATE ROI DASHBOARD (SEMUA PLATFORM)</div>', unsafe_allow_html=True)
+    g1, g2, g3, g4, g5 = st.columns(5)
+    with g1:
+        with st.container(border=True):
+            st.markdown(f"<div style='font-size:12px; color:gray; font-weight:800; margin-bottom:5px;'>💸 TOTAL SPEND</div><div style='font-size:24px; font-weight:bold; color:#8B0000;'>Rp {global_spend/1000000:,.1f}Jt</div>", unsafe_allow_html=True)
+    with g2:
+        with st.container(border=True):
+            st.markdown(f"<div style='font-size:12px; color:gray; font-weight:800; margin-bottom:5px;'>👥 LEADS CRM</div><div style='font-size:24px; font-weight:bold;'>{global_leads}</div>", unsafe_allow_html=True)
+    with g3:
+        with st.container(border=True):
+            st.markdown(f"<div style='font-size:12px; color:gray; font-weight:800; margin-bottom:5px;'>🎓 TOTAL CLOSING</div><div style='font-size:24px; font-weight:bold; color:#006400;'>{global_closing} Siswa</div>", unsafe_allow_html=True)
+    with g4:
+        with st.container(border=True):
+            st.markdown(f"<div style='font-size:12px; color:gray; font-weight:800; margin-bottom:5px;'>🎯 BIAYA/SISWA (CAC)</div><div style='font-size:24px; font-weight:bold; color:#D2691E;'>Rp {global_cac/1000000:,.1f}Jt</div>", unsafe_allow_html=True)
+    with g5:
+        with st.container(border=True):
+            st.markdown(f"<div style='font-size:12px; color:gray; font-weight:800; margin-bottom:5px;'>🚀 ROAS (KEUNTUNGAN)</div><div style='font-size:24px; font-weight:bold; color:#1E3A8A;'>{global_roas:,.1f}x Lipat</div>", unsafe_allow_html=True)
+
+    if global_roas > 0:
+        st.success(f"🔥 **Status Iklan:** Dengan total pengeluaran **Rp {global_spend:,.0f}**, kamu menghasilkan omzet kotor sekitar **Rp {global_omzet:,.0f}**. Nilai investasimu kembali **{global_roas:,.1f} kali lipat**!")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # =====================================================================
+    # 3. TAB UNTUK RINCIAN PER PLATFORM
+    # =====================================================================
+    tab_tiktok, tab_meta = st.tabs(["📱 Rincian TikTok Ads", "🟦 Rincian Meta Ads (IG & FB)"])
+
+    # ---------------- TAB TIKTOK ----------------
+    with tab_tiktok:
+        cpl_tk = total_spend_tiktok / total_leads_tiktok if total_leads_tiktok > 0 else 0
+        cac_tk = total_spend_tiktok / closing_tiktok if closing_tiktok > 0 else 0
+        
+        t1, t2, t3, t4, t5 = st.columns(5)
+        t1.metric("💸 Spend TikTok", f"Rp {total_spend_tiktok/1000000:,.1f}Jt")
+        t2.metric("👥 Leads Masuk", total_leads_tiktok)
+        t3.metric("🎯 Cost Per Lead", f"Rp {cpl_tk:,.0f}")
+        t4.metric("🎓 Closing TikTok", closing_tiktok)
+        t5.metric("💰 Biaya/Siswa (CAC)", f"Rp {cac_tk:,.0f}")
+        
+        st.markdown("---")
+        with st.container(border=True):
+            st.markdown("### 📤 Upload Laporan TikTok Ads Baru")
+            up_tk = st.file_uploader("Upload File Laporan TikTok Ads (Abaikan baris Total)", type=['csv', 'xlsx'], key="up_tk")
+            if up_tk is not None:
+                try:
+                    df_up_tk = pd.read_csv(up_tk) if up_tk.name.endswith('.csv') else pd.read_excel(up_tk)
+                    col_pertama_tk = df_up_tk.columns[0]
+                    df_clean_tk = df_up_tk[~df_up_tk[col_pertama_tk].astype(str).str.strip().str.lower().str.startswith('total')].copy()
+                    
+                    df_calc_up = df_clean_tk.copy()
+                    df_calc_up.columns = [str(c).strip().lower() for c in df_calc_up.columns]
+                    col_cost_up = next((c for c in df_calc_up.columns if 'cost' in c), None)
+                    up_spend_tk = pd.to_numeric(df_calc_up[col_cost_up], errors='coerce').fillna(0).sum() if col_cost_up else 0
+                        
+                    st.success(f"✅ Budget TikTok yang akan ditambahkan: **Rp {up_spend_tk:,.0f}**")
+                    if st.button("📥 Import ke Spreadsheet (TikTok)", use_container_width=True, key="btn_imp_tk"):
+                        with st.spinner("Mengirim ke Tab 7..."):
+                            df_final = df_clean_tk.fillna("")
+                            bulk_data = [df_final.columns.tolist()] + df_final.values.tolist() if df_ads_tiktok_db.empty else df_final.values.tolist()
+                            if append_sheet_rows(6, bulk_data): 
+                                st.success("✅ Berhasil masuk ke Tab TikTok."); st.balloons(); st.cache_data.clear(); st.rerun()
+                except Exception as e:
+                    st.error(f"Gagal memproses: {e}")
+
+        with st.expander("📑 Database TikTok Tersimpan (Klik untuk lihat & Reset)", expanded=False):
+            if not df_ads_tiktok_db.empty:
+                st.dataframe(df_ads_tiktok_db, use_container_width=True, hide_index=True)
+                if st.button("🗑️ Kosongkan Database TikTok", use_container_width=True, key="rst_tk"):
+                    init_connection().open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(6).clear()
+                    st.cache_data.clear(); st.rerun()
+
+    # ---------------- TAB META ----------------
     with tab_meta:
         cpl_mt = total_spend_meta / total_leads_meta if total_leads_meta > 0 else 0
         cac_mt = total_spend_meta / closing_meta if closing_meta > 0 else 0
@@ -1323,13 +1479,3 @@ elif page == "💬 WA ADMIN REPORT":
                 if st.button("🗑️ Kosongkan Database Meta", use_container_width=True, key="rst_mt"):
                     init_connection().open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(7).clear() 
                     st.cache_data.clear(); st.rerun()
-
-# =====================================================================
-# SYSTEM RUNNER (CUKUP SATU KALI SAJA DI PALING BAWAH)
-# =====================================================================
-if __name__ == "__main__":
-    if not st.runtime.exists():
-        import sys
-        from streamlit.web import cli as stcli
-        sys.argv = ["streamlit", "run", sys.argv[0]]
-        sys.exit(stcli.main())
