@@ -978,112 +978,140 @@ elif page == "🌐 WEBSITE AUDIT":
     except Exception as e:
         st.error(f"Kesalahan Teknis Website: {e}")
 
-# --- HALAMAN 3: INSIGHTS & ANALYTICS ---
+# --- HALAMAN 3: INSIGHTS & ANALYTICS (ULTRA-SMART IMPORTER) ---
 elif page == "📈 INSIGHTS & ANALYTICS":
     st.title("📈 PERFORMA & ANALITIK KONTEN")
     st.markdown("---")
+    
+    import io
+    import pandas as pd
+    from datetime import datetime
+
+    # 1. ULTRA-SMART IMPORTER (Multi-File Support)
+    with st.expander("🚀 Ultra-Smart Importer (TikTok & Instagram)", expanded=True):
+        st.info("💡 **Tips:** Kamu bisa upload banyak file sekaligus (Overview TikTok + semua CSV Instagram).")
+        
+        uploaded_files = st.file_uploader("Upload file CSV (TikTok/Instagram)", type=["csv"], accept_multiple_files=True, key="multi_importer")
+        
+        if uploaded_files:
+            all_processed_data = []
+            ig_data_frames = [] # Untuk menampung data IG yang terpisah-pisah
+            
+            for file in uploaded_files:
+                file_name = file.name.lower()
+                
+                # A. PROSES TIKTOK (Overview.csv)
+                if "overview" in file_name:
+                    try:
+                        df_tk = pd.read_csv(file)
+                        if 'Video Views' in df_tk.columns:
+                            df_tk_final = pd.DataFrame()
+                            df_tk_final['Date'] = pd.to_datetime(df_tk['Date']).dt.strftime('%d-%m-%Y')
+                            df_tk_final['Platform'] = 'TikTok'
+                            df_tk_final['View'] = df_tk['Video Views']
+                            df_tk_final['Reach'] = df_tk['Video Views']
+                            df_tk_final['Interaction'] = df_tk['Likes'] + df_tk['Comments'] + df_tk['Shares']
+                            df_tk_final['Profile Visit'] = df_tk['Profile Views']
+                            df_tk_final['Link Clicks'] = 0
+                            df_tk_final['Follow'] = 0
+                            all_processed_data.append(df_tk_final)
+                            st.caption(f"✅ TikTok Overview ({file.name}) diproses.")
+                    except: st.error(f"Gagal memproses TikTok: {file.name}")
+
+                # B. PROSES INSTAGRAM (File Terpisah: Reach, Visits, Follows, dll)
+                else:
+                    try:
+                        # Instagram CSV biasanya punya info di baris ke-2
+                        raw_lines = file.getvalue().decode("utf-8").splitlines()
+                        metric_label = raw_lines[1].replace('"', '').strip() if len(raw_lines) > 1 else ""
+                        
+                        # Baca data (skip header metadata IG)
+                        df_ig = pd.read_csv(file, skiprows=2)
+                        if 'Date' in df_ig.columns and 'Primary' in df_ig.columns:
+                            df_ig['Date'] = pd.to_datetime(df_ig['Date']).dt.strftime('%d-%m-%Y')
+                            
+                            # Mapping nama metric IG ke kolom database kita
+                            mapping = {
+                                "Reach": "Reach",
+                                "Views": "View",
+                                "Instagram profile visits": "Profile Visit",
+                                "Content interactions": "Interaction",
+                                "Instagram link clicks": "Link Clicks",
+                                "Instagram follows": "Follow"
+                            }
+                            
+                            target_col = mapping.get(metric_label, None)
+                            if target_col:
+                                df_temp = df_ig[['Date', 'Primary']].rename(columns={'Primary': target_col})
+                                ig_data_frames.append(df_temp)
+                                st.caption(f"✅ Instagram {target_col} ({file.name}) terdeteksi.")
+                    except: pass
+
+            # GABUNGKAN SEMUA DATA INSTAGRAM BERDASARKAN TANGGAL
+            if ig_data_frames:
+                df_ig_merged = ig_data_frames[0]
+                for df in ig_data_frames[1:]:
+                    df_ig_merged = pd.merge(df_ig_merged, df, on='Date', how='outer')
+                
+                df_ig_merged['Platform'] = 'Instagram'
+                # Isi kolom yang tidak ada dengan 0
+                for col in ["View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]:
+                    if col not in df_ig_merged.columns: df_ig_merged[col] = 0
+                
+                df_ig_merged = df_ig_merged.fillna(0)
+                all_processed_data.append(df_ig_merged)
+
+            # FINALIZE & UPLOAD
+            if all_processed_data:
+                df_to_upload = pd.concat(all_processed_data, ignore_index=True)
+                st.write("🔍 **Preview Data yang akan di-import:**")
+                st.dataframe(df_to_upload, use_container_width=True)
+                
+                if st.button("🚀 Konfirmasi Import Massal ke Google Sheets", use_container_width=True):
+                    # Urutan kolom sesuai Tab 2: Date, Platform, View, Reach, Interaction, Profile Visit, Link Clicks, Follow
+                    final_list = df_to_upload[["Date", "Platform", "View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]].values.tolist()
+                    
+                    if append_sheet_rows(2, final_list):
+                        st.success(f"🔥 Sempurna! {len(final_list)} baris data gabungan berhasil masuk!")
+                        st.cache_data.clear()
+                        st.rerun()
+
+    st.markdown("---")
+
+    # 2. VISUALISASI DASHBOARD (Standard)
     try:
         df_in = load_insight()
-        st.sidebar.markdown(f"<h2 style='color:{BRAND_BLUE};'>Analytic Filters</h2>", unsafe_allow_html=True)
-        
-        if 'Platform' in df_in.columns:
-            list_platform = df_in['Platform'].dropna().unique().tolist()
-            sel_platform = st.sidebar.multiselect("Pilih Platform:", options=list_platform, default=list_platform, key="in_plat")
-            df_in = df_in[df_in['Platform'].isin(sel_platform)]
-        
         if not df_in.empty:
-            st.markdown('<div class="feature-header">🎯 Total Kinerja Aggregat (Seluruh Platform)</div>', unsafe_allow_html=True)
-            t_view = df_in['View'].sum()
-            t_reach = df_in['Reach'].sum()
-            t_interact = df_in['Interaction'].sum()
-            t_clicks = df_in['Link Clicks'].sum()
-            t_follow = df_in['Follow'].sum()
+            df_in = df_in.fillna(0)
             
-            i1, i2, i3, i4, i5 = st.columns(5)
-            i1.metric("Total Views 👀", f"{t_view:,.0f}")
-            i2.metric("Total Jangkauan 🌍", f"{t_reach:,.0f}")
-            i3.metric("Total Interaksi 💬", f"{t_interact:,.0f}")
-            i4.metric("Klik Link Bio 🔗", f"{t_clicks:,.0f}")
-            i5.metric("Total Follower 👥", f"{t_follow:,.0f}")
+            # Sidebar Filter
+            st.sidebar.markdown(f"<h2 style='color:#8B0000;'>Analytic Filters</h2>", unsafe_allow_html=True)
+            list_platform = sorted(df_in['Platform'].unique().tolist())
+            sel_platform = st.sidebar.multiselect("Pilih Platform:", options=list_platform, default=list_platform)
+            df_filtered = df_in[df_in['Platform'].isin(sel_platform)]
 
+            # Metrik Utama
+            st.markdown('<div class="feature-header">🎯 Total Kinerja Aggregat</div>', unsafe_allow_html=True)
+            cols = st.columns(5)
+            metrics = ["View", "Reach", "Interaction", "Link Clicks", "Follow"]
+            labels = ["Views 👀", "Reach 🌍", "Interaksi 💬", "Link Clicks 🔗", "Followers 👥"]
+            
+            for i, (m, l) in enumerate(zip(metrics, labels)):
+                cols[i].metric(l, f"{pd.to_numeric(df_filtered[m], errors='coerce').sum():,.0f}")
+
+            # Grafik Tren
             st.markdown("---")
-            st.markdown('<div class="feature-header">📱 Perincian Kinerja per Platform</div>', unsafe_allow_html=True)
-            
-            for plat in sel_platform:
-                df_plat = df_in[df_in['Platform'] == plat]
-                if not df_plat.empty:
-                    p_view = df_plat['View'].sum()
-                    p_reach = df_plat['Reach'].sum()
-                    p_interact = df_plat['Interaction'].sum()
-                    p_clicks = df_plat['Link Clicks'].sum()
-                    p_follow = df_plat['Follow'].sum()
-                    
-                    st.subheader(f"Platform: {plat}")
-                    p1, p2, p3, p4, p5 = st.columns(5)
-                    p1.metric(f"Views {plat}", f"{p_view:,.0f}")
-                    p2.metric(f"Reach {plat}", f"{p_reach:,.0f}")
-                    p3.metric(f"Interaksi {plat}", f"{p_interact:,.0f}")
-                    p4.metric(f"Klik Link {plat}", f"{p_clicks:,.0f}")
-                    p5.metric(f"Follower {plat}", f"{p_follow:,.0f}")
-                    st.markdown("---")
+            if 'Date' in df_filtered.columns:
+                df_filtered['Sort_Date'] = pd.to_datetime(df_filtered['Date'], dayfirst=True)
+                df_trend = df_filtered.sort_values('Sort_Date')
+                
+                fig = px.line(df_trend, x='Date', y='View', color='Platform', title="Tren Views Harian", markers=True)
+                st.plotly_chart(fig, use_container_width=True)
 
-            st.markdown('<div class="feature-header">📈 Tren Pertumbuhan per Platform</div>', unsafe_allow_html=True)
-            
-            if 'Platform' in df_in.columns and 'Date' in df_in.columns:
-                df_trend = df_in.groupby(['Date', 'Platform'])[['View', 'Reach', 'Interaction', 'Profile Visit', 'Link Clicks', 'Follow']].sum().reset_index()
-                df_trend['Sort_Date'] = pd.to_datetime(df_trend['Date'], errors='coerce', dayfirst=True)
-                df_trend = df_trend.sort_values(by=['Sort_Date', 'Platform']).drop(columns=['Sort_Date'])
-                line_colors = [BRAND_BLUE, BRAND_YELLOW, "#003A66", "#87CEEB", "#FF8C00"]
-
-                def update_fig_style(fig):
-                    fig.update_layout(
-                        paper_bgcolor='white', plot_bgcolor='white', font=dict(color="#000000", size=12),
-                        legend=dict(font=dict(color="#000000", size=12), bgcolor="rgba(255,255,255,0.5)"),
-                        xaxis=dict(tickfont=dict(color="#000000"), title_font=dict(color="#000000")),
-                        yaxis=dict(tickfont=dict(color="#000000"), title_font=dict(color="#000000"), gridcolor='#EEE')
-                    )
-                    fig.update_traces(textfont=dict(color="#000000"))
-                    return fig
-
-                c1, c2 = st.columns(2)
-                with c1:
-                    st.markdown("<h4 style='text-align: center; color: black;'>👀 Tren Views</h4>", unsafe_allow_html=True)
-                    fig_view = px.line(df_trend, x='Date', y='View', color='Platform', text='View', color_discrete_sequence=line_colors)
-                    fig_view.update_traces(mode='lines+markers+text', textposition='top center', texttemplate='%{text:,.0f}', line_shape='spline', marker=dict(size=8))
-                    st.plotly_chart(update_fig_style(fig_view), use_container_width=True)
-
-                with c2:
-                    st.markdown("<h4 style='text-align: center; color: black;'>💬 Tren Interaction</h4>", unsafe_allow_html=True)
-                    fig_int = px.line(df_trend, x='Date', y='Interaction', color='Platform', text='Interaction', color_discrete_sequence=line_colors)
-                    fig_int.update_traces(mode='lines+markers+text', textposition='top center', texttemplate='%{text:,.0f}', line_shape='spline', marker=dict(size=8))
-                    st.plotly_chart(update_fig_style(fig_int), use_container_width=True)
-
-                c3, c4 = st.columns(2)
-                with c3:
-                    st.markdown("<h4 style='text-align: center; color: black;'>👥 Tren Profile Visit</h4>", unsafe_allow_html=True)
-                    fig_prof = px.line(df_trend, x='Date', y='Profile Visit', color='Platform', text='Profile Visit', color_discrete_sequence=line_colors)
-                    fig_prof.update_traces(mode='lines+markers+text', textposition='top center', texttemplate='%{text:,.0f}', line_shape='spline', marker=dict(size=8))
-                    st.plotly_chart(update_fig_style(fig_prof), use_container_width=True)
-
-                with c4:
-                    st.markdown("<h4 style='text-align: center; color: black;'>🔗 Tren Link Clicks (Leads)</h4>", unsafe_allow_html=True)
-                    fig_click = px.line(df_trend, x='Date', y='Link Clicks', color='Platform', text='Link Clicks', color_discrete_sequence=line_colors)
-                    fig_click.update_traces(mode='lines+markers+text', textposition='top center', texttemplate='%{text:,.0f}', line_shape='spline', marker=dict(size=8))
-                    st.plotly_chart(update_fig_style(fig_click), use_container_width=True)
-
-                c5, c6 = st.columns(2)
-                with c5:
-                    st.markdown("<h4 style='text-align: center; color: black;'>📈 Tren Pertumbuhan Follower</h4>", unsafe_allow_html=True)
-                    fig_follow = px.line(df_trend, x='Date', y='Follow', color='Platform', text='Follow', color_discrete_sequence=line_colors)
-                    fig_follow.update_traces(mode='lines+markers+text', textposition='top center', texttemplate='%{text:,.0f}', line_shape='spline', marker=dict(size=8))
-                    st.plotly_chart(update_fig_style(fig_follow), use_container_width=True)
-
-            st.markdown('<div class="feature-header">📋 Master Database Insight</div>', unsafe_allow_html=True)
-            st.dataframe(df_in, use_container_width=True, hide_index=True)
-        else:
-            st.warning("⚠️ Tidak ada data analitik.")
+            with st.expander("📋 Master Database Insight"):
+                st.dataframe(df_filtered, use_container_width=True, hide_index=True)
     except Exception as e:
-        st.error(f"Kesalahan Teknis Insight: {e}")
+        st.error(f"Dashboard Error: {e}")
 
 # --- HALAMAN 4: WA ADMIN REPORT ---
 elif page == "💬 WA ADMIN REPORT":
