@@ -407,7 +407,7 @@ if page == "🏠 HOMEPAGE":
         </style>
     """, unsafe_allow_html=True)
 
-    # 2. HEADER & NAVIGASI 6 KOTAK
+    # 2. HEADER & NAVIGASI (DIBAGI 2 BARIS)
     st.markdown('<div class="feature-header" style="text-align: center; margin-bottom:20px;">🚀 DIGITAL MARKETING COMMAND CENTER</div>', unsafe_allow_html=True)
     
     def create_square_card(icon, title, subtitle, target_page, button_key):
@@ -421,19 +421,30 @@ if page == "🏠 HOMEPAGE":
             """, unsafe_allow_html=True)
             st.button("Masuk ➔", key=button_key, use_container_width=True, on_click=go_to_page, args=(target_page,))
 
-    # Mengubah menjadi 6 kolom untuk menampung fitur baru
-    nav_cols = st.columns(6)
+    # Data 7 Menu Navigasi (termasuk Ads Analytics)
     nav_data = [
         ("📱", "Sosmed", "Jadwal PIC", "📱 SOSIAL MEDIA", "btn_sos"),
         ("🌐", "Website", "SEO Audit", "🌐 WEBSITE AUDIT", "btn_web"),
         ("📈", "Insight", "Analytics", "📈 INSIGHTS & ANALYTICS", "btn_in"),
         ("💬", "WA Admin", "Closing Funnel", "💬 WA ADMIN REPORT", "btn_wa"),
         ("📂", "Database", "CRM Kontak", "📂 DATABASE NOMOR", "btn_db"),
-        ("📥", "DM Sosmed", "Tracker Inbox", "📱 DM SOSMED", "btn_dm") # Kotak navigasi baru untuk DM Sosmed
+        ("📥", "DM Sosmed", "Tracker Inbox", "📱 DM SOSMED", "btn_dm"),
+        ("🎯", "Ads Report", "ROI & CPL", "📈 ADS ANALYTICS", "btn_ads") # Menu baru Halaman 7
     ]
 
-    for col, (icon, title, sub, target, key) in zip(nav_cols, nav_data):
-        with col: create_square_card(icon, title, sub, target, key)
+    # BARIS 1: 4 Menu Pertama
+    cols1 = st.columns(4)
+    for col, data in zip(cols1, nav_data[:4]):
+        with col: 
+            create_square_card(*data)
+
+    st.markdown("<br>", unsafe_allow_html=True) # Jarak antara baris atas dan bawah
+
+    # BARIS 2: 3 Menu Sisa (Kolom ke-4 akan otomatis kosong)
+    cols2 = st.columns(4)
+    for col, data in zip(cols2, nav_data[4:]):
+        with col: 
+            create_square_card(*data)
 
     st.markdown("---")
 
