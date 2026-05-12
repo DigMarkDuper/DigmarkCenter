@@ -198,13 +198,14 @@ TEXT_BLACK = "#000000"
 BG_WHITE = "#FFFFFF"
 
 # =====================================================================
-# 2. SISTEM KEAMANAN & BACKGROUND
+# 2. SISTEM KEAMANAN & VISUAL (VERSI FINAL CLEAN)
 # =====================================================================
 
-# --- 1. DEFINISI URL LOGO (PASTIKAN DI PALING ATAS) ---
+# Gunakan link logo yang sudah pasti valid
 LOGO_URL = "https://dutapersadajogja.com/wp-content/uploads/2023/11/logo-duta-persada.png"
 
 def set_bg_local(main_bg):
+    """Fungsi tunggal untuk background"""
     try:
         with open(main_bg, "rb") as f:
             bin_str = base64.b64encode(f.read()).decode()
@@ -223,39 +224,33 @@ def set_bg_local(main_bg):
     except:
         pass
 
-# --- 1. Pastikan Link Logo Ini Ada di Paling Atas Kode ---
-LOGO_URL = "https://dutapersadajogja.com/wp-content/uploads/2023/11/logo-duta-persada.png"
-
 def check_password():
-    if st.session_state.get("password_correct"): 
+    """Fungsi login dengan indentasi yang benar"""
+    if st.session_state.get("password_correct"):
         return True
     
-    # Pasang background
+    # Render background khusus halaman login
     set_bg_local('bg.png') 
     
+    # SEMUA kode UI di bawah ini HARUS menjorok ke dalam (indent) agar masuk ke fungsi
     _, col_mid, _ = st.columns([1, 2, 1])
     with col_mid:
-        # 1. Kita buat variabel teks HTML-nya dulu agar tidak pusing dengan tanda kutip
-        login_html = """
-        <div style="text-align:center; background-color: rgba(255,255,255,0.9); 
-                    padding: 40px 20px 20px 20px; border-radius: 20px; 
-                    box-shadow: 0 10px 25px rgba(0,0,0,0.2); margin-top: 50px;">
-            
-            <img src="https://dutapersadajogja.com/wp-content/uploads/2023/11/logo-duta-persada.png" 
-                 width="200" style="mix-blend-mode: multiply; margin-bottom: 20px;">
-            
-            <h2 style="color: #8B0000; font-weight: 800; letter-spacing: 1px; font-size: 24px; margin-bottom: 5px;">
-                DIGITAL MARKETING DASHBOARD
-            </h2>
-            <p style="color: #666; font-size: 14px; margin-bottom: 10px;">LPK Duta Persada Yogyakarta</p>
-        </div>
-        """
+        # Panel Visual Dashboard
+        st.markdown(f'''
+            <div style="text-align:center; background-color: rgba(255,255,255,0.9); 
+                        padding: 40px 20px; border-radius: 20px; 
+                        box-shadow: 0 10px 25px rgba(0,0,0,0.2); margin-top: 50px;">
+                
+                <img src="{LOGO_URL}" width="200" style="mix-blend-mode: multiply; margin-bottom: 20px;">
+                
+                <h2 style="color: #8B0000; font-weight: 800; letter-spacing: 1px; font-size: 24px; margin-bottom: 5px;">
+                    DIGITAL MARKETING DASHBOARD
+                </h2>
+                <p style="color: #666; font-size: 14px; margin-bottom: 10px;">LPK Duta Persada Yogyakarta</p>
+            </div>
+        ''', unsafe_allow_html=True)
         
-        # 2. EKSEKUSI: Panggil variabel tadi di sini
-        # PERHATIKAN: Parameter unsafe_allow_html HARUS ada di sini
-        st.markdown(login_html, unsafe_allow_html=True)
-        
-        # 3. Form Login
+        # Form Login
         with st.form("login_form"):
             user = st.text_input("Username").strip().lower()
             pwd = st.text_input("Password", type="password")
@@ -267,11 +262,12 @@ def check_password():
                     st.error("Username/Password Salah")
     return False
 
-# --- Jalankan Satpam Login ---
+# --- EKSEKUSI UTAMA ---
+# Jika belum login, hentikan semua proses di bawahnya
 if not check_password():
     st.stop()
 
-# Jika sudah login, set background lagi untuk halaman utama
+# Jika sudah sukses login, pasang background untuk dashboard utama
 set_bg_local('bg.png')
 # =====================================================================
 # 3. KONEKSI & LOAD DATA
