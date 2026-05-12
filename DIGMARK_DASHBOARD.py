@@ -1615,18 +1615,15 @@ elif page == "📈 ADS ANALYTICS":
             if records_ads:
                 df_ads_db = pd.DataFrame(records_ads)
                 
-                # Normalisasi nama kolom untuk dibaca sistem
                 df_calc_db = df_ads_db.copy()
                 df_calc_db.columns = [str(c).strip().lower() for c in df_calc_db.columns]
                 
-                # Cari kolom Cost dan Clicks
                 col_cost = next((c for c in df_calc_db.columns if 'cost' in c), None)
                 col_clicks = next((c for c in df_calc_db.columns if 'destination' in c and 'click' in c), None)
                 if not col_clicks:
                     col_clicks = next((c for c in df_calc_db.columns if 'clicks (all)' in c or 'clicks' in c), None)
                     
                 if col_cost:
-                    # Bersihkan angka dari simbol mata uang/huruf, lalu jumlahkan
                     df_calc_db[col_cost] = pd.to_numeric(df_calc_db[col_cost].astype(str).str.replace(r'[^\d.]', '', regex=True), errors='coerce').fillna(0)
                     total_spend_db = df_calc_db[col_cost].sum()
                     
@@ -1634,14 +1631,14 @@ elif page == "📈 ADS ANALYTICS":
                     df_calc_db[col_clicks] = pd.to_numeric(df_calc_db[col_clicks].astype(str).str.replace(r'[^\d.]', '', regex=True), errors='coerce').fillna(0)
                     total_clicks_db = df_calc_db[col_clicks].sum()
                     
-        # C. Hitung CPL (Cost Per Lead)
+        # C. Hitung CPL
         if total_leads_tiktok > 0:
             cpl_db = total_spend_db / total_leads_tiktok
             
     except Exception as e:
         st.warning(f"Sedang memuat sistem atau data masih kosong.")
 
-    # --- MENAMPILKAN 4 METRIK UTAMA (SELALU MUNCUL) ---
+    # --- MENAMPILKAN 4 METRIK UTAMA ---
     m1, m2, m3, m4 = st.columns(4)
     with m1:
         with st.container(border=True):
@@ -1658,26 +1655,33 @@ elif page == "📈 ADS ANALYTICS":
 
     st.markdown("---")
     
-    # --- 2. UPLOAD AREA (UNTUK MENAMBAH DATA BARU) ---
+    # --- 2. UPLOAD AREA ---
     with st.container(border=True):
         st.markdown("### 📤 Upload Laporan Ads Baru")
-        st.info("💡 Data yang diunggah akan **ditambahkan** ke database utama di atas (baris data akan digabung di Google Sheets).")
+        st.info("💡 Data yang diunggah akan **ditambahkan** ke database utama di atas.")
         
         uploaded_ads = st.file_uploader("Upload File Laporan TikTok Ads", type=['csv', 'xlsx'], key="up_ads")
         
         if uploaded_ads is not None:
             try:
-                # Membaca file yang baru diupload
+                # Membaca file
                 if uploaded_ads.name.endswith('.csv'):
                     df_ads = pd.read_csv(uploaded_ads)
                 else:
                     df_ads = pd.read_excel(uploaded_ads)
                 
-                # Buang baris 'Total' yang suka bikin angka ganda
-                col_pertama = df_ads.columns[0]
-                df_ads_bersih = df_ads[~df_ads[col_pertama].astype(str).str.contains('total', case=False, na=False)].copy()
+                df_ads_bersih = df_ads.copy()
                 
-                # Hitung sekilas budget yang mau masuk
+                # --- FILTER CERDAS PENDETEKSI BARIS TOTAL ---
+                # Cek baris PERTAMA (jika ada tulisan Total, hapus baris pertama)
+                if not df_ads_bersih.empty and df_ads_bersih.astype(str).iloc[0].str.contains('total', case=False, na=False).any():
+                    df_ads_bersih = df_ads_bersih.iloc[1:].reset_index(drop=True)
+                
+                # Cek baris TERAKHIR (jika ada tulisan Total, hapus baris terakhir)
+                if not df_ads_bersih.empty and df_ads_bersih.astype(str).iloc[-1].str.contains('total', case=False, na=False).any():
+                    df_ads_bersih = df_ads_bersih.iloc[:-1].reset_index(drop=True)
+                
+                # Hitung budget yang mau masuk
                 df_calc_up = df_ads_bersih.copy()
                 df_calc_up.columns = [str(c).strip().lower() for c in df_calc_up.columns]
                 col_cost_up = next((c for c in df_calc_up.columns if 'cost' in c), None)
@@ -1696,21 +1700,18 @@ elif page == "📈 ADS ANALYTICS":
                     with st.spinner("Mengirim data massal ke Google Sheets..."):
                         df_upload_clean = df_ads_bersih.fillna("")
                         
-                        # LOGIKA PINTAR: Cek apakah tab sudah ada isinya atau kosong.
                         if df_ads_db.empty:
-                            # Jika masih kosong, salin Judul Kolom + Data
                             header_asli = df_upload_clean.columns.tolist()
                             bulk_data = [header_asli] + df_upload_clean.values.tolist()
                         else:
-                            # Jika sudah ada isinya, salin Datanya saja (tanpa judul) agar rapi
                             bulk_data = df_upload_clean.values.tolist()
                         
                         try:
-                            append_sheet_rows(6, bulk_data) # Tab ke-7 (Index 6)
+                            append_sheet_rows(6, bulk_data) 
                             st.success(f"✅ Berhasil mengimpor {len(df_ads_bersih)} baris data baru ke Spreadsheet!")
                             st.balloons()
-                            st.cache_data.clear() # Membersihkan memori
-                            st.rerun() # Refresh agar metrik di atas langsung berubah!
+                            st.cache_data.clear() 
+                            st.rerun() 
                         except Exception as e:
                             st.error(f"❌ Terjadi kesalahan pengiriman: {e}")
                             
