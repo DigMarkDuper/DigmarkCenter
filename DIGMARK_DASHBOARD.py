@@ -230,25 +230,30 @@ def check_password():
     if st.session_state.get("password_correct"): 
         return True
     
+    # 1. Pasang Background
     set_bg_local('bg.png') 
     
     _, col_mid, _ = st.columns([1, 2, 1])
     with col_mid:
-        # Bagian Markdown di bawah ini harus utuh
+        # --- BAGIAN INI ADALAH EKSEKUSI VISUAL ---
+        # Perhatikan tanda ''' di awal dan akhir, serta parameter di baris terakhir
         st.markdown(f'''
             <div style="text-align:center; background-color: rgba(255,255,255,0.9); 
-                        padding: 40px 20px; border-radius: 20px; 
+                        padding: 40px 20px 20px 20px; border-radius: 20px; 
                         box-shadow: 0 10px 25px rgba(0,0,0,0.2); margin-top: 50px;">
                 
-                <img src="{LOGO_URL}" width="200" style="mix-blend-mode: multiply; margin-bottom: 20px;">
+                <img src="https://dutapersadajogja.com/wp-content/uploads/2023/11/logo-duta-persada.png" 
+                     width="200" style="mix-blend-mode: multiply; margin-bottom: 20px;">
                 
                 <h2 style="color: #8B0000; font-weight: 800; letter-spacing: 1px; font-size: 24px; margin-bottom: 5px;">
                     DIGITAL MARKETING DASHBOARD
                 </h2>
                 <p style="color: #666; font-size: 14px; margin-bottom: 20px;">LPK Duta Persada Yogyakarta</p>
             </div>
-        ''', unsafe_allow_html=True) # <-- Kunci Utama: Jangan Sampai Terhapus
-        
+        ''', unsafe_allow_html=True) 
+        # ^^^ Tanda koma dan parameter di atas adalah "Saklar" agar HTML muncul.
+
+        # 2. Form Login
         with st.form("login_form"):
             user = st.text_input("Username").strip().lower()
             pwd = st.text_input("Password", type="password")
@@ -257,10 +262,10 @@ def check_password():
                     st.session_state["password_correct"] = True
                     st.rerun()
                 else: 
-                    st.error("Username/Password Salah")
+                    st.error("Username atau Password salah!")
     return False
 
-# --- 2. Panggil Fungsinya ---
+# --- EKSEKUSI KEAMANAN ---
 if not check_password():
     st.stop()
 
