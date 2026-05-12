@@ -221,11 +221,40 @@ def set_bg_local(png_file):
         ''', unsafe_allow_html=True)
     except: pass
 
+# 1. Pastikan fungsi set_bg_local sudah didefinisikan di atas
+def set_bg_local(main_bg):
+    with open(main_bg, "rb") as f:
+        bin_str = base64.b64encode(f.read()).decode()
+    st.markdown(
+        f"""
+        <style>
+        .stApp {{
+            background-image: url("data:image/png;base64,{bin_str}");
+            background-size: cover;
+            background-attachment: fixed;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
 def check_password():
-    if st.session_state.get("password_correct"): return True
+    if st.session_state.get("password_correct"): 
+        return True
+    
+    # Render Background di halaman login
+    set_bg_local('bg.png') 
+    
     _, col_mid, _ = st.columns([1, 2, 1])
     with col_mid:
-        st.markdown(f'<div style="text-align:center;"><img src="{LOGO_URL}" width="180"><h2>COMMAND CENTER</h2></div>', unsafe_allow_html=True)
+        # Perubahan Judul di sini
+        st.markdown(f'''
+            <div style="text-align:center; background-color: rgba(255,255,255,0.8); padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+                <img src="{LOGO_URL}" width="180">
+                <h2 style="color: #8B0000; margin-top: 15px;">DIGITAL MARKETING DASHBOARD</h2>
+            </div>
+        ''', unsafe_allow_html=True)
+        
         with st.form("login_form"):
             user = st.text_input("Username:").strip().lower()
             pwd = st.text_input("Password:", type="password")
@@ -233,13 +262,16 @@ def check_password():
                 if "credentials" in st.secrets and user in st.secrets["credentials"] and st.secrets["credentials"][user] == pwd:
                     st.session_state["password_correct"] = True
                     st.rerun()
-                else: st.error("Username/Password Salah")
+                else: 
+                    st.error("Username/Password Salah")
     return False
 
-if not check_password(): st.stop()
-set_bg_local('bg.png')
+# Jalankan Login Check
 if not check_password():
     st.stop()
+
+# Jika sudah login, set background lagi untuk halaman utama (opsional jika ingin background yang sama)
+set_bg_local('bg.png')
 # =====================================================================
 # 3. KONEKSI & LOAD DATA
 # =====================================================================
