@@ -223,19 +223,18 @@ def set_bg_local(main_bg):
     except:
         pass
 
-# 1. DEFINISI URL LOGO TERBARU
+# --- 1. Pastikan Link Logo Ini Ada di Paling Atas Kode ---
 LOGO_URL = "https://dutapersadajogja.com/wp-content/uploads/2023/11/logo-duta-persada.png"
 
 def check_password():
     if st.session_state.get("password_correct"): 
         return True
     
-    # Render Background agar muncul di halaman login
     set_bg_local('bg.png') 
     
     _, col_mid, _ = st.columns([1, 2, 1])
     with col_mid:
-        # PANEL LOGIN BOX
+        # Bagian Markdown di bawah ini harus utuh
         st.markdown(f'''
             <div style="text-align:center; background-color: rgba(255,255,255,0.9); 
                         padding: 40px 20px; border-radius: 20px; 
@@ -248,7 +247,7 @@ def check_password():
                 </h2>
                 <p style="color: #666; font-size: 14px; margin-bottom: 20px;">LPK Duta Persada Yogyakarta</p>
             </div>
-        ''', unsafe_allow_html=True) # <-- INI WAJIB ADA AGAR LOGO MUNCUL
+        ''', unsafe_allow_html=True) # <-- Kunci Utama: Jangan Sampai Terhapus
         
         with st.form("login_form"):
             user = st.text_input("Username").strip().lower()
@@ -261,7 +260,7 @@ def check_password():
                     st.error("Username/Password Salah")
     return False
 
-# Jalankan Login Check
+# --- 2. Panggil Fungsinya ---
 if not check_password():
     st.stop()
 
