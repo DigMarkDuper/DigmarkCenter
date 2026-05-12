@@ -986,7 +986,7 @@ elif page == "🌐 WEBSITE AUDIT":
 bundle_data = st.session_state.get('bundle', {})
 
 # --- HALAMAN 3: INSIGHTS & ANALYTICS ---
-elif page == "📈 INSIGHTS & ANALYTICS":
+if page == "📈 INSIGHTS & ANALYTICS":
 
     import io
 
