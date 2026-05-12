@@ -1295,93 +1295,101 @@ elif page == "📈 ADS ANALYTICS":
     df_crm = pd.DataFrame()
     df_wa = pd.DataFrame()
     
-    # Variabel Penampung
     total_spend_tiktok, total_clicks_tiktok, total_leads_tiktok, closing_tiktok = 0, 0, 0, 0
     total_spend_meta, total_clicks_meta, total_leads_meta, closing_meta = 0, 0, 0, 0
+    global_closing = 0
+    
     df_ads_tiktok_db, df_ads_meta_db = pd.DataFrame(), pd.DataFrame()
     
+    # --- A. LOAD CRM (HITUNG LEADS & UNTUK CROSS-CHECK) ---
+    try:
+        df_crm = load_database_nomor()
+        if not df_crm.empty:
+            kolom_sumber_crm = next((c for c in df_crm.columns if c.lower() in ['platform', 'sumber', 'source']), None)
+            if kolom_sumber_crm:
+                total_leads_tiktok = len(df_crm[df_crm[kolom_sumber_crm].astype(str).str.contains('Tiktok', case=False, na=False)])
+                total_leads_meta = len(df_crm[df_crm[kolom_sumber_crm].astype(str).str.contains(r'Instagram|Facebook|IG|FB|Meta', case=False, regex=True, na=False)])
+    except:
+        pass
+
+    # --- B. LOAD WA ADMIN (AMBIL LANGSUNG DARI FUNGSI HALAMAN 4) ---
+    try:
+        df_wa = load_wa_admin()
+        if not df_wa.empty:
+            # 1. Identifikasi Kolom Status
+            status_col = next((col for col in df_wa.columns if 'Status' in str(col)), None)
+            if status_col:
+                # Filter hanya yang Closing (Pasti sama dengan Halaman 4)
+                df_closing = df_wa[df_wa[status_col].astype(str).str.contains('Closing', case=False, na=False)].copy()
+                global_closing = len(df_closing)
+                
+                # 2. Coba pisahkan per Platform
+                # (Hapus kata 'Asal' agar sistem tidak kebingungan mencari kota)
+                kolom_sumber_wa = next((c for c in df_closing.columns if c.lower() in ['platform', 'sumber', 'source']), None)
+                
+                if kolom_sumber_wa:
+                    # Jika ada kolom sumber di WA Admin, langsung hitung
+                    closing_tiktok = len(df_closing[df_closing[kolom_sumber_wa].astype(str).str.contains('Tiktok', case=False, na=False)])
+                    closing_meta = len(df_closing[df_closing[kolom_sumber_wa].astype(str).str.contains(r'Instagram|Facebook|IG|FB|Meta', case=False, regex=True, na=False)])
+                else:
+                    # JIKA TIDAK ADA KOLOM SUMBER: Sistem melakukan CROSS-CHECK Nomor HP ke Tab CRM
+                    hp_wa = next((c for c in df_closing.columns if 'hp' in c.lower() or 'phone' in c.lower()), None)
+                    hp_crm = next((c for c in df_crm.columns if 'hp' in c.lower() or 'phone' in c.lower()), None)
+                    sumber_crm = next((c for c in df_crm.columns if c.lower() in ['platform', 'sumber', 'source']), None)
+                    
+                    if hp_wa and hp_crm and sumber_crm and not df_crm.empty:
+                        # Bersihkan simbol/spasi pada Nomor HP agar cocok 100%
+                        df_closing['clean_hp'] = df_closing[hp_wa].astype(str).str.replace(r'\D', '', regex=True)
+                        df_crm_clean = df_crm.copy()
+                        df_crm_clean['clean_hp'] = df_crm_clean[hp_crm].astype(str).str.replace(r'\D', '', regex=True)
+                        
+                        # Gabungkan data berdasarkan Nomor HP
+                        df_merged = pd.merge(df_closing, df_crm_clean[['clean_hp', sumber_crm]], on='clean_hp', how='left')
+                        
+                        closing_tiktok = len(df_merged[df_merged[sumber_crm].astype(str).str.contains('Tiktok', case=False, na=False)])
+                        closing_meta = len(df_merged[df_merged[sumber_crm].astype(str).str.contains(r'Instagram|Facebook|IG|FB|Meta', case=False, regex=True, na=False)])
+    except Exception as e:
+        pass
+
+    # --- C. LOAD DATA BUDGET IKLAN DARI SPREADSHEET ---
     try:
         client = init_connection()
-        
-        # A. LOAD CRM (KHUSUS UNTUK HITUNG LEADS MASUK)
-        try:
-            df_crm = load_database_nomor()
-            if not df_crm.empty:
-                kolom_sumber_crm = next((c for c in df_crm.columns if c in ['Platform', 'Sumber', 'Source', 'Asal']), None)
-                if kolom_sumber_crm:
-                    total_leads_tiktok = len(df_crm[df_crm[kolom_sumber_crm].astype(str).str.contains('Tiktok', case=False, na=False)])
-                    total_leads_meta = len(df_crm[df_crm[kolom_sumber_crm].astype(str).str.contains(r'Instagram|Facebook|IG|FB|Meta', case=False, regex=True, na=False)])
-        except:
-            pass
-
         if client:
-            # B. LOAD WA ADMIN (KHUSUS UNTUK HITUNG CLOSING) -> TAB 4 (INDEX 3)
-            try:
-                sheet_wa = client.open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(3)
-                records_wa = sheet_wa.get_all_records()
-                if records_wa:
-                    df_wa = pd.DataFrame(records_wa)
-                    
-                    # LOGIKA SINKRONISASI DENGAN HALAMAN 4
-                    kol_sumber_wa = next((c for c in df_wa.columns if c in ['Platform', 'Sumber', 'Source', 'Asal']), None)
-                    kol_status_wa = next((col for col in df_wa.columns if 'Status' in str(col)), None)
-                    
-                    if kol_sumber_wa and kol_status_wa:
-                        # Membersihkan spasi pada kolom status seperti di Halaman 4
-                        df_wa[kol_status_wa] = df_wa[kol_status_wa].astype(str).str.strip()
-                        
-                        # Hitung Closing TikTok
-                        mask_tk_wa = df_wa[kol_sumber_wa].astype(str).str.contains('Tiktok', case=False, na=False)
-                        closing_tiktok = len(df_wa[mask_tk_wa & df_wa[kol_status_wa].str.contains('Closing', case=False, na=False)])
-                        
-                        # Hitung Closing Meta
-                        mask_mt_wa = df_wa[kol_sumber_wa].astype(str).str.contains(r'Instagram|Facebook|IG|FB|Meta', case=False, regex=True, na=False)
-                        closing_meta = len(df_wa[mask_mt_wa & df_wa[kol_status_wa].str.contains('Closing', case=False, na=False)])
-            except Exception as e:
-                pass 
-
-            # C. LOAD TIKTOK ADS (TAB 7 / INDEX 6)
+            # TIKTOK ADS (TAB 7 / INDEX 6)
             try:
                 sheet_tiktok = client.open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(6)
                 records_tiktok = sheet_tiktok.get_all_records()
                 if records_tiktok:
-                    df_ads_tiktok_db = pd.DataFrame(records_tiktok)
-                    df_calc_tk = df_ads_tiktok_db.copy()
+                    df_calc_tk = pd.DataFrame(records_tiktok)
                     df_calc_tk.columns = [str(c).strip().lower() for c in df_calc_tk.columns]
-                    
                     col_cost_tk = next((c for c in df_calc_tk.columns if 'cost' in c), None)
                     if col_cost_tk:
                         df_calc_tk[col_cost_tk] = pd.to_numeric(df_calc_tk[col_cost_tk].astype(str).str.replace(r'[^\d.]', '', regex=True), errors='coerce').fillna(0)
                         total_spend_tiktok = df_calc_tk[col_cost_tk].sum()
-            except:
-                pass
+            except: pass
 
-            # D. LOAD META ADS (TAB 8 / INDEX 7)
+            # META ADS (TAB 8 / INDEX 7)
             try:
                 sheet_meta = client.open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(7)
                 records_meta = sheet_meta.get_all_records()
                 if records_meta:
-                    df_ads_meta_db = pd.DataFrame(records_meta)
-                    df_calc_mt = df_ads_meta_db.copy()
+                    df_calc_mt = pd.DataFrame(records_meta)
                     df_calc_mt.columns = [str(c).strip().lower() for c in df_calc_mt.columns]
-                    
                     col_cost_mt = next((c for c in df_calc_mt.columns if 'spent' in c or 'spend' in c or 'cost' in c), None)
                     if col_cost_mt:
                         df_calc_mt[col_cost_mt] = pd.to_numeric(df_calc_mt[col_cost_mt].astype(str).str.replace(r'[^\d.]', '', regex=True), errors='coerce').fillna(0)
                         total_spend_meta = df_calc_mt[col_cost_mt].sum()
-            except:
-                pass
-                    
-    except Exception as e:
-        st.warning(f"Sistem sedang memuat atau database masih kosong.")
+            except: pass
+    except: pass
 
     # =====================================================================
     # 2. TAMPILAN RINGKASAN GLOBAL (ULTIMATE ROI)
     # =====================================================================
     global_spend = total_spend_tiktok + total_spend_meta
     global_leads = total_leads_tiktok + total_leads_meta
-    global_closing = closing_tiktok + closing_meta
-    global_omzet = global_closing * BIAYA_PELATIHAN
+    
+    # Menggunakan global_closing yang ditarik mutlak dari WA Admin Report
+    global_omzet = global_closing * BIAYA_PELATIHAN 
     
     global_cpl = global_spend / global_leads if global_leads > 0 else 0
     global_cac = global_spend / global_closing if global_closing > 0 else 0
@@ -1408,7 +1416,7 @@ elif page == "📈 ADS ANALYTICS":
     if global_roas > 0:
         st.success(f"🔥 **Status Iklan:** Dengan total pengeluaran **Rp {global_spend:,.0f}**, kamu menghasilkan omzet kotor sekitar **Rp {global_omzet:,.0f}**. Nilai investasimu kembali **{global_roas:,.1f} kali lipat**!")
     elif global_spend > 0 and global_closing == 0:
-        st.error("⚠️ **Peringatan:** Budget iklan sudah dibelanjakan, namun belum ada siswa yang Closing. Segera evaluasi materi iklan atau proses follow-up CS!")
+        st.error("⚠️ **Peringatan:** Budget iklan sudah dibelanjakan, namun belum ada siswa yang Closing di Laporan WA Admin. Segera evaluasi materi iklan atau proses follow-up CS!")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -1505,13 +1513,3 @@ elif page == "📈 ADS ANALYTICS":
                 if st.button("🗑️ Kosongkan Database Meta", use_container_width=True, key="rst_mt"):
                     init_connection().open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(7).clear() 
                     st.cache_data.clear(); st.rerun()
-
-# =====================================================================
-# SYSTEM RUNNER (JANGAN DIHAPUS, PASTIKAN ADA DI PALING BAWAH FILE)
-# =====================================================================
-if __name__ == "__main__":
-    if not st.runtime.exists():
-        import sys
-        from streamlit.web import cli as stcli
-        sys.argv = ["streamlit", "run", sys.argv[0]]
-        sys.exit(stcli.main())
