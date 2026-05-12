@@ -202,7 +202,7 @@ BG_WHITE = "#FFFFFF"
 # =====================================================================
 
 # A. Letakkan link logo di paling atas agar terbaca semua fungsi
-LOGO_URL = "https://dutapersadajogja.com/wp-content/uploads/2023/11/logo-duta-persada.png"
+LOGO_URL = "https://www.dutapersadajogja.com/assets/img/logo.png"
 
 # B. Definisi fungsi background HARUS di atas agar tidak NameError
 def set_bg_local(main_bg):
