@@ -1345,7 +1345,6 @@ elif page == "📈 ADS ANALYTICS":
     try:
         client = init_connection()
         if client:
-            # OPTIMASI: Buka master file-nya SEKALI SAJA untuk menghemat Quota API
             master_spreadsheet = client.open("MASTER DATA DIGITAL MARKETING 2.0")
 
             # TIKTOK ADS (INDEX 6)
@@ -1475,7 +1474,7 @@ elif page == "📈 ADS ANALYTICS":
                 except Exception as e:
                     st.error(f"Gagal memproses: {e}")
 
-        with st.expander("📑 Database TikTok Tersimpan", expanded=False):
+        with st.expander("📑 Database TikTok Tersimpan (Klik untuk lihat & Reset)", expanded=False):
             if not df_ads_tiktok_db.empty:
                 st.dataframe(df_ads_tiktok_db, use_container_width=True, hide_index=True)
                 if st.button("🗑️ Kosongkan Database TikTok", use_container_width=True, key="rst_tk"):
@@ -1519,7 +1518,7 @@ elif page == "📈 ADS ANALYTICS":
                 except Exception as e:
                     st.error(f"Gagal memproses: {e}")
 
-        with st.expander("📑 Database Meta Tersimpan", expanded=False):
+        with st.expander("📑 Database Meta Tersimpan (Klik untuk lihat & Reset)", expanded=False):
             if not df_ads_meta_db.empty:
                 st.dataframe(df_ads_meta_db, use_container_width=True, hide_index=True)
                 if st.button("🗑️ Kosongkan Database Meta", use_container_width=True, key="rst_mt"):
@@ -1528,7 +1527,7 @@ elif page == "📈 ADS ANALYTICS":
 
     # ---------------- TAB MEKARI (SMART IMPORTER) ----------------
     with tab_mekari:
-        st.info("💡 **Smart Importer:** Sistem ini bisa membaca file *Campaign Logs* maupun *Billing/Conversation Logs* sekaligus. Sistem akan merekap filemu menjadi **1 Baris Struk Ringkas** di Google Sheets agar rapi.")
+        st.info("💡 **Smart Importer:** Sistem merekap file otomatis menjadi **1 Baris Struk Ringkas** beserta Periode Datanya agar tidak ada duplikasi input.")
         
         mk1, mk2 = st.columns(2)
         mk1.metric("💸 Total Saldo WA Terpakai", f"Rp {total_spend_mekari:,.0f}")
@@ -1549,6 +1548,7 @@ elif page == "📈 ADS ANALYTICS":
                     jenis_laporan = "Tidak Dikenali"
                     up_spend_mk = 0
                     up_pesan_mk = 0
+                    periode_data = "Tanggal Tidak Terdeteksi"
                     
                     # 1. Deteksi File: CAMPAIGN LOGS (Broadcast)
                     if 'deducted balance' in df_calc_mk.columns or 'broadcast amount' in df_calc_mk.columns:
@@ -1566,21 +1566,34 @@ elif page == "📈 ADS ANALYTICS":
                         
                         up_spend_mk = float(pd.to_numeric(df_calc_mk[col_cost], errors='coerce').fillna(0).sum()) if col_cost else 0.0
                         up_pesan_mk = int(len(df_calc_mk))
+                    
+                    # 3. EXTRACTION TANGGAL (MEMBUAT PERIODE DATA)
+                    col_date = next((c for c in df_calc_mk.columns if 'created' in c or 'date' in c or 'tanggal' in c), None)
+                    if col_date:
+                        try:
+                            # Parse format tanggal Mekari dengan utc=True agar tahan banting terhadap format timezone (+07:00)
+                            temp_dates = pd.to_datetime(df_calc_mk[col_date], utc=True, errors='coerce')
+                            min_date = temp_dates.min()
+                            max_date = temp_dates.max()
+                            if pd.notnull(min_date) and pd.notnull(max_date):
+                                periode_data = f"{min_date.strftime('%d %b %Y')} s/d {max_date.strftime('%d %b %Y')}"
+                        except:
+                            pass
                         
                     st.success(f"✅ Format terdeteksi sebagai: **{jenis_laporan}**")
-                    st.info(f"📊 Menemukan Total Saldo: **Rp {up_spend_mk:,.0f}** | Jumlah Pesan: **{up_pesan_mk:,.0f}**")
+                    st.info(f"📅 **Periode Data:** {periode_data}\n\n📊 **Total Saldo:** Rp {up_spend_mk:,.0f} | **Jumlah Pesan:** {up_pesan_mk:,.0f}")
                     
                     if st.button("📥 Catat Saldo Ini ke Database", use_container_width=True, key="btn_imp_mk"):
                         with st.spinner("Mengirim ringkasan ke Tab 9..."):
                             import datetime
                             tgl_sekarang = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                             
-                            baris_data_mk = [str(tgl_sekarang), str(jenis_laporan), int(up_pesan_mk), float(up_spend_mk)]
-                            header_mk = ["Tanggal Import", "Jenis Laporan WA", "Total Interaksi", "Total Biaya (Rp)"]
+                            # Header dan Baris Ditambah Kolom Periode Data
+                            header_mk = ["Waktu Import", "Periode Laporan", "Jenis Laporan WA", "Total Interaksi", "Total Biaya (Rp)"]
+                            baris_data_mk = [str(tgl_sekarang), str(periode_data), str(jenis_laporan), int(up_pesan_mk), float(up_spend_mk)]
                             
                             bulk_data_mk = [header_mk, baris_data_mk] if df_ads_mekari_db.empty else [baris_data_mk]
                             
-                            # MENGGUNAKAN INDEX 8 (TAB KE-9) UNTUK MEKARI
                             if append_sheet_rows(8, bulk_data_mk): 
                                 st.success("✅ Berhasil menyimpan riwayat saldo Mekari!"); st.balloons(); st.cache_data.clear(); st.rerun()
                 except Exception as e:
