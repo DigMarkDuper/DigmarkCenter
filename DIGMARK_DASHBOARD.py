@@ -198,14 +198,11 @@ TEXT_BLACK = "#000000"
 BG_WHITE = "#FFFFFF"
 
 # =====================================================================
-# 2. SISTEM KEAMANAN & VISUAL (VERSI FINAL CLEAN)
+# SISTEM KEAMANAN & VISUAL (VERSI RESET)
 # =====================================================================
 
-# Gunakan link logo yang sudah pasti valid
-LOGO_URL = "https://dutapersadajogja.com/wp-content/uploads/2023/11/logo-duta-persada.png"
-
 def set_bg_local(main_bg):
-    """Fungsi tunggal untuk background"""
+    """Memasang background aplikasi"""
     try:
         with open(main_bg, "rb") as f:
             bin_str = base64.b64encode(f.read()).decode()
@@ -225,49 +222,50 @@ def set_bg_local(main_bg):
         pass
 
 def check_password():
-    """Fungsi login dengan indentasi yang benar"""
+    """Fungsi Login Utama"""
     if st.session_state.get("password_correct"):
         return True
     
-    # Render background khusus halaman login
+    # Jalankan background untuk halaman login
     set_bg_local('bg.png') 
     
-    # SEMUA kode UI di bawah ini HARUS menjorok ke dalam (indent) agar masuk ke fungsi
     _, col_mid, _ = st.columns([1, 2, 1])
     with col_mid:
-        # Panel Visual Dashboard
-        st.markdown(f'''
-            <div style="text-align:center; background-color: rgba(255,255,255,0.9); 
+        # PEMBUNGKUS VISUAL LOGIN
+        login_ui = f'''
+            <div style="text-align:center; background-color: rgba(255,255,255,0.95); 
                         padding: 40px 20px; border-radius: 20px; 
                         box-shadow: 0 10px 25px rgba(0,0,0,0.2); margin-top: 50px;">
                 
-                <img src="{LOGO_URL}" width="200" style="mix-blend-mode: multiply; margin-bottom: 20px;">
+                <img src="https://dutapersadajogja.com/wp-content/uploads/2023/11/logo-duta-persada.png" 
+                     width="200" style="mix-blend-mode: multiply; margin-bottom: 20px;">
                 
-                <h2 style="color: #8B0000; font-weight: 800; letter-spacing: 1px; font-size: 24px; margin-bottom: 5px;">
+                <h2 style="color: #8B0000; font-weight: 800; letter-spacing: 1px; font-size: 22px; margin-bottom: 5px;">
                     DIGITAL MARKETING DASHBOARD
                 </h2>
-                <p style="color: #666; font-size: 14px; margin-bottom: 10px;">LPK Duta Persada Yogyakarta</p>
+                <p style="color: #666; font-size: 14px; margin-bottom: 20px;">LPK Duta Persada Yogyakarta</p>
             </div>
-        ''', unsafe_allow_html=True)
+        '''
+        # EKSEKUSI RENDER HTML
+        st.markdown(login_ui, unsafe_allow_html=True)
         
-        # Form Login
+        # FORM LOGIN
         with st.form("login_form"):
-            user = st.text_input("Username").strip().lower()
-            pwd = st.text_input("Password", type="password")
+            u_name = st.text_input("Username").strip().lower()
+            u_pass = st.text_input("Password", type="password")
             if st.form_submit_button("MASUK SISTEM", use_container_width=True):
-                if "credentials" in st.secrets and user in st.secrets["credentials"] and st.secrets["credentials"][user] == pwd:
+                if "credentials" in st.secrets and u_name in st.secrets["credentials"] and st.secrets["credentials"][u_name] == u_pass:
                     st.session_state["password_correct"] = True
                     st.rerun()
                 else: 
-                    st.error("Username/Password Salah")
+                    st.error("Username atau Password salah!")
     return False
 
-# --- EKSEKUSI UTAMA ---
-# Jika belum login, hentikan semua proses di bawahnya
+# --- JALANKAN PROSES LOGIN ---
 if not check_password():
     st.stop()
 
-# Jika sudah sukses login, pasang background untuk dashboard utama
+# Pasang kembali background untuk dashboard utama setelah berhasil masuk
 set_bg_local('bg.png')
 # =====================================================================
 # 3. KONEKSI & LOAD DATA
