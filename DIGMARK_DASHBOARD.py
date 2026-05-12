@@ -200,54 +200,36 @@ BG_WHITE = "#FFFFFF"
 # =====================================================================
 # 2. SISTEM KEAMANAN & BACKGROUND
 # =====================================================================
-def get_base64(bin_file):
-    with open(bin_file, 'rb') as f:
-        return base64.b64encode(f.read()).decode()
 
-def set_bg_local(png_file):
+def set_bg_local(main_bg):
     try:
-        bin_str = get_base64(png_file)
-        st.markdown(f'''
+        with open(main_bg, "rb") as f:
+            bin_str = base64.b64encode(f.read()).decode()
+        st.markdown(
+            f"""
             <style>
-            [data-testid="stAppViewContainer"] {{
+            .stApp {{
                 background-image: url("data:image/png;base64,{bin_str}");
-                background-size: cover; background-attachment: fixed;
-            }}
-            [data-testid="stAppViewContainer"]::before {{
-                content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-                background-color: rgba(255, 255, 255, 0.4); z-index: -1;
+                background-size: cover;
+                background-attachment: fixed;
             }}
             </style>
-        ''', unsafe_allow_html=True)
-    except: pass
-
-# 1. Pastikan fungsi set_bg_local sudah didefinisikan di atas
-def set_bg_local(main_bg):
-    with open(main_bg, "rb") as f:
-        bin_str = base64.b64encode(f.read()).decode()
-    st.markdown(
-        f"""
-        <style>
-        .stApp {{
-            background-image: url("data:image/png;base64,{bin_str}");
-            background-size: cover;
-            background-attachment: fixed;
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
+            """,
+            unsafe_allow_html=True
+        )
+    except:
+        pass
 
 def check_password():
+    """Kembali mengaktifkan sistem login"""
     if st.session_state.get("password_correct"): 
         return True
     
-    # Render Background agar muncul di halaman login
+    # Render Background di halaman login
     set_bg_local('bg.png') 
     
     _, col_mid, _ = st.columns([1, 2, 1])
     with col_mid:
-        # Panel Login Box
         st.markdown(f'''
             <div style="text-align:center; background-color: rgba(255,255,255,0.9); 
                         padding: 40px 20px; border-radius: 20px; 
@@ -262,7 +244,6 @@ def check_password():
             </div>
         ''', unsafe_allow_html=True)
         
-        # Form login diletakkan di bawah atau di dalam div (disarankan pakai container agar rapi)
         with st.form("login_form"):
             user = st.text_input("Username").strip().lower()
             pwd = st.text_input("Password", type="password")
@@ -274,7 +255,12 @@ def check_password():
                     st.error("Username/Password Salah")
     return False
 
-# Jika sudah login, set background lagi untuk halaman utama (opsional jika ingin background yang sama)
+# --- BAGIAN KRUSIAL: JANGAN DIHAPUS ---
+# Kode ini yang memerintahkan aplikasi berhenti jika login gagal
+if not check_password():
+    st.stop()
+
+# Jika sudah login, set background lagi untuk halaman utama
 set_bg_local('bg.png')
 # =====================================================================
 # 3. KONEKSI & LOAD DATA
