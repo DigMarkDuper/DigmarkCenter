@@ -994,7 +994,7 @@ elif page == "📈 INSIGHTS & ANALYTICS":
     st.title("📈 ANALITIK KONTEN")
     
     with st.expander("🚀 Ultra-Smart Importer (TikTok & Instagram)", expanded=True):
-        files = st.file_uploader("Upload CSV TikTok/IG", type=["csv"], accept_multiple_files=True)
+        files = st.file_uploader("Upload CSV TikTok/IG", type=["csv"], accept_multiple_files=True, key="ins_up_v4")
         
         if files:
             all_processed = []
@@ -1005,10 +1005,13 @@ elif page == "📈 INSIGHTS & ANALYTICS":
                 try:
                     # Baca Mentah
                     raw_bytes = f.getvalue()
-                    try: content = raw_bytes.decode("utf-8").splitlines()
+                    try:
+                        content = raw_bytes.decode("utf-8").splitlines()
                     except:
-                        try: content = raw_bytes.decode("utf-8-sig").splitlines()
-                        except: content = raw_bytes.decode("latin-1").splitlines()
+                        try:
+                            content = raw_bytes.decode("utf-8-sig").splitlines()
+                        except:
+                            content = raw_bytes.decode("latin-1").splitlines()
                     
                     full_text_start = "\n".join(content[:10]).lower() # Ambil 10 baris pertama
                     
@@ -1022,8 +1025,10 @@ elif page == "📈 INSIGHTS & ANALYTICS":
                         res_tk['Reach'] = df_tk.get('Video Views', 0)
                         res_tk['Interaction'] = df_tk.get('Likes', 0) + df_tk.get('Comments', 0) + df_tk.get('Shares', 0)
                         res_tk['Profile Visit'] = df_tk.get('Profile Views', 0)
-                        res_tk['Link Clicks'] = 0; res_tk['Follow'] = 0
-                        all_processed.append(res_tk); logs.append(f"✅ TikTok: {f.name}")
+                        res_tk['Link Clicks'] = 0
+                        res_tk['Follow'] = 0
+                        all_processed.append(res_tk)
+                        logs.append(f"✅ TikTok: {f.name}")
                     
                     # 2. DETEKSI INSTAGRAM (FLEXIBLE KEYWORD SCANNER)
                     else:
@@ -1040,7 +1045,8 @@ elif page == "📈 INSIGHTS & ANALYTICS":
                             skip = 0
                             for i, line in enumerate(content):
                                 if "date" in line.lower() and "primary" in line.lower():
-                                    skip = i; break
+                                    skip = i
+                                    break
                             
                             df_ig = pd.read_csv(io.StringIO("\n".join(content[skip:])))
                             df_ig['Date'] = pd.to_datetime(df_ig['Date']).dt.strftime('%d-%m-%Y')
@@ -1051,14 +1057,18 @@ elif page == "📈 INSIGHTS & ANALYTICS":
                 except Exception as e:
                     logs.append(f"❌ Error {f.name}: {e}")
 
-            for l in logs: st.caption(l)
+            for l in logs:
+                st.caption(l)
 
             if ig_frames:
                 m_ig = ig_frames[0]
-                for d in ig_frames[1:]: m_ig = pd.merge(m_ig, d, on='Date', how='outer')
+                for d in ig_frames[1:]:
+                    m_ig = pd.merge(m_ig, d, on='Date', how='outer')
+                
                 m_ig['Platform'] = 'Instagram'
                 for c in ["View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]:
-                    if c not in m_ig.columns: m_ig[c] = 0
+                    if c not in m_ig.columns:
+                        m_ig[c] = 0
                 all_processed.append(m_ig.fillna(0))
 
             if all_processed:
@@ -1067,13 +1077,14 @@ elif page == "📈 INSIGHTS & ANALYTICS":
                 if st.button("🚀 SIMPAN DATA KE SPREADSHEET (TAB 3)", use_container_width=True):
                     final_list = df_final[["Date", "Platform", "View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]].values.tolist()
                     if append_sheet_rows(2, final_list):
-                        st.success("Data masuk!"); st.cache_data.clear(); st.rerun()
+                        st.success("Data berhasil masuk!")
+                        st.cache_data.clear()
+                        st.rerun()
 
     # Tampilkan Tabel Historis
+    # Pastikan bundle_data sudah didefinisikan di bagian global (di luar elif)
     df_in = bundle_data.get(2, pd.DataFrame())
     if not df_in.empty:
-        st.markdown("### 📊 Riwayat Data")
-        st.dataframe(df_in.tail(20), use_container_width=True, hide_index=True)
 
 # --- HALAMAN 4: WA ADMIN REPORT ---
 elif page == "💬 WA ADMIN REPORT":
