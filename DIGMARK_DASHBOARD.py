@@ -1278,164 +1278,6 @@ elif page == "💬 WA ADMIN REPORT":
             
     except Exception as e:
         st.error(f"Kesalahan Teknis: {e}")
-# --- HALAMAN 5: DATABASE NOMOR (CRM) ---
-elif page == "📂 DATABASE NOMOR":
-    st.title("🗂️ CRM & DETAILED LEAD DATABASE")
-    
-    import io 
-    import datetime
-
-    YOUR_SPREADSHEET_ID = "1v0SLw92qqkgs76qSpjb7xScYpVoJ8Ahc3fFIZ2u9HRs"
-
-    # 1. AREA INPUT DATA (UPLOAD & SYNC)
-    c_sync, c_upload = st.columns([1, 1])
-    with c_sync:
-        st.markdown("### 🔄 Sinkronisasi")
-        if st.button("Tarik Data Unik dari WA Admin", use_container_width=True, key="sync_crm_final_v9"):
-            sync_leads_to_crm() 
-            st.success("Berhasil sinkronisasi!")
-            st.rerun()
-
-    with c_upload:
-        st.markdown("### ⬆️ Import Data Baru")
-        with st.expander("Upload File Excel (.xlsx)"):
-            st.info("💡 Format Mekari: **phone_number**, **full_name**, **customer_name**, **company**.")
-            
-            # --- DOWNLOAD TEMPLATE ---
-            df_template = pd.DataFrame(columns=["phone_number", "full_name", "customer_name", "company"])
-            buffer_template = io.BytesIO()
-            with pd.ExcelWriter(buffer_template, engine='xlsxwriter') as writer:
-                df_template.to_excel(writer, index=False, sheet_name='Template')
-            
-            st.download_button(label="📥 Download Template Mekari", data=buffer_template.getvalue(), file_name="Template_CRM.xlsx", use_container_width=True, key="dl_final_v9")
-            
-            # --- FITUR UPLOAD ---
-            uploaded_file = st.file_uploader("Upload file Excel", type=["xlsx"], key="up_final_v9")
-            if uploaded_file is not None:
-                try:
-                    df_upload = pd.read_excel(uploaded_file)
-                    df_upload.columns = [str(c).strip().lower() for c in df_upload.columns]
-                    
-                    if st.button("📥 Konfirmasi Import Massal", use_container_width=True, key="conf_final_v9"):
-                        with st.spinner("Mengirim data ke Google Sheets..."):
-                            tgl_hari_ini = datetime.date.today().strftime("%d-%m-%Y")
-                            df_upload = df_upload.fillna("")
-                            
-                            bulk_data = []
-                            for _, row in df_upload.iterrows():
-                                data_baris = [
-                                    "",                                     # Kolom A (No)
-                                    str(row['full_name']).strip(),          # Kolom B (Nama)
-                                    "'" + str(row['phone_number']).strip(), # Kolom C (No Hp)
-                                    str(row['company']).strip(),            # Kolom D (Domisili)
-                                    "",                                     # Kolom E (DILONCATI: Tanggal Lahir)
-                                    "",                                     # Buffer
-                                    tgl_hari_ini                            # Kolom F/G (TANGGAL MASUK DATABASE)
-                                ]
-                                bulk_data.append(data_baris)
-                            
-                            if append_sheet_rows(4, bulk_data):
-                                st.success(f"🚀 Berhasil! {len(bulk_data)} data masuk ke CRM.")
-                                st.cache_data.clear()
-                                st.rerun()
-                            else:
-                                st.error("Gagal mengirim. Cek izin akses Service Account.")
-                except Exception as e:
-                    st.error(f"Gagal baca file: {e}")
-            
-    st.markdown("---")
-
-    # 2. LOAD DATA & FILTER SYSTEM
-    try:
-        df_crm = load_database_nomor()
-        if not df_crm.empty:
-            df_crm = df_crm.fillna('')
-            
-            # --- LOGIKA PENENTUAN STATUS TREATMENT ---
-            def get_treatment_status(row):
-                t1 = str(row.get('Treatment 1', '')).strip()
-                t2 = str(row.get('Treatment 2', '')).strip()
-                if not t1 and not t2: return "Belum Treatment"
-                if t1 and not t2: return "Sudah Treatment 1"
-                return "Sudah Treatment 2"
-            
-            df_crm['Status Treatment Filter'] = df_crm.apply(get_treatment_status, axis=1)
-
-            # Filter UI
-            with st.expander("🔍 Filter Strategis Database", expanded=True):
-                search_crm = st.text_input("🔎 Cari Nama/HP:", placeholder="Ketik...", key="search_final_v9")
-                c1, c2, c3 = st.columns(3)
-                with c1:
-                    m_tag_col = 'Mekari Tag (Status Terakhir)'
-                    opts_mekari = sorted(df_crm[m_tag_col].unique().tolist()) if m_tag_col in df_crm.columns else []
-                    sel_mekari = st.multiselect("Mekari Tag:", options=opts_mekari, key="f_mek_final_v9")
-                with c2:
-                    opts_daerah = sorted(df_crm['Domisili'].unique().tolist()) if 'Domisili' in df_crm.columns else []
-                    sel_daerah = st.multiselect("Pilih Daerah:", options=opts_daerah, key="f_daer_final_v9")
-                with c3:
-                    opts_treatment = ["Belum Treatment", "Sudah Treatment 1", "Sudah Treatment 2"]
-                    sel_treatment = st.multiselect("Status Treatment:", options=opts_treatment, key="f_treat_final_v9")
-
-            # Logika Filter
-            mask = pd.Series([True] * len(df_crm))
-            if search_crm:
-                mask &= (df_crm['Nama'].astype(str).str.contains(search_crm, case=False) | df_crm['No Hp'].astype(str).str.contains(search_crm))
-            if sel_mekari:
-                mask &= df_crm[m_tag_col].isin(sel_mekari)
-            if sel_daerah:
-                mask &= df_crm['Domisili'].isin(sel_daerah)
-            if sel_treatment:
-                mask &= df_crm['Status Treatment Filter'].isin(sel_treatment)
-            
-            filtered_crm = df_crm[mask].copy()
-
-            # --- METRIK TREATMENT ---
-            count_t1 = len(df_crm[df_crm['Status Treatment Filter'] == "Sudah Treatment 1"])
-            count_t2 = len(df_crm[df_crm['Status Treatment Filter'] == "Sudah Treatment 2"])
-
-            st.markdown('<div class="feature-header">📊 Dashboard Monitoring CRM</div>', unsafe_allow_html=True)
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Prospek Terfilter", len(filtered_crm))
-            m2.metric("Total Database", len(df_crm))
-            m3.metric("Total Treatment 1 📢", count_t1)
-            m4.metric("Total Treatment 2 🚀", count_t2)
-
-            # --- FITUR DOWNLOAD MEKARI QONTAK ---
-            st.markdown("### 📥 Export Hasil Filter")
-            if not filtered_crm.empty:
-                df_export = pd.DataFrame()
-                
-                # LOGIKA MENGUBAH 0 MENJADI 62
-                def format_nomor_mekari(nomor):
-                    n = str(nomor).replace("'", "").replace("+", "").replace(" ", "").replace("-", "").strip()
-                    if n.startswith("0"):
-                        return "62" + n[1:]
-                    return n
-                    
-                df_export['phone_number'] = filtered_crm['No Hp'].apply(format_nomor_mekari)
-                df_export['full_name'] = filtered_crm['Nama']
-                df_export['customer_name'] = filtered_crm['Nama']
-                df_export['company'] = filtered_crm['Domisili']
-                
-                buffer_export = io.BytesIO()
-                with pd.ExcelWriter(buffer_export, engine='xlsxwriter') as writer:
-                    df_export.to_excel(writer, index=False, sheet_name='Export_Mekari')
-                
-                st.download_button(
-                    label="🚀 Download Database (Format Mekari Qontak)",
-                    data=buffer_export.getvalue(),
-                    file_name=f"Mekari_Export_{datetime.datetime.now().strftime('%d_%m_%Y')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True,
-                    help="Download data untuk di-upload ke Mekari Qontak (Nomor otomatis berawalan 62)"
-                )
-
-            st.markdown('<div class="feature-header">📑 Management Database CRM</div>', unsafe_allow_html=True)
-            st.dataframe(filtered_crm.drop(columns=['Status Treatment Filter']), use_container_width=True, hide_index=True)
-        else:
-            st.info("Database masih kosong. Silakan import data.")
-    except Exception as e:
-        st.error(f"Gagal memuat data: {e}")
 # --- HALAMAN 7: ADS ANALYTICS ---
 elif page == "📈 ADS ANALYTICS":
     st.title("📈 Ads & Budget Analytics (ROI Engine)")
@@ -1443,152 +1285,228 @@ elif page == "📈 ADS ANALYTICS":
     
     import io
     
-    # --- 1. LOAD DATA SPREADSHEET (REAL-TIME DASHBOARD) ---
-    st.markdown("### 📊 Ringkasan Performa Iklan Keseluruhan")
-    
-    df_ads_db = pd.DataFrame()
-    total_spend_db = 0
-    total_clicks_db = 0
-    total_leads_tiktok = 0
-    cpl_db = 0
-    
+    # LOAD DATABASE CRM SEKALI UNTUK DIPAKAI BERSAMA
+    df_crm = pd.DataFrame()
+    kolom_sumber = None
     try:
-        # A. Mengambil data CRM (Untuk hitung Leads)
-        df_crm = load_database_nomor() 
+        df_crm = load_database_nomor()
         if not df_crm.empty:
             kolom_sumber = next((c for c in df_crm.columns if c in ['Platform', 'Sumber', 'Source']), None)
-            if kolom_sumber:
+    except:
+        pass
+
+    # --- MEMBUAT 2 TAB NAVIGASI DI DALAM HALAMAN ---
+    tab_tiktok, tab_meta = st.tabs(["📱 TikTok Ads Analytics", "🟦 Meta Ads (IG & FB) Analytics"])
+
+    # =====================================================================
+    # TAB 1: TIKTOK ADS (DATA MASUK KE TAB SHEET KE-7 / INDEX 6)
+    # =====================================================================
+    with tab_tiktok:
+        st.markdown("### 📊 Ringkasan Performa Iklan TikTok")
+        
+        df_ads_tiktok_db = pd.DataFrame()
+        total_spend_tiktok = 0
+        total_clicks_tiktok = 0
+        total_leads_tiktok = 0
+        cpl_tiktok = 0
+        
+        try:
+            # A. Hitung Leads TikTok dari CRM
+            if kolom_sumber and not df_crm.empty:
                 total_leads_tiktok = len(df_crm[df_crm[kolom_sumber].astype(str).str.contains('Tiktok', case=False)])
-        
-        # B. Mengambil data Ads dari Tab 7 (index 6)
-        client = init_connection()
-        if client:
-            sheet_ads = client.open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(6)
-            records_ads = sheet_ads.get_all_records()
-            if records_ads:
-                df_ads_db = pd.DataFrame(records_ads)
-                
-                df_calc_db = df_ads_db.copy()
-                df_calc_db.columns = [str(c).strip().lower() for c in df_calc_db.columns]
-                
-                col_cost = next((c for c in df_calc_db.columns if 'cost' in c), None)
-                col_clicks = next((c for c in df_calc_db.columns if 'destination' in c and 'click' in c), None)
-                if not col_clicks:
-                    col_clicks = next((c for c in df_calc_db.columns if 'clicks (all)' in c or 'clicks' in c), None)
-                    
-                if col_cost:
-                    df_calc_db[col_cost] = pd.to_numeric(df_calc_db[col_cost].astype(str).str.replace(r'[^\d.]', '', regex=True), errors='coerce').fillna(0)
-                    total_spend_db = df_calc_db[col_cost].sum()
-                    
-                if col_clicks:
-                    df_calc_db[col_clicks] = pd.to_numeric(df_calc_db[col_clicks].astype(str).str.replace(r'[^\d.]', '', regex=True), errors='coerce').fillna(0)
-                    total_clicks_db = df_calc_db[col_clicks].sum()
-                    
-        # C. Hitung CPL
-        if total_leads_tiktok > 0:
-            cpl_db = total_spend_db / total_leads_tiktok
             
-    except Exception as e:
-        st.warning(f"Sedang memuat sistem atau data masih kosong.")
-
-    # --- MENAMPILKAN 4 METRIK UTAMA ---
-    m1, m2, m3, m4 = st.columns(4)
-    with m1:
-        with st.container(border=True):
-            st.markdown(f"<div style='font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'>💸 TOTAL SPEND (TIKTOK)</div><div style='font-size:24px; font-weight:bold; color:#B22222;'>Rp {total_spend_db:,.0f}</div>", unsafe_allow_html=True)
-    with m2:
-        with st.container(border=True):
-            st.markdown(f"<div style='font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'>🖱️ TOTAL KLIK (LINK)</div><div style='font-size:24px; font-weight:bold;'>{total_clicks_db:,.0f}</div>", unsafe_allow_html=True)
-    with m3:
-        with st.container(border=True):
-            st.markdown(f"<div style='font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'>👥 LEADS MASUK (CRM)</div><div style='font-size:24px; font-weight:bold; color:#006400;'>{total_leads_tiktok}</div>", unsafe_allow_html=True)
-    with m4:
-        with st.container(border=True):
-            st.markdown(f"<div style='font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'>🎯 COST PER LEAD (CPL)</div><div style='font-size:24px; font-weight:bold; color:#1E3A8A;'>Rp {cpl_db:,.0f}</div>", unsafe_allow_html=True)
-
-    st.markdown("---")
-    
-    # --- 2. UPLOAD AREA ---
-    with st.container(border=True):
-        st.markdown("### 📤 Upload Laporan Ads Baru")
-        st.info("💡 Sistem ini sudah kebal terhadap baris 'Total' bawaan dari TikTok.")
-        
-        uploaded_ads = st.file_uploader("Upload File Laporan TikTok Ads", type=['csv', 'xlsx'], key="up_ads")
-        
-        if uploaded_ads is not None:
-            try:
-                # Membaca file
-                if uploaded_ads.name.endswith('.csv'):
-                    df_ads = pd.read_csv(uploaded_ads)
-                else:
-                    df_ads = pd.read_excel(uploaded_ads)
-                
-                # --- FILTER SAPU JAGAT PENDETEKSI KATA "TOTAL" ---
-                # Cek ke SEMUA sel di baris tersebut. Jika ada kata "total" (mau itu "Total", "total of 39 results", dsb), langsung dibuang!
-                mask_total = df_ads.apply(lambda row: row.astype(str).str.contains('total', case=False, na=False).any(), axis=1)
-                df_ads_bersih = df_ads[~mask_total].copy()
-                
-                # Hitung budget yang mau masuk dari data yang sudah bersih
-                df_calc_up = df_ads_bersih.copy()
-                df_calc_up.columns = [str(c).strip().lower() for c in df_calc_up.columns]
-                col_cost_up = next((c for c in df_calc_up.columns if 'cost' in c), None)
-                
-                up_spend = 0
-                if col_cost_up:
-                    df_calc_up[col_cost_up] = pd.to_numeric(df_calc_up[col_cost_up], errors='coerce').fillna(0)
-                    up_spend = df_calc_up[col_cost_up].sum()
+            # B. Mengambil data Ads dari Tab 7 (index 6)
+            client = init_connection()
+            if client:
+                sheet_tiktok = client.open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(6)
+                records_tiktok = sheet_tiktok.get_all_records()
+                if records_tiktok:
+                    df_ads_tiktok_db = pd.DataFrame(records_tiktok)
+                    df_calc_tk = df_ads_tiktok_db.copy()
+                    df_calc_tk.columns = [str(c).strip().lower() for c in df_calc_tk.columns]
                     
-                st.success(f"✅ File siap! Budget Murni yang akan ditambahkan: **Rp {up_spend:,.0f}**.")
-                
-                with st.expander("Preview File yang Akan Diimpor (Baris Total Sudah Hilang!)", expanded=False):
-                    st.dataframe(df_ads_bersih, use_container_width=True)
-
-                if st.button("📥 Import Data Ini ke Spreadsheet", use_container_width=True):
-                    with st.spinner("Mengirim data massal ke Google Sheets..."):
-                        df_upload_clean = df_ads_bersih.fillna("")
+                    col_cost_tk = next((c for c in df_calc_tk.columns if 'cost' in c), None)
+                    col_clicks_tk = next((c for c in df_calc_tk.columns if 'destination' in c and 'click' in c), None)
+                    if not col_clicks_tk:
+                        col_clicks_tk = next((c for c in df_calc_tk.columns if 'clicks (all)' in c or 'clicks' in c), None)
                         
-                        if df_ads_db.empty:
-                            header_asli = df_upload_clean.columns.tolist()
-                            bulk_data = [header_asli] + df_upload_clean.values.tolist()
-                        else:
-                            bulk_data = df_upload_clean.values.tolist()
+                    if col_cost_tk:
+                        df_calc_tk[col_cost_tk] = pd.to_numeric(df_calc_tk[col_cost_tk].astype(str).str.replace(r'[^\d.]', '', regex=True), errors='coerce').fillna(0)
+                        total_spend_tiktok = df_calc_tk[col_cost_tk].sum()
                         
-                        try:
-                            append_sheet_rows(6, bulk_data) 
-                            st.success(f"✅ Berhasil mengimpor {len(df_ads_bersih)} baris data murni ke Spreadsheet!")
-                            st.balloons()
-                            st.cache_data.clear() 
-                            st.rerun() 
-                        except Exception as e:
-                            st.error(f"❌ Terjadi kesalahan pengiriman: {e}")
-                            
-            except Exception as e:
-                st.error(f"Gagal membaca file upload: {e}")
+                    if col_clicks_tk:
+                        df_calc_tk[col_clicks_tk] = pd.to_numeric(df_calc_tk[col_clicks_tk].astype(str).str.replace(r'[^\d.]', '', regex=True), errors='coerce').fillna(0)
+                        total_clicks_tiktok = df_calc_tk[col_clicks_tk].sum()
+                        
+            # C. Hitung CPL
+            if total_leads_tiktok > 0:
+                cpl_tiktok = total_spend_tiktok / total_leads_tiktok
+        except Exception as e:
+            pass
 
-    # --- 3. TABEL DATABASE SPREADSHEET (PREVIEW & RESET) ---
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("### 📑 Database Iklan Tersimpan")
-    
-    if not df_ads_db.empty:
-        st.dataframe(df_ads_db, use_container_width=True, hide_index=True)
+        # Menampilkan Metrik TikTok
+        m1, m2, m3, m4 = st.columns(4)
+        with m1:
+            with st.container(border=True):
+                st.markdown(f"<div style='font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'>💸 TOTAL SPEND (TIKTOK)</div><div style='font-size:24px; font-weight:bold; color:#B22222;'>Rp {total_spend_tiktok:,.0f}</div>", unsafe_allow_html=True)
+        with m2:
+            with st.container(border=True):
+                st.markdown(f"<div style='font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'>🖱️ TOTAL KLIK (LINK)</div><div style='font-size:24px; font-weight:bold;'>{total_clicks_tiktok:,.0f}</div>", unsafe_allow_html=True)
+        with m3:
+            with st.container(border=True):
+                st.markdown(f"<div style='font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'>👥 LEADS MASUK (CRM)</div><div style='font-size:24px; font-weight:bold; color:#006400;'>{total_leads_tiktok}</div>", unsafe_allow_html=True)
+        with m4:
+            with st.container(border=True):
+                st.markdown(f"<div style='font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'>🎯 COST PER LEAD (CPL)</div><div style='font-size:24px; font-weight:bold; color:#1E3A8A;'>Rp {cpl_tiktok:,.0f}</div>", unsafe_allow_html=True)
+
+        st.markdown("---")
         
-        # --- TOMBOL SAKTI: RESET DATABASE ---
-        st.markdown("<br>", unsafe_allow_html=True)
-        with st.expander("⚠️ Zona Bahaya (Reset Database)"):
-            st.warning("Jika angka di atas terasa salah/dobel, tekan tombol di bawah ini untuk menghapus seluruh data Ads di Spreadsheet dan memulai dari awal.")
-            if st.button("🗑️ Kosongkan Database Ads", use_container_width=True):
+        # Upload TikTok
+        with st.container(border=True):
+            st.markdown("### 📤 Upload Laporan TikTok Ads Baru")
+            up_tk = st.file_uploader("Upload File Laporan TikTok Ads", type=['csv', 'xlsx'], key="up_tk")
+            if up_tk is not None:
                 try:
-                    with st.spinner("Sedang membersihkan Spreadsheet..."):
-                        client = init_connection()
-                        sheet_ads_reset = client.open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(6)
-                        sheet_ads_reset.clear() # Menghapus bersih tab ke-7
-                        st.success("✅ Database Ads berhasil dikosongkan! Halaman akan dimuat ulang...")
-                        st.cache_data.clear()
-                        st.rerun()
+                    df_up_tk = pd.read_csv(up_tk) if up_tk.name.endswith('.csv') else pd.read_excel(up_tk)
+                    # Filter Sapu Jagat
+                    mask_tk = df_up_tk.apply(lambda row: row.astype(str).str.contains('total', case=False, na=False).any(), axis=1)
+                    df_clean_tk = df_up_tk[~mask_tk].copy()
+                    
+                    df_calc_up = df_clean_tk.copy()
+                    df_calc_up.columns = [str(c).strip().lower() for c in df_calc_up.columns]
+                    col_cost_up = next((c for c in df_calc_up.columns if 'cost' in c), None)
+                    up_spend_tk = pd.to_numeric(df_calc_up[col_cost_up], errors='coerce').fillna(0).sum() if col_cost_up else 0
+                        
+                    st.success(f"✅ Budget TikTok murni yang akan ditambahkan: **Rp {up_spend_tk:,.0f}**")
+                    with st.expander("Preview File", expanded=False):
+                        st.dataframe(df_clean_tk, use_container_width=True)
+
+                    if st.button("📥 Import ke Spreadsheet (TikTok)", use_container_width=True, key="btn_imp_tk"):
+                        with st.spinner("Mengirim ke Tab 7..."):
+                            df_final = df_clean_tk.fillna("")
+                            bulk_data = [df_final.columns.tolist()] + df_final.values.tolist() if df_ads_tiktok_db.empty else df_final.values.tolist()
+                            if append_sheet_rows(6, bulk_data): 
+                                st.success(f"✅ Berhasil! {len(df_clean_tk)} baris masuk ke Tab TikTok.")
+                                st.balloons(); st.cache_data.clear(); st.rerun()
                 except Exception as e:
-                    st.error(f"Gagal mengosongkan database: {e}")
-    else:
-        st.info("Tab 'report ads tiktok' saat ini masih kosong. Silakan import laporan pertama Anda.")
+                    st.error(f"Gagal memproses: {e}")
+
+        st.markdown("### 📑 Database TikTok Tersimpan")
+        if not df_ads_tiktok_db.empty:
+            st.dataframe(df_ads_tiktok_db, use_container_width=True, hide_index=True)
+            with st.expander("⚠️ Reset Database TikTok"):
+                if st.button("🗑️ Kosongkan Database TikTok", use_container_width=True, key="rst_tk"):
+                    init_connection().open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(6).clear()
+                    st.success("Dikosongkan!"); st.cache_data.clear(); st.rerun()
+        else:
+            st.info("Tab TikTok masih kosong.")
+
+
+    # =====================================================================
+    # TAB 2: META ADS (DATA MASUK KE TAB SHEET KE-8 / INDEX 7)
+    # =====================================================================
+    with tab_meta:
+        st.markdown("### 📊 Ringkasan Performa Iklan Meta (IG/FB)")
+        
+        df_ads_meta_db = pd.DataFrame()
+        total_spend_meta = 0
+        total_clicks_meta = 0
+        total_leads_meta = 0
+        cpl_meta = 0
+        
+        try:
+            # A. Hitung Leads Meta dari CRM (Mencari IG, FB, Instagram, Facebook)
+            if kolom_sumber and not df_crm.empty:
+                total_leads_meta = len(df_crm[df_crm[kolom_sumber].astype(str).str.contains(r'Instagram|Facebook|IG|FB|Meta', case=False, regex=True)])
+            
+            # B. Mengambil data Ads dari Tab 8 (index 7)
+            client = init_connection()
+            if client:
+                sheet_meta = client.open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(7)
+                records_meta = sheet_meta.get_all_records()
+                if records_meta:
+                    df_ads_meta_db = pd.DataFrame(records_meta)
+                    df_calc_mt = df_ads_meta_db.copy()
+                    df_calc_mt.columns = [str(c).strip().lower() for c in df_calc_mt.columns]
+                    
+                    # Meta biasanya pakai nama kolom 'amount spent' atau 'spent'
+                    col_cost_mt = next((c for c in df_calc_mt.columns if 'spent' in c or 'spend' in c or 'cost' in c), None)
+                    # Meta pakai nama 'link clicks'
+                    col_clicks_mt = next((c for c in df_calc_mt.columns if 'link click' in c or 'clicks' in c), None)
+                        
+                    if col_cost_mt:
+                        df_calc_mt[col_cost_mt] = pd.to_numeric(df_calc_mt[col_cost_mt].astype(str).str.replace(r'[^\d.]', '', regex=True), errors='coerce').fillna(0)
+                        total_spend_meta = df_calc_mt[col_cost_mt].sum()
+                        
+                    if col_clicks_mt:
+                        df_calc_mt[col_clicks_mt] = pd.to_numeric(df_calc_mt[col_clicks_mt].astype(str).str.replace(r'[^\d.]', '', regex=True), errors='coerce').fillna(0)
+                        total_clicks_meta = df_calc_mt[col_clicks_mt].sum()
+                        
+            # C. Hitung CPL Meta
+            if total_leads_meta > 0:
+                cpl_meta = total_spend_meta / total_leads_meta
+        except Exception as e:
+            pass
+
+        # Menampilkan Metrik Meta
+        m1, m2, m3, m4 = st.columns(4)
+        with m1:
+            with st.container(border=True):
+                st.markdown(f"<div style='font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'>💸 TOTAL SPEND (META)</div><div style='font-size:24px; font-weight:bold; color:#B22222;'>Rp {total_spend_meta:,.0f}</div>", unsafe_allow_html=True)
+        with m2:
+            with st.container(border=True):
+                st.markdown(f"<div style='font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'>🖱️ TOTAL KLIK (LINK)</div><div style='font-size:24px; font-weight:bold;'>{total_clicks_meta:,.0f}</div>", unsafe_allow_html=True)
+        with m3:
+            with st.container(border=True):
+                st.markdown(f"<div style='font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'>👥 LEADS MASUK (IG/FB)</div><div style='font-size:24px; font-weight:bold; color:#006400;'>{total_leads_meta}</div>", unsafe_allow_html=True)
+        with m4:
+            with st.container(border=True):
+                st.markdown(f"<div style='font-size:13px; color:gray; font-weight:600; margin-bottom:5px;'>🎯 COST PER LEAD (CPL)</div><div style='font-size:24px; font-weight:bold; color:#1E3A8A;'>Rp {cpl_meta:,.0f}</div>", unsafe_allow_html=True)
+
+        st.markdown("---")
+        
+        # Upload Meta
+        with st.container(border=True):
+            st.markdown("### 📤 Upload Laporan Meta Ads Baru")
+            up_mt = st.file_uploader("Upload File Laporan Meta Ads (Facebook/Instagram)", type=['csv', 'xlsx'], key="up_mt")
+            if up_mt is not None:
+                try:
+                    df_up_mt = pd.read_csv(up_mt) if up_mt.name.endswith('.csv') else pd.read_excel(up_mt)
+                    
+                    # Filter Sapu Jagat (Membuang baris Total bawaan Facebook Ads)
+                    mask_mt = df_up_mt.apply(lambda row: row.astype(str).str.contains('total', case=False, na=False).any(), axis=1)
+                    df_clean_mt = df_up_mt[~mask_mt].copy()
+                    
+                    df_calc_up_mt = df_clean_mt.copy()
+                    df_calc_up_mt.columns = [str(c).strip().lower() for c in df_calc_up_mt.columns]
+                    col_cost_up_mt = next((c for c in df_calc_up_mt.columns if 'spent' in c or 'spend' in c or 'cost' in c), None)
+                    up_spend_mt = pd.to_numeric(df_calc_up_mt[col_cost_up_mt], errors='coerce').fillna(0).sum() if col_cost_up_mt else 0
+                        
+                    st.success(f"✅ Budget Meta murni yang akan ditambahkan: **Rp {up_spend_mt:,.0f}**")
+                    with st.expander("Preview File Meta", expanded=False):
+                        st.dataframe(df_clean_mt, use_container_width=True)
+
+                    if st.button("📥 Import ke Spreadsheet (Meta)", use_container_width=True, key="btn_imp_mt"):
+                        with st.spinner("Mengirim ke Tab 8..."):
+                            df_final_mt = df_clean_mt.fillna("")
+                            bulk_data_mt = [df_final_mt.columns.tolist()] + df_final_mt.values.tolist() if df_ads_meta_db.empty else df_final_mt.values.tolist()
+                            
+                            # MENGGUNAKAN INDEX 7 (TAB KE-8) UNTUK META
+                            if append_sheet_rows(7, bulk_data_mt): 
+                                st.success(f"✅ Berhasil! {len(df_clean_mt)} baris masuk ke Tab Meta.")
+                                st.balloons(); st.cache_data.clear(); st.rerun()
+                except Exception as e:
+                    st.error(f"Gagal memproses: {e}")
+
+        st.markdown("### 📑 Database Meta Tersimpan")
+        if not df_ads_meta_db.empty:
+            st.dataframe(df_ads_meta_db, use_container_width=True, hide_index=True)
+            with st.expander("⚠️ Reset Database Meta"):
+                if st.button("🗑️ Kosongkan Database Meta", use_container_width=True, key="rst_mt"):
+                    init_connection().open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(7).clear() # Index 7
+                    st.success("Dikosongkan!"); st.cache_data.clear(); st.rerun()
+        else:
+            st.info("Tab Meta Ads masih kosong.")
 
 if __name__ == "__main__":
     if not st.runtime.exists():
