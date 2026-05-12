@@ -987,7 +987,7 @@ bundle_data = st.session_state.get('bundle', {})
 
 # --- HALAMAN 3: INSIGHTS & ANALYTICS ---
 elif page == "📈 INSIGHTS & ANALYTICS":
-    import io # Pastikan io diimport
+    import io 
     st.title("📈 ANALITIK KONTEN")
     
     with st.expander("🚀 Ultra-Smart Importer (TikTok & Instagram)", expanded=True):
@@ -1002,8 +1002,10 @@ elif page == "📈 INSIGHTS & ANALYTICS":
                 try:
                     raw_bytes = f.getvalue()
                     # Deteksi Encoding
-                    try: content = raw_bytes.decode("utf-8").splitlines()
-                    except: content = raw_bytes.decode("latin-1").splitlines()
+                    try: 
+                        content = raw_bytes.decode("utf-8").splitlines()
+                    except: 
+                        content = raw_bytes.decode("latin-1").splitlines()
                     
                     # Ambil 10 baris pertama dan bersihkan karakter aneh
                     full_text_sample = "\n".join(content[:10]).lower().replace('"', '')
@@ -1036,13 +1038,11 @@ elif page == "📈 INSIGHTS & ANALYTICS":
                         if target:
                             skip = 0
                             for i, line in enumerate(content):
-                                # Cari baris data asli (Date, Primary)
                                 if "date" in line.lower() and "primary" in line.lower():
                                     skip = i
                                     break
                             
                             df_ig = pd.read_csv(io.StringIO("\n".join(content[skip:])))
-                            # Pastikan kolom Date terbaca
                             df_ig['Date'] = pd.to_datetime(df_ig['Date']).dt.strftime('%d-%m-%Y')
                             ig_frames.append(df_ig[['Date', 'Primary']].rename(columns={'Primary': target}))
                             logs.append(f"✅ Instagram {target}: {f.name}")
@@ -1052,7 +1052,8 @@ elif page == "📈 INSIGHTS & ANALYTICS":
                     logs.append(f"❌ Error {f.name}: {e}")
 
             # Tampilkan Log Proses
-            for l in logs: st.caption(l)
+            for l in logs: 
+                st.caption(l)
 
             # Gabungkan Data Instagram (Jika ada)
             if ig_frames:
@@ -1061,9 +1062,9 @@ elif page == "📈 INSIGHTS & ANALYTICS":
                     m_ig = pd.merge(m_ig, d, on='Date', how='outer')
                 
                 m_ig['Platform'] = 'Instagram'
-                # Isi kolom yang absen dengan 0
                 for c in ["View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]:
-                    if c not in m_ig.columns: m_ig[c] = 0
+                    if c not in m_ig.columns: 
+                        m_ig[c] = 0
                 all_processed.append(m_ig.fillna(0))
 
             # Tampilkan Preview & Tombol Upload
@@ -1071,7 +1072,6 @@ elif page == "📈 INSIGHTS & ANALYTICS":
                 df_final = pd.concat(all_processed, ignore_index=True)
                 st.dataframe(df_final.head(10), use_container_width=True)
                 
-                # TOMBOL KONFIRMASI
                 if st.button("🚀 SIMPAN DATA KE SPREADSHEET (TAB 3)", use_container_width=True):
                     final_list = df_final[["Date", "Platform", "View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]].values.tolist()
                     if append_sheet_rows(2, final_list):
