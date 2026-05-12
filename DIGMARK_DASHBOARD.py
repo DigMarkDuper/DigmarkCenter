@@ -1284,6 +1284,7 @@ elif page == "📈 ADS ANALYTICS":
     st.markdown("Pantau **Cost Per Lead (CPL)**, **Customer Acquisition Cost (CAC)**, dan **ROAS** secara real-time.")
     
     import io
+    import pandas as pd
     
     # Asumsi Nilai 1 Closing
     BIAYA_PELATIHAN = 15000000 
@@ -1293,7 +1294,6 @@ elif page == "📈 ADS ANALYTICS":
     # =====================================================================
     df_crm = pd.DataFrame()
     df_wa = pd.DataFrame()
-    kolom_sumber_crm = None
     
     # Variabel Penampung
     total_spend_tiktok, total_clicks_tiktok, total_leads_tiktok, closing_tiktok = 0, 0, 0, 0
@@ -1309,29 +1309,34 @@ elif page == "📈 ADS ANALYTICS":
             if not df_crm.empty:
                 kolom_sumber_crm = next((c for c in df_crm.columns if c in ['Platform', 'Sumber', 'Source', 'Asal']), None)
                 if kolom_sumber_crm:
-                    total_leads_tiktok = len(df_crm[df_crm[kolom_sumber_crm].astype(str).str.contains('Tiktok', case=False)])
-                    total_leads_meta = len(df_crm[df_crm[kolom_sumber_crm].astype(str).str.contains(r'Instagram|Facebook|IG|FB|Meta', case=False, regex=True)])
+                    total_leads_tiktok = len(df_crm[df_crm[kolom_sumber_crm].astype(str).str.contains('Tiktok', case=False, na=False)])
+                    total_leads_meta = len(df_crm[df_crm[kolom_sumber_crm].astype(str).str.contains(r'Instagram|Facebook|IG|FB|Meta', case=False, regex=True, na=False)])
         except:
             pass
 
         if client:
-            # B. LOAD WA ADMIN (KHUSUS UNTUK HITUNG CLOSING) -> TAB 1 (INDEX 0)
+            # B. LOAD WA ADMIN (KHUSUS UNTUK HITUNG CLOSING) -> TAB 4 (INDEX 3)
             try:
-                sheet_wa = client.open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(0)
+                sheet_wa = client.open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(3)
                 records_wa = sheet_wa.get_all_records()
                 if records_wa:
                     df_wa = pd.DataFrame(records_wa)
+                    
+                    # LOGIKA SINKRONISASI DENGAN HALAMAN 4
                     kol_sumber_wa = next((c for c in df_wa.columns if c in ['Platform', 'Sumber', 'Source', 'Asal']), None)
-                    kol_status_wa = next((c for c in df_wa.columns if 'status' in c.lower() or 'mekari' in c.lower() or 'tag' in c.lower()), None)
+                    kol_status_wa = next((col for col in df_wa.columns if 'Status' in str(col)), None)
                     
                     if kol_sumber_wa and kol_status_wa:
+                        # Membersihkan spasi pada kolom status seperti di Halaman 4
+                        df_wa[kol_status_wa] = df_wa[kol_status_wa].astype(str).str.strip()
+                        
                         # Hitung Closing TikTok
-                        mask_tk_wa = df_wa[kol_sumber_wa].astype(str).str.contains('Tiktok', case=False)
-                        closing_tiktok = len(df_wa[mask_tk_wa & df_wa[kol_status_wa].astype(str).str.contains('closing|won|lunas', case=False)])
+                        mask_tk_wa = df_wa[kol_sumber_wa].astype(str).str.contains('Tiktok', case=False, na=False)
+                        closing_tiktok = len(df_wa[mask_tk_wa & df_wa[kol_status_wa].str.contains('Closing', case=False, na=False)])
                         
                         # Hitung Closing Meta
-                        mask_mt_wa = df_wa[kol_sumber_wa].astype(str).str.contains(r'Instagram|Facebook|IG|FB|Meta', case=False, regex=True)
-                        closing_meta = len(df_wa[mask_mt_wa & df_wa[kol_status_wa].astype(str).str.contains('closing|won|lunas', case=False)])
+                        mask_mt_wa = df_wa[kol_sumber_wa].astype(str).str.contains(r'Instagram|Facebook|IG|FB|Meta', case=False, regex=True, na=False)
+                        closing_meta = len(df_wa[mask_mt_wa & df_wa[kol_status_wa].str.contains('Closing', case=False, na=False)])
             except Exception as e:
                 pass 
 
@@ -1502,7 +1507,7 @@ elif page == "📈 ADS ANALYTICS":
                     st.cache_data.clear(); st.rerun()
 
 # =====================================================================
-# SYSTEM RUNNER (CUKUP SATU KALI SAJA DI PALING BAWAH FILE)
+# SYSTEM RUNNER (JANGAN DIHAPUS, PASTIKAN ADA DI PALING BAWAH FILE)
 # =====================================================================
 if __name__ == "__main__":
     if not st.runtime.exists():
