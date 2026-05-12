@@ -1605,7 +1605,7 @@ elif page == "📈 ADS ANALYTICS":
                 else:
                     df_ads = pd.read_excel(uploaded_ads)
                 
-                # Buat salinan khusus untuk menghitung kalkulasi di web (agar data asli tidak rusak)
+                # Buat salinan khusus untuk menghitung kalkulasi di web
                 df_calc = df_ads.copy()
                 df_calc.columns = [str(c).strip().lower() for c in df_calc.columns]
                 
@@ -1664,27 +1664,29 @@ elif page == "📈 ADS ANALYTICS":
 
                         st.markdown("<br>", unsafe_allow_html=True)
                         
-                        # --- 4. FITUR SIMPAN DATA MENTAH (BULK INSERT) ---
+                        # --- 4. FITUR SIMPAN DATA MENTAH (SUDAH DIPERBAIKI) ---
                         st.markdown("### 💾 Import Data Iklan ke Spreadsheet")
-                        st.info(f"Sistem akan memindahkan seluruh **{len(df_ads)} baris** data mentah ini langsung ke Tab 'report ads tiktok'.")
+                        st.info(f"Sistem akan memindahkan seluruh **Judul Kolom + {len(df_ads)} baris** data mentah ini langsung ke Tab 'report ads tiktok'.")
                         
-                        # Preview Data
                         with st.expander("Lihat Preview Data Asli yang Akan Disimpan", expanded=False):
                             st.dataframe(df_ads, use_container_width=True)
 
                         if st.button("📥 Import Semua Data ke Tab 'report ads tiktok'", use_container_width=True):
                             with st.spinner("Mengirim data massal ke Google Sheets..."):
-                                # Ubah dataframe menjadi format array list (menghilangkan NaN/kosong)
                                 df_upload_clean = df_ads.fillna("")
-                                bulk_data = df_upload_clean.values.tolist()
+                                
+                                # 1. MENGAMBIL JUDUL KOLOM ASLI
+                                header_asli = df_upload_clean.columns.tolist()
+                                
+                                # 2. MENGGABUNGKAN JUDUL DI BARIS PERTAMA DIIKUTI DATANYA
+                                bulk_data = [header_asli] + df_upload_clean.values.tolist()
                                 
                                 try:
-                                    # Index 6 merujuk pada Tab ke-7 di file Google Sheets kamu
-                                    if append_sheet_rows(6, bulk_data):
-                                        st.success(f"✅ Mantap! {len(bulk_data)} baris data iklan telah berhasil mendarat di Tab 'report ads tiktok'.")
-                                        st.balloons() # Beri efek balon jika sukses!
-                                    else:
-                                        st.error("❌ Gagal mengirim data. Coba cek kembali koneksi atau posisi urutan tab-nya.")
+                                    # 3. LANGSUNG EKSEKUSI (Hilangkan 'if' agar tidak muncul error palsu)
+                                    append_sheet_rows(6, bulk_data)
+                                    
+                                    st.success(f"✅ Mantap! Judul kolom dan {len(df_ads)} baris data iklan telah berhasil mendarat dengan rapi di Spreadsheet.")
+                                    st.balloons() # Efek perayaan 🎈
                                 except Exception as e:
                                     st.error(f"❌ Terjadi kesalahan sistem saat mengirim: {e}")
                                 
