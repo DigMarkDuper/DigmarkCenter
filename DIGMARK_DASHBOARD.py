@@ -221,15 +221,14 @@ def set_bg_local(main_bg):
         pass
 
 def check_password():
-    """Kembali mengaktifkan sistem login"""
     if st.session_state.get("password_correct"): 
         return True
     
-    # Render Background di halaman login
     set_bg_local('bg.png') 
     
     _, col_mid, _ = st.columns([1, 2, 1])
     with col_mid:
+        # Bagian ini yang harus teliti, perhatikan penutup tanda kutipnya
         st.markdown(f'''
             <div style="text-align:center; background-color: rgba(255,255,255,0.9); 
                         padding: 40px 20px; border-radius: 20px; 
@@ -242,7 +241,7 @@ def check_password():
                 </h2>
                 <p style="color: #666; font-size: 14px; margin-bottom: 20px;">LPK Duta Persada Yogyakarta</p>
             </div>
-        ''', unsafe_allow_html=True)
+        ''', unsafe_allow_html=True) # JANGAN SAMPAI TERHAPUS: unsafe_allow_html=True
         
         with st.form("login_form"):
             user = st.text_input("Username").strip().lower()
