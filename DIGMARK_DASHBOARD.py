@@ -198,28 +198,50 @@ TEXT_BLACK = "#000000"
 BG_WHITE = "#FFFFFF"
 
 # =====================================================================
-# SISTEM KEAMANAN & VISUAL (VERSI RESET)
+# 2. SISTEM KEAMANAN & VISUAL (URUTAN DIPERBAIKI)
 # =====================================================================
-# 1. Letakkan variabel logo di paling atas
+
+# A. Letakkan link logo di paling atas agar terbaca semua fungsi
 LOGO_URL = "https://dutapersadajogja.com/wp-content/uploads/2023/11/logo-duta-persada.png"
 
+# B. Definisi fungsi background HARUS di atas agar tidak NameError
+def set_bg_local(main_bg):
+    try:
+        with open(main_bg, "rb") as f:
+            bin_str = base64.b64encode(f.read()).decode()
+        st.markdown(
+            f"""
+            <style>
+            .stApp {{
+                background-image: url("data:image/png;base64,{bin_str}");
+                background-size: cover;
+                background-attachment: fixed;
+            }}
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+    except:
+        pass
+
+# C. Fungsi Login
 def check_password():
     if st.session_state.get("password_correct"):
         return True
     
-    # Pasang background aplikasi
+    # Sekarang set_bg_local sudah dikenal oleh sistem
     set_bg_local('bg.png') 
     
     _, col_mid, _ = st.columns([1, 3, 1])
     with col_mid:
-        # Menampilkan Logo (Trik multiply tetap dipakai agar kotak putih hilang)
+        # Tampilan Logo (Sederhana, tanpa kotak putih/transparan)
         st.markdown(f'''
             <div style="text-align: center; margin-top: 50px;">
                 <img src="{LOGO_URL}" width="200" style="mix-blend-mode: multiply;">
             </div>
         ''', unsafe_allow_html=True)
         
-        # Menampilkan Judul Baru (Tanpa kotak putih/transparan di belakangnya)
+        # Judul (Langsung di atas background)
         st.markdown('<h2 style="text-align: center; color: #8B0000; margin-bottom: 0;">DIGITAL MARKETING DASHBOARD</h2>', unsafe_allow_html=True)
         st.markdown('<p style="text-align: center; color: #333; font-weight: bold;">LPK Duta Persada Yogyakarta</p>', unsafe_allow_html=True)
         
@@ -235,13 +257,11 @@ def check_password():
                     st.error("Username atau Password salah!")
     return False
 
-# --- Jalankan Proteksi Login ---
+# D. EKSEKUSI: Panggil fungsi login
 if not check_password():
     st.stop()
 
-# Pasang kembali background untuk dashboard utama
-set_bg_local('bg.png')
-# Pasang kembali background untuk dashboard utama setelah berhasil masuk
+# E. Pasang kembali background untuk halaman utama
 set_bg_local('bg.png')
 # =====================================================================
 # 3. KONEKSI & LOAD DATA
