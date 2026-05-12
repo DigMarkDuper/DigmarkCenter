@@ -978,13 +978,20 @@ elif page == "🌐 WEBSITE AUDIT":
     except Exception as e:
         st.error(f"Kesalahan Teknis Website: {e}")
 
+# =====================================================================
+# 4. PAGE LOGIC (PASTIKAN INISIALISASI INI ADA DI ATAS)
+# =====================================================================
+
+# Baris kunci: Mengambil data dari session state agar bisa digunakan di semua halaman
+bundle_data = st.session_state.get('bundle', {})
+
 # --- HALAMAN 3: INSIGHTS & ANALYTICS ---
 if page == "📈 INSIGHTS & ANALYTICS":
     st.title("📈 PERFORMA & ANALITIK KONTEN")
     
     with st.expander("🚀 Ultra-Smart Importer (TikTok & Instagram)", expanded=True):
         st.info("💡 Upload file Overview TikTok & CSV Instagram sekaligus.")
-        files = st.file_uploader("Pilih file CSV", type=["csv"], accept_multiple_files=True)
+        files = st.file_uploader("Pilih file CSV", type=["csv"], accept_multiple_files=True, key="ins_up_v4")
         
         if files:
             all_processed = []
@@ -994,6 +1001,7 @@ if page == "📈 INSIGHTS & ANALYTICS":
             for f in files:
                 try:
                     raw_bytes = f.getvalue()
+                    # Deteksi Encoding
                     try: content = raw_bytes.decode("utf-8").splitlines()
                     except:
                         try: content = raw_bytes.decode("utf-8-sig").splitlines()
@@ -1001,6 +1009,7 @@ if page == "📈 INSIGHTS & ANALYTICS":
                     
                     f_name = f.name.lower()
                     
+                    # LOGIKA TIKTOK
                     if "overview" in f_name:
                         df_tk = pd.read_csv(io.StringIO("\n".join(content)))
                         if 'Video Views' in df_tk.columns:
@@ -1014,6 +1023,7 @@ if page == "📈 INSIGHTS & ANALYTICS":
                             res['Link Clicks'] = 0; res['Follow'] = 0
                             all_processed.append(res); logs.append(f"✅ TikTok: {f.name}")
                     
+                    # LOGIKA INSTAGRAM
                     else:
                         label = ""
                         for line in content[:5]:
@@ -1051,9 +1061,10 @@ if page == "📈 INSIGHTS & ANALYTICS":
                     if append_sheet_rows(2, final_list):
                         st.success("Data berhasil masuk!"); st.cache_data.clear(); st.rerun()
 
-    # Tampilkan Data dari Bundle secara aman
+    # BAGIAN VISUALISASI (Menggunakan bundle_data secara aman)
     df_in = bundle_data.get(2, pd.DataFrame())
     if not df_in.empty:
+        st.markdown("---")
         st.markdown("### 🎯 Data Historis Content Insight")
         st.dataframe(df_in.tail(15), use_container_width=True, hide_index=True)
     else:
