@@ -1953,22 +1953,26 @@ elif page == "📈 ADS ANALYTICS":
 with tab_mekari:
     st.info("💡 **Smart Importer:** Sistem merekap file otomatis menjadi **1 Baris Struk Ringkas**.")
     
-    # 1. Dashboard Metrics (Ambil dari Database Tab 9)
+    # 1. Dashboard Metrics (Pasti Terupdate)
     df_db_mekari = st.session_state.get('bundle', {}).get(8, pd.DataFrame())
     
-    def clean_currency_to_num(x):
+    # Fungsi pembersih angka yang lebih teliti
+    def force_clean_num(x):
         if pd.isna(x) or x == '': return 0
-        # Hapus Rp, titik ribuan, dan spasi
+        # Hapus Rp, titik ribuan, koma desimal, dan spasi
         s = str(x).replace('Rp', '').replace('.', '').replace(',', '').strip()
-        return pd.to_numeric(s, errors='coerce') or 0
+        try: return float(s)
+        except: return 0
 
     if not df_db_mekari.empty:
         df_db_mekari = df_db_mekari.dropna(how='all')
-        total_spend_mekari = df_db_mekari['Total Biaya (Rp)'].apply(clean_currency_to_num).sum()
+        # Hitung Total Spend dari kolom database
+        total_spend_mekari = df_db_mekari['Total Biaya (Rp)'].apply(force_clean_num).sum()
         total_pesan_mekari = pd.to_numeric(df_db_mekari['Total Interaksi'], errors='coerce').fillna(0).sum()
     else:
         total_spend_mekari, total_pesan_mekari = 0, 0
 
+    # Tampilan Metrik Utama
     mk1, mk2 = st.columns(2)
     mk1.metric("💸 Total Spend", f"Rp {total_spend_mekari:,.0f}")
     mk2.metric("💬 Total Interaksi WA Terbayar", f"{total_pesan_mekari:,.0f} Pesan")
@@ -1978,7 +1982,7 @@ with tab_mekari:
     # 2. Uploader Section
     with st.container(border=True):
         st.markdown("### 📤 Upload Laporan Mekari Baru")
-        up_mk = st.file_uploader("Upload Laporan Mekari (CSV)", type=['csv'], key="up_mk_v3")
+        up_mk = st.file_uploader("Upload Laporan Mekari (CSV)", type=['csv'], key="up_mk_v4")
         
         if up_mk is not None:
             try:
@@ -1989,20 +1993,20 @@ with tab_mekari:
                 up_msgs = len(df_up)
                 jenis_lap = "Mekari Log"
                 
-                # --- SMART LOGIC DETEKSI BIAYA ---
                 if 'credit' in df_up.columns:
+                    # Konversi kolom credit ke angka
                     series = pd.to_numeric(df_up['credit'], errors='coerce').dropna()
                     if not series.empty:
-                        # JIKA RATA-RATA < 5000 -> Ini adalah Harga per Pesan (Gunakan SUM)
+                        # SMART LOGIC: Jika angka rata-rata kecil (< 5000), maka itu Biaya/Msg (SUM)
+                        # Jika angka rata-rata besar (> 5000), maka itu Saldo (SELISIH)
                         if series.mean() < 5000:
                             up_spend = series.sum()
                             jenis_lap = "WA Billing (Price/Msg)"
-                        # JIKA RATA-RATA > 5000 -> Ini adalah Saldo Sisa (Gunakan SELISIH)
                         else:
                             up_spend = abs(series.max() - series.min())
                             jenis_lap = "WA Billing (Balance)"
                 
-                # Extraction Periode Tanggal
+                # Periode Tanggal
                 col_d = next((c for c in df_up.columns if 'created' in c or 'date' in c), None)
                 p_data = "Tanggal Tidak Terdeteksi"
                 if col_d:
@@ -2011,11 +2015,12 @@ with tab_mekari:
                         p_data = f"{td.min().strftime('%d %b %Y')} s/d {td.max().strftime('%d %b %Y')}"
                 
                 st.success(f"✅ Terdeteksi: **{jenis_lap}**")
-                st.info(f"📅 **Periode:** {p_data}\n\n📊 **Biaya File Ini:** Rp {up_spend:,.0f} | **Total:** {up_msgs:,} Pesan")
+                st.info(f"📅 **Periode:** {p_data}\n\n📊 **Biaya File Ini:** Rp {up_spend:,.0f}")
                 
                 if st.button("📥 Catat ke Database", use_container_width=True):
                     import datetime
                     tgl_skrg = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                    # Simpan dengan format string Rp yang bersih agar penjumlahan dashboard sukses
                     fmt_cost = f"Rp{int(up_spend):,}".replace(',', '.')
                     
                     row = [tgl_skrg, p_data, jenis_lap, up_msgs, fmt_cost]
@@ -2027,14 +2032,25 @@ with tab_mekari:
             except Exception as e:
                 st.error(f"Gagal memproses file: {e}")
 
-    # 3. Tabel Riwayat
-    with st.expander("📑 Riwayat Saldo Mekari Tersimpan", expanded=True):
-        if not df_db_mekari.empty:
-            st.dataframe(df_db_mekari, use_container_width=True, hide_index=True)
-            if st.button("🗑️ Kosongkan Riwayat", use_container_width=True):
-                init_connection().open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(8).clear()
-                st.cache_data.clear()
-                st.rerun()
+    # 3. Tabel Riwayat & Refresh Button
+    st.markdown("---")
+    
+    # Tombol Refresh Kecil di atas tabel
+    col_ref1, col_ref2 = st.columns([0.85, 0.15])
+    col_ref1.markdown("### 📑 Riwayat Saldo Mekari")
+    if col_ref2.button("🔄 Refresh", use_container_width=True):
+        st.cache_data.clear()
+        st.session_state.bundle = fetch_all_master_data()
+        st.rerun()
+
+    if not df_db_mekari.empty:
+        st.dataframe(df_db_mekari, use_container_width=True, hide_index=True)
+        if st.button("🗑️ Kosongkan Riwayat", use_container_width=True):
+            init_connection().open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(8).clear()
+            st.cache_data.clear()
+            st.rerun()
+    else:
+        st.warning("Data riwayat di Spreadsheet belum terbaca atau masih kosong.")
 
 # =====================================================================
 # SYSTEM RUNNER (JANGAN DIHAPUS, PASTIKAN ADA DI PALING BAWAH FILE)
