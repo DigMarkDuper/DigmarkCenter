@@ -619,107 +619,107 @@ if page == "🏠 HOMEPAGE":
 # ==========================================================
     st.markdown(f"<h3 style='color:{BRAND_BLUE}; font-size: 18px; margin-bottom: 10px; margin-top: 15px;'>🗺️ Peta Persebaran & Top Asal Prospek</h3>", unsafe_allow_html=True)
 
-try:
-    # --- 1. FILTER DATA: Hanya Leads Murni ---
-    df_maps = df_wa_home.copy()
-    
-    # Bersihkan baris kosong/hantu
-    kolom_penting = [col for col in ['Tanggal Masuk', 'No Hp', 'Status'] if col in df_maps.columns]
-    if kolom_penting:
-        df_maps = df_maps.dropna(subset=kolom_penting, how='all')
+    try:
+        # --- 1. FILTER DATA: Hanya Leads Murni ---
+        df_maps = df_wa_home.copy()
         
-    # Filter tag sampah (Double Chat, Partnership, dll)
-    mekari_col = next((c for c in df_maps.columns if 'Mekari' in str(c)), None)
-    if mekari_col:
-        tag_dibuang = ['Double Chat', 'Closed - Not Interested', 'Partnership']
-        pola_hapus = '|'.join(tag_dibuang)
-        df_maps = df_maps[~df_maps[mekari_col].astype(str).str.contains(pola_hapus, case=False, na=False)]
-
-    # --- 2. PENGOLAHAN LOKASI ---
-    asal_col = next((col for col in df_maps.columns if 'Asal' in str(col)), None)
-    
-    if asal_col and not df_maps.empty:
-        # Penyeragaman format teks
-        df_maps[asal_col] = df_maps[asal_col].astype(str).str.strip().str.title()
-        
-        asal_counts = df_maps[asal_col].value_counts().reset_index()
-        asal_counts.columns = ['Lokasi', 'Jumlah'] 
-        
-        # Buang data tidak valid
-        invalid_vals = ['', '-', 'Nan', 'None', 'Undefined', '#N/A']
-        asal_counts = asal_counts[~asal_counts['Lokasi'].isin(invalid_vals)]
-        
-        # --- 3. LOGIKA MATCHING KOORDINAT ---
-        lats, lons = [], []
-        for loc in asal_counts['Lokasi']:
-            # Normalisasi input user agar cocok dengan key di database_lokasi.py
-            loc_clean = str(loc).lower().replace('kabupaten', '').replace('kab.', '').replace('kota', '').replace('provinsi', '').replace('prov.', '').strip()
+        # Bersihkan baris kosong/hantu
+        kolom_penting = [col for col in ['Tanggal Masuk', 'No Hp', 'Status'] if col in df_maps.columns]
+        if kolom_penting:
+            df_maps = df_maps.dropna(subset=kolom_penting, how='all')
             
-            matched = False
-            # Prioritas 1: Exact Match atau kecocokan kata kunci
-            for key, coords in indo_coords.items():
-                clean_key = key.lower().strip()
-                if clean_key == loc_clean or f" {clean_key} " in f" {loc_clean} " or loc_clean.startswith(f"{clean_key} ") or loc_clean.endswith(f" {clean_key}"):
-                    lats.append(coords[0]); lons.append(coords[1])
-                    matched = True; break
+        # Filter tag sampah (Double Chat, Partnership, dll)
+        mekari_col = next((c for c in df_maps.columns if 'Mekari' in str(c)), None)
+        if mekari_col:
+            tag_dibuang = ['Double Chat', 'Closed - Not Interested', 'Partnership']
+            pola_hapus = '|'.join(tag_dibuang)
+            df_maps = df_maps[~df_maps[mekari_col].astype(str).str.contains(pola_hapus, case=False, na=False)]
+    
+        # --- 2. PENGOLAHAN LOKASI ---
+        asal_col = next((col for col in df_maps.columns if 'Asal' in str(col)), None)
+        
+        if asal_col and not df_maps.empty:
+            # Penyeragaman format teks
+            df_maps[asal_col] = df_maps[asal_col].astype(str).str.strip().str.title()
             
-            # Prioritas 2: Fuzzy Match Sederhana
-            if not matched:
+            asal_counts = df_maps[asal_col].value_counts().reset_index()
+            asal_counts.columns = ['Lokasi', 'Jumlah'] 
+            
+            # Buang data tidak valid
+            invalid_vals = ['', '-', 'Nan', 'None', 'Undefined', '#N/A']
+            asal_counts = asal_counts[~asal_counts['Lokasi'].isin(invalid_vals)]
+            
+            # --- 3. LOGIKA MATCHING KOORDINAT ---
+            lats, lons = [], []
+            for loc in asal_counts['Lokasi']:
+                # Normalisasi input user agar cocok dengan key di database_lokasi.py
+                loc_clean = str(loc).lower().replace('kabupaten', '').replace('kab.', '').replace('kota', '').replace('provinsi', '').replace('prov.', '').strip()
+                
+                matched = False
+                # Prioritas 1: Exact Match atau kecocokan kata kunci
                 for key, coords in indo_coords.items():
                     clean_key = key.lower().strip()
-                    if clean_key in loc_clean or loc_clean in clean_key:
+                    if clean_key == loc_clean or f" {clean_key} " in f" {loc_clean} " or loc_clean.startswith(f"{clean_key} ") or loc_clean.endswith(f" {clean_key}"):
                         lats.append(coords[0]); lons.append(coords[1])
                         matched = True; break
+                
+                # Prioritas 2: Fuzzy Match Sederhana
+                if not matched:
+                    for key, coords in indo_coords.items():
+                        clean_key = key.lower().strip()
+                        if clean_key in loc_clean or loc_clean in clean_key:
+                            lats.append(coords[0]); lons.append(coords[1])
+                            matched = True; break
+                
+                if not matched:
+                    lats.append(None); lons.append(None)
             
-            if not matched:
-                lats.append(None); lons.append(None)
-        
-        asal_counts['Lat'], asal_counts['Lon'] = lats, lons
-        map_data = asal_counts.dropna(subset=['Lat', 'Lon'])
-        
-        # --- 4. RENDER VISUALISASI ---
-        
-        # A. PETA HEATMAP
-        with st.container(border=True):
-            st.markdown("<div style='font-size:14px; color:gray; font-weight:bold; margin-bottom:10px;'>Titik Persebaran Leads - Seluruh Indonesia</div>", unsafe_allow_html=True)
-            if not map_data.empty:
-                fig_map = px.scatter_mapbox(
-                    map_data, lat="Lat", lon="Lon", size="Jumlah", color="Jumlah", 
-                    color_continuous_scale=["#FEB24C", "#FD8D3C", "#E31A1C", "#800026"], 
-                    size_max=35, zoom=3.8, center=dict(lat=-2.5, lon=118.0), 
-                    mapbox_style="carto-positron", hover_name="Lokasi",
-                    hover_data={"Lat":False, "Lon":False, "Jumlah":True}
-                )
-                fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, height=600, coloraxis_showscale=False)
-                st.plotly_chart(fig_map, use_container_width=True)
-            else:
-                st.warning("⚠️ Lokasi terdeteksi tapi koordinat tidak ditemukan di database lokasi.")
-        
-        st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-
-        # B. GRAFIK TREEMAP
-        with st.container(border=True):
-            st.markdown("<div style='font-size:14px; color:gray; font-weight:bold; margin-bottom:10px;'>📍 Sebaran Domisili Prospek (TreeMap)</div>", unsafe_allow_html=True)
-            if not asal_counts.empty:
-                fig_asal = px.treemap(
-                    asal_counts, 
-                    path=[px.Constant("Seluruh Wilayah"), 'Lokasi'], 
-                    values='Jumlah',
-                    color='Jumlah', 
-                    color_continuous_scale='GnBu'
-                )
-                fig_asal.update_traces(textinfo="label+value", texttemplate="<b>%{label}</b><br>%{value} Leads")
-                fig_asal.update_layout(height=500, margin=dict(t=10, l=10, r=10, b=10), coloraxis_showscale=False)
-                st.plotly_chart(fig_asal, use_container_width=True)
-            else:
-                st.info("Data Asal belum tersedia untuk dibuatkan TreeMap.")
-    else:
-        st.info("💡 Data 'Asal' belum tersedia untuk dipetakan.")
-
-except Exception as e:
-    st.error(f"Gagal memuat visualisasi peta/grafik: {e}")
-
-st.markdown("<br>", unsafe_allow_html=True)
+            asal_counts['Lat'], asal_counts['Lon'] = lats, lons
+            map_data = asal_counts.dropna(subset=['Lat', 'Lon'])
+            
+            # --- 4. RENDER VISUALISASI ---
+            
+            # A. PETA HEATMAP
+            with st.container(border=True):
+                st.markdown("<div style='font-size:14px; color:gray; font-weight:bold; margin-bottom:10px;'>Titik Persebaran Leads - Seluruh Indonesia</div>", unsafe_allow_html=True)
+                if not map_data.empty:
+                    fig_map = px.scatter_mapbox(
+                        map_data, lat="Lat", lon="Lon", size="Jumlah", color="Jumlah", 
+                        color_continuous_scale=["#FEB24C", "#FD8D3C", "#E31A1C", "#800026"], 
+                        size_max=35, zoom=3.8, center=dict(lat=-2.5, lon=118.0), 
+                        mapbox_style="carto-positron", hover_name="Lokasi",
+                        hover_data={"Lat":False, "Lon":False, "Jumlah":True}
+                    )
+                    fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, height=600, coloraxis_showscale=False)
+                    st.plotly_chart(fig_map, use_container_width=True)
+                else:
+                    st.warning("⚠️ Lokasi terdeteksi tapi koordinat tidak ditemukan di database lokasi.")
+            
+            st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+    
+            # B. GRAFIK TREEMAP
+            with st.container(border=True):
+                st.markdown("<div style='font-size:14px; color:gray; font-weight:bold; margin-bottom:10px;'>📍 Sebaran Domisili Prospek (TreeMap)</div>", unsafe_allow_html=True)
+                if not asal_counts.empty:
+                    fig_asal = px.treemap(
+                        asal_counts, 
+                        path=[px.Constant("Seluruh Wilayah"), 'Lokasi'], 
+                        values='Jumlah',
+                        color='Jumlah', 
+                        color_continuous_scale='GnBu'
+                    )
+                    fig_asal.update_traces(textinfo="label+value", texttemplate="<b>%{label}</b><br>%{value} Leads")
+                    fig_asal.update_layout(height=500, margin=dict(t=10, l=10, r=10, b=10), coloraxis_showscale=False)
+                    st.plotly_chart(fig_asal, use_container_width=True)
+                else:
+                    st.info("Data Asal belum tersedia untuk dibuatkan TreeMap.")
+        else:
+            st.info("💡 Data 'Asal' belum tersedia untuk dipetakan.")
+    
+    except Exception as e:
+        st.error(f"Gagal memuat visualisasi peta/grafik: {e}")
+    
+    st.markdown("<br>", unsafe_allow_html=True)
         
 # --- HALAMAN 1: SOSIAL MEDIA ---
 if page == "📱 SOSIAL MEDIA":
