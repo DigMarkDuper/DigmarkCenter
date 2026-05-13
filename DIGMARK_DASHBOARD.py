@@ -676,45 +676,85 @@ try:
         asal_counts['Lat'], asal_counts['Lon'] = lats, lons
         map_data = asal_counts.dropna(subset=['Lat', 'Lon'])
         
-# --- RENDER PETA DENGAN KONTRAS TINGGI ---
-            with st.container(border=True):
-                st.markdown("<div style='font-size:14px; color:gray; font-weight:bold; margin-bottom:10px;'>Titik Persebaran Leads - Kontras Tinggi</div>", unsafe_allow_html=True)
-                
-                if not map_data.empty:
-                    fig_map = px.scatter_mapbox(
-                        map_data, 
-                        lat="Lat", lon="Lon", 
-                        size="Jumlah", 
-                        color="Jumlah", 
-                        # PERBAIKAN: Menggunakan skala warna yang lebih gelap dan kontras (Orange ke Dark Red)
-                        color_continuous_scale=["#FF8C00", "#E31A1C", "#800026"], 
-                        size_max=35, 
-                        zoom=3.8, 
-                        center=dict(lat=-2.5, lon=118.0), 
-                        mapbox_style="carto-positron", 
-                        hover_name="Lokasi",
-                        hover_data={"Lat":False, "Lon":False, "Jumlah":True}
-                    )
-                    
-                    # PERBAIKAN: Menambahkan garis tepi (outline) dan mengatur transparansi agar titik 'pop out'
-                    fig_map.update_traces(
-                        marker=dict(
-                            opacity=0.8,
-                            line=dict(width=1, color='white') # Garis tepi putih tipis agar antar titik tidak menyatu
-                        )
-                    )
-                    
-                    fig_map.update_layout(
-                        margin={"r":0,"t":0,"l":0,"b":0}, 
-                        height=600, 
-                        coloraxis_showscale=False, # Sembunyikan color bar untuk tampilan bersih
-                        hoverlabel=dict(bgcolor="white", font_size=12, font_family="Arial")
-                    )
-                    st.plotly_chart(fig_map, use_container_width=True)
-                else:
-                    st.warning("⚠️ Belum ada koordinat peta yang terdeteksi.")
+# ==========================================================
+# 4. PETA PERSEBARAN & GRAFIK (PERBAIKAN INDENTASI)
+# ==========================================================
+st.markdown(f"<h3 style='color:{BRAND_BLUE}; font-size: 18px; margin-bottom: 10px; margin-top: 15px;'>🗺️ Peta Persebaran & Top Asal Prospek</h3>", unsafe_allow_html=True)
 
-        # --- 2. GRAFIK TREEMAP ---
+try:
+    # --- 1. PENYIAPAN DATA ---
+    df_maps = df_wa_home.copy()
+    
+    # Bersihkan baris kosong
+    kolom_penting = [col for col in ['Tanggal Masuk', 'No Hp', 'Status'] if col in df_maps.columns]
+    if kolom_penting:
+        df_maps = df_maps.dropna(subset=kolom_penting, how='all')
+        
+    # Filter tag sampah (Double Chat, Partnership, dll)
+    mekari_col = next((c for c in df_maps.columns if 'Mekari' in str(c)), None)
+    if mekari_col:
+        tag_dibuang = ['Double Chat', 'Closed - Not Interested', 'Partnership']
+        pola_hapus = '|'.join(tag_dibuang)
+        df_maps = df_maps[~df_maps[mekari_col].astype(str).str.contains(pola_hapus, case=False, na=False)]
+
+    # --- 2. PENGOLAHAN LOKASI ---
+    asal_col = next((col for col in df_maps.columns if 'Asal' in str(col)), None)
+    
+    if asal_col and not df_maps.empty:
+        # Penyeragaman format teks
+        df_maps[asal_col] = df_maps[asal_col].astype(str).str.strip().str.title()
+        
+        asal_counts = df_maps[asal_col].value_counts().reset_index()
+        asal_counts.columns = ['Lokasi', 'Jumlah'] 
+        
+        # Buang data tidak valid
+        invalid_vals = ['', '-', 'Nan', 'None', 'Undefined', '#N/A']
+        asal_counts = asal_counts[~asal_counts['Lokasi'].isin(invalid_vals)]
+        
+        # --- LOGIKA MATCHING KOORDINAT ---
+        lats, lons = [], []
+        for loc in asal_counts['Lokasi']:
+            loc_clean = str(loc).lower().replace('kabupaten', '').replace('kab.', '').replace('kota', '').replace('provinsi', '').replace('prov.', '').strip()
+            
+            matched = False
+            # Matching ke indo_coords (pastikan indo_coords sudah di-import)
+            for key, coords in indo_coords.items():
+                clean_key = key.lower().strip()
+                if clean_key == loc_clean or f" {clean_key} " in f" {loc_clean} " or loc_clean.startswith(f"{clean_key} ") or loc_clean.endswith(f" {clean_key}"):
+                    lats.append(coords[0]); lons.append(coords[1])
+                    matched = True; break
+            
+            if not matched:
+                for key, coords in indo_coords.items():
+                    clean_key = key.lower().strip()
+                    if clean_key in loc_clean or loc_clean in clean_key:
+                        lats.append(coords[0]); lons.append(coords[1])
+                        matched = True; break
+            
+            if not matched:
+                lats.append(None); lons.append(None)
+        
+        asal_counts['Lat'], asal_counts['Lon'] = lats, lons
+        map_data = asal_counts.dropna(subset=['Lat', 'Lon'])
+        
+        # --- 3. RENDER PETA HEATMAP ---
+        with st.container(border=True):
+            st.markdown("<div style='font-size:14px; color:gray; font-weight:bold; margin-bottom:10px;'>Titik Persebaran Leads - Kontras Tinggi</div>", unsafe_allow_html=True)
+            if not map_data.empty:
+                fig_map = px.scatter_mapbox(
+                    map_data, lat="Lat", lon="Lon", size="Jumlah", color="Jumlah", 
+                    color_continuous_scale=["#FF8C00", "#E31A1C", "#800026"], 
+                    size_max=35, zoom=3.8, center=dict(lat=-2.5, lon=118.0), 
+                    mapbox_style="carto-positron", hover_name="Lokasi",
+                    hover_data={"Lat":False, "Lon":False, "Jumlah":True}
+                )
+                fig_map.update_traces(marker=dict(opacity=0.8, line=dict(width=1, color='white')))
+                fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, height=600, coloraxis_showscale=False)
+                st.plotly_chart(fig_map, use_container_width=True)
+            else:
+                st.warning("⚠️ Belum ada koordinat peta yang terdeteksi.")
+
+        # --- 4. GRAFIK TREEMAP ---
         with st.container(border=True):
             st.markdown("<div style='font-size:14px; color:gray; font-weight:bold; margin-bottom:10px;'>📍 Sebaran Domisili Prospek (TreeMap)</div>", unsafe_allow_html=True)
             if not asal_counts.empty:
@@ -731,7 +771,7 @@ try:
             else:
                 st.info("Data Asal belum tersedia untuk dibuatkan TreeMap.")
     else:
-        st.info("Data Asal belum tersedia untuk dipetakan.")
+        st.info("💡 Data Asal belum tersedia untuk dipetakan.")
 
 except Exception as e:
     st.error(f"Gagal memuat visualisasi peta/grafik: {e}")
