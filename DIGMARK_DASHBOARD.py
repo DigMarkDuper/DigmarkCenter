@@ -1006,7 +1006,7 @@ if page == "📈 INSIGHTS & ANALYTICS":
             for f in files:
                 try:
                     raw_bytes = f.getvalue()
-                    # 1. Decoding Bertingkat
+                    # 1. Decoding Bertingkat (Tahan Banting)
                     content = []
                     try: content = raw_bytes.decode("utf-8").splitlines()
                     except:
@@ -1015,10 +1015,10 @@ if page == "📈 INSIGHTS & ANALYTICS":
                             try: content = raw_bytes.decode("utf-16").splitlines()
                             except: content = raw_bytes.decode("latin-1").splitlines()
                     
-                    # 2. Pembersihan Teks untuk Identifikasi
+                    # 2. Pembersihan Teks & Null Byte
                     sample_text = "\n".join(content[:10]).lower().replace('"', '').replace('\x00', '').replace(' ', '')
                     
-                    # 3. Deteksi & Formatting TikTok
+                    # 3. Deteksi TikTok
                     if "videoviews" in sample_text:
                         df_tk = pd.read_csv(io.StringIO("\n".join(content)))
                         res_tk = pd.DataFrame()
@@ -1032,7 +1032,7 @@ if page == "📈 INSIGHTS & ANALYTICS":
                         all_processed.append(res_tk)
                         logs.append(f"✅ TikTok: {f.name}")
                     
-                    # 4. Deteksi & Formatting Instagram
+                    # 4. Deteksi Instagram
                     else:
                         target = ""
                         if "follows" in sample_text: target = "Follow"
@@ -1051,15 +1051,16 @@ if page == "📈 INSIGHTS & ANALYTICS":
                             
                             data_str = "\n".join(content[skip:]).replace('\x00', '')
                             df_ig = pd.read_csv(io.StringIO(data_str))
+                            # Bersihkan tanggal dari huruf 'T' (ISO format)
+                            df_ig['Date'] = df_ig['Date'].astype(str).str.split('T').str[0]
                             df_ig['Date'] = pd.to_datetime(df_ig['Date']).dt.strftime('%d-%m-%Y')
                             ig_frames.append(df_ig[['Date', 'Primary']].rename(columns={'Primary': target}))
                             logs.append(f"✅ Instagram {target}: {f.name}")
                         else:
-                            logs.append(f"❓ File tidak dikenali: {f.name}")
+                            logs.append(f"❓ Tak Dikenali: {f.name}")
                 except Exception as e:
                     logs.append(f"❌ Error {f.name}: {e}")
 
-            # Proses Merging Instagram
             if ig_frames:
                 m_ig = ig_frames[0]
                 for d in ig_frames[1:]: m_ig = pd.merge(m_ig, d, on='Date', how='outer')
@@ -1073,14 +1074,11 @@ if page == "📈 INSIGHTS & ANALYTICS":
 
             for l in logs: st.caption(l)
 
-        # --- AREA PREVIEW & RINGKASAN (TOTAL) ---
+        # --- AREA PREVIEW & RINGKASAN ---
         if st.session_state.preview_data is not None:
             df_view = st.session_state.preview_data
             
-            st.markdown("---")
             st.markdown("### 📊 Ringkasan Data (Total)")
-            
-            # Baris Metrik untuk Total
             m1, m2, m3, m4 = st.columns(4)
             m1.metric("Total Views", f"{int(df_view['View'].sum()):,}")
             m2.metric("Total Reach", f"{int(df_view['Reach'].sum()):,}")
@@ -1091,40 +1089,35 @@ if page == "📈 INSIGHTS & ANALYTICS":
             st.dataframe(df_view, use_container_width=True, hide_index=True)
             
             if st.button("🚀 KONFIRMASI SIMPAN KE SPREADSHEET", use_container_width=True):
-                final_list = df_view[["Date", "Platform", "View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]].values.tolist()
+                # Urutan kolom yang WAJIB sama dengan Header Spreadsheet
+                expected_cols = ["Date", "Platform", "View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]
+                final_list = df_view[expected_cols].values.tolist()
                 
                 if append_sheet_rows(2, final_list):
                     st.success("🔥 Data Berhasil Dicatat!")
-                    st.session_state.preview_data = None # Hapus preview
+                    st.session_state.preview_data = None
                     st.cache_data.clear()
                     st.session_state.bundle = fetch_all_master_data()
                     st.rerun()
 
-    # --- TABEL DATABASE HISTORIS ---
+    # --- TABEL DATABASE HISTORIS (SOLUSI ROW 1 TIDAK MUNCUL) ---
     st.markdown("---")
     st.markdown("### 🗄️ Database Content Insight")
     
-    # Cek data terbaru
-    if 'bundle' not in st.session_state or st.session_state.bundle is None:
-        st.session_state.bundle = fetch_all_master_data()
-    
-    df_db = st.session_state.bundle.get(2, pd.DataFrame())
+    # Ambil data terbaru dari bundle
+    df_db = st.session_state.get('bundle', {}).get(2, pd.DataFrame())
     
     if not df_db.empty:
-        # Menampilkan tabel historis
-        st.dataframe(df_db.sort_index(ascending=False), use_container_width=True, hide_index=True)
+        # PENTING: Jika gspread menghilangkan header, kita definisikan ulang kolomnya
+        cols_name = ["Date", "Platform", "View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]
         
-        # Tombol Refresh
-        if st.button("🔄 Paksa Refresh Data Database"):
-            st.cache_data.clear()
-            st.session_state.bundle = fetch_all_master_data()
-            st.rerun()
+        # Jika jumlah kolom cocok, kita paksa nama kolomnya muncul
+        if len(df_db.columns) == len(cols_name):
+            df_db.columns = cols_name
+            
+        st.dataframe(df_db.sort_index(ascending=False), use_container_width=True, hide_index=True)
     else:
-        st.warning("⚠️ Data di Spreadsheet Tab 3 belum terbaca atau masih kosong.")
-        if st.button("🔎 Cek Koneksi Sheet"):
-            st.cache_data.clear()
-            st.session_state.bundle = fetch_all_master_data()
-            st.rerun()
+        st.warning("⚠️ Data di Spreadsheet Tab 3 belum terbaca. Pastikan Baris 1 di Google Sheets sudah berisi Judul Kolom.")
 
 # --- HALAMAN 4: WA ADMIN REPORT ---
 elif page == "💬 WA ADMIN REPORT":
