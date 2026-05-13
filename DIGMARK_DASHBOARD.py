@@ -685,7 +685,7 @@ try:
             if not map_data.empty:
                 fig_map = px.scatter_mapbox(
                     map_data, lat="Lat", lon="Lon", size="Jumlah", color="Jumlah", 
-                    color_continuous_scale=["#FFD700", "#FF8C00", "#FF0000"], 
+                    color_continuous_scale=["#80B1D3", "#807DBA", "#6A51A3", "#3F007D"], 
                     size_max=35, zoom=3.8, center=dict(lat=-2.5, lon=118.0), 
                     mapbox_style="carto-positron", hover_name="Lokasi",
                     hover_data={"Lat":False, "Lon":False, "Jumlah":True}
