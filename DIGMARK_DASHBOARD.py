@@ -1003,9 +1003,7 @@ if page == "📈 INSIGHTS & ANALYTICS":
                 try:
                     raw_bytes = f.getvalue()
                     
-                    # ==================================================
-                    # 1. DETEKSI ENCODING YANG LEBIH KUAT (UTF-16 LE)
-                    # ==================================================
+                    # 1. DETEKSI ENCODING
                     content = []
                     try:
                         content = raw_bytes.decode("utf-8").splitlines()
@@ -1014,15 +1012,11 @@ if page == "📈 INSIGHTS & ANALYTICS":
                             content = raw_bytes.decode("utf-8-sig").splitlines()
                         except:
                             try:
-                                # Penting untuk file Instagram "Follows (1).csv"
                                 content = raw_bytes.decode("utf-16").splitlines()
                             except:
                                 content = raw_bytes.decode("latin-1").splitlines()
                     
-                    # ==================================================
-                    # 2. PEMBERSIHAN NULL BYTE & KARAKTER ANEH
-                    # ==================================================
-                    # Kita bersihkan \x00 agar keyword scanner bisa membaca teks dengan normal
+                    # 2. PEMBERSIHAN NULL BYTE
                     sample_text = "\n".join(content[:10]).lower().replace('"', '').replace('\x00', '').replace(' ', '')
                     
                     # 3. DETEKSI TIKTOK
@@ -1039,7 +1033,7 @@ if page == "📈 INSIGHTS & ANALYTICS":
                         all_processed.append(res_tk)
                         logs.append(f"✅ TikTok Berhasil: {f.name}")
                     
-                    # 4. DETEKSI INSTAGRAM (Keyword Matching)
+                    # 4. DETEKSI INSTAGRAM
                     else:
                         target = ""
                         if "follows" in sample_text: target = "Follow"
@@ -1050,20 +1044,15 @@ if page == "📈 INSIGHTS & ANALYTICS":
                         elif "linkclicks" in sample_text: target = "Link Clicks"
                         
                         if target:
-                            # Cari baris data asli (Header: Date, Primary)
                             skip = 0
                             for i, line in enumerate(content):
-                                # Bersihkan baris dari null byte sebelum pengecekan header
                                 clean_l = line.lower().replace('"', '').replace('\x00', '')
                                 if "date" in clean_l and "primary" in clean_l:
                                     skip = i
                                     break
                             
-                            # Baca dataframe dengan menangani kemungkinan null bytes di seluruh file
                             data_str = "\n".join(content[skip:]).replace('\x00', '')
                             df_ig = pd.read_csv(io.StringIO(data_str))
-                            
-                            # Bersihkan format tanggal ISO Meta
                             df_ig['Date'] = pd.to_datetime(df_ig['Date']).dt.strftime('%d-%m-%Y')
                             ig_frames.append(df_ig[['Date', 'Primary']].rename(columns={'Primary': target}))
                             logs.append(f"✅ Instagram {target}: {f.name}")
@@ -1073,7 +1062,8 @@ if page == "📈 INSIGHTS & ANALYTICS":
                 except Exception as e:
                     logs.append(f"❌ Error {f.name}: {e}")
 
-            for l in logs: st.caption(l)
+            for l in logs: 
+                st.caption(l)
 
             # Gabungkan Data Instagram
             if ig_frames:
@@ -1085,41 +1075,33 @@ if page == "📈 INSIGHTS & ANALYTICS":
                     if c not in m_ig.columns: m_ig[c] = 0
                 all_processed.append(m_ig.fillna(0))
 
-             if all_processed:
+            # Tampilkan Preview & Tombol Simpan
+            if all_processed:
                 df_final = pd.concat(all_processed, ignore_index=True)
                 st.write("🔍 **Preview Data Gabungan:**")
                 st.dataframe(df_final.head(10), use_container_width=True)
                 
                 if st.button("🚀 SIMPAN KE SPREADSHEET (TAB 3)", use_container_width=True):
                     final_list = df_final[["Date", "Platform", "View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]].values.tolist()
-                    
                     if append_sheet_rows(2, final_list):
                         st.success("Data berhasil masuk!")
-                        
-                        # --- PERBAIKAN: PAKSA REFRESH DATA SETELAH SIMPAN ---
-                        st.cache_data.clear() # Hapus cache agar fetch_all_master_data mengambil data baru
-                        st.session_state.bundle = fetch_all_master_data() # Update session state bundle
-                        st.rerun() # Refresh aplikasi agar tabel di bawah langsung muncul
+                        st.cache_data.clear()
+                        st.session_state.bundle = fetch_all_master_data()
+                        st.rerun()
 
-    # --- TABEL HISTORIS (PENAMPILAN DATA DARI SHEET) ---
+    # --- TABEL HISTORIS ---
     st.markdown("---")
-    
-    # Ambil data terbaru dari session state bundle yang sudah diperbarui
     df_in = st.session_state.get('bundle', {}).get(2, pd.DataFrame())
     
     if not df_in.empty:
         st.markdown("### 📊 Data Historis Content Insight (Database)")
-        
-        # Opsi: Gunakan st.data_editor agar tampilan lebih interaktif 
-        # atau st.dataframe untuk tabel standar
         st.dataframe(df_in.sort_index(ascending=False), use_container_width=True, hide_index=True)
     else:
-        st.warning("⚠️ Tabel tidak muncul karena data di Spreadsheet (Tab 3) masih kosong atau sinkronisasi gagal.")       
+        st.warning("⚠️ Tabel tidak muncul karena data di Spreadsheet (Tab 3) masih kosong.")
+
 # --- HALAMAN 4: WA ADMIN REPORT ---
 elif page == "💬 WA ADMIN REPORT":
-    
     st.title("💬 KINERJA WA ADMIN & CLOSING LPK")
-    
     st.markdown("---")
     
     try:
