@@ -1953,6 +1953,9 @@ elif page == "📈 ADS ANALYTICS":
 with tab_mekari:
     st.info("💡 **Smart Importer:** Sistem merekap file otomatis menjadi **1 Baris Struk Ringkas** beserta Periode Datanya agar tidak ada duplikasi input.")
     
+    # DEFINISI VARIABLE (Agar tidak Error line 1957)
+    df_db_mekari = st.session_state.get('bundle', {}).get(8, pd.DataFrame())
+    
     # Logika perhitungan dari database (Sheet Tab 9 / Index 8)
     if not df_db_mekari.empty:
         # Fungsi pembersih agar teks "Rp 1.234.567" bisa dijumlahkan sebagai angka
@@ -2017,7 +2020,6 @@ with tab_mekari:
                 col_date = next((c for c in df_calc_mk.columns if 'created' in c or 'date' in c or 'tanggal' in c), None)
                 if col_date:
                     try:
-                        # Parse format tanggal Mekari dengan utc=True agar tahan banting
                         temp_dates = pd.to_datetime(df_calc_mk[col_date], utc=True, errors='coerce')
                         min_date = temp_dates.min()
                         max_date = temp_dates.max()
@@ -2034,11 +2036,11 @@ with tab_mekari:
                         import datetime
                         tgl_sekarang = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                         
-                        # Header dan Baris Ditambah Kolom Periode Data
                         header_mk = ["Waktu Import", "Periode Laporan", "Jenis Laporan WA", "Total Interaksi", "Total Biaya (Rp)"]
                         baris_data_mk = [str(tgl_sekarang), str(periode_data), str(jenis_laporan), int(up_pesan_mk), float(up_spend_mk)]
                         
-                        bulk_data_mk = [header_mk, baris_data_mk] if df_ads_mekari_db.empty else [baris_data_mk]
+                        # Menggunakan df_db_mekari yang sudah didefinisikan di atas
+                        bulk_data_mk = [header_mk, baris_data_mk] if df_db_mekari.empty else [baris_data_mk]
                         
                         if append_sheet_rows(8, bulk_data_mk): 
                             st.success("✅ Berhasil menyimpan riwayat saldo Mekari!")
@@ -2049,10 +2051,10 @@ with tab_mekari:
                 st.error(f"Gagal memproses file Mekari: {e}")
 
     with st.expander("📑 Riwayat Saldo Mekari Tersimpan", expanded=False):
-        if not df_ads_mekari_db.empty:
-            st.dataframe(df_ads_mekari_db, use_container_width=True, hide_index=True)
+        if not df_db_mekari.empty:
+            st.dataframe(df_db_mekari, use_container_width=True, hide_index=True)
             if st.button("🗑️ Kosongkan Riwayat Mekari", use_container_width=True, key="rst_mk"):
-                init_connection().open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(8).clear() # INDEX 8
+                init_connection().open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(8).clear()
                 st.cache_data.clear()
                 st.rerun()
 
