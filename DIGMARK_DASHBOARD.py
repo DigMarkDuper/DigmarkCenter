@@ -1949,15 +1949,36 @@ elif page == "📈 ADS ANALYTICS":
                     init_connection().open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(7).clear() 
                     st.cache_data.clear(); st.rerun()
 
-    # ---------------- TAB MEKARI (SMART IMPORTER) ----------------
-    with tab_mekari:
-        st.info("💡 **Smart Importer:** Sistem merekap file otomatis menjadi **1 Baris Struk Ringkas** beserta Periode Datanya agar tidak ada duplikasi input.")
+# ---------------- TAB MEKARI (SMART IMPORTER) ----------------
+        with tab_mekari:
+            st.info("💡 **Smart Importer:** Sistem merekap file otomatis menjadi **1 Baris Struk Ringkas** beserta Periode Datanya agar tidak ada duplikasi input.")
         
-        mk1, mk2 = st.columns(2)
-        mk1.metric("💸 Total Saldo WA Terpakai", f"Rp {total_spend_mekari:,.0f}")
-        mk2.metric("💬 Total Interaksi WA Terbayar", f"{total_pesan_mekari:,.0f} Pesan")
+            # Logika perhitungan dari database (Sheet Tab 9 / Index 8)
+            if not df_db_mekari.empty:
+                # Fungsi pembersih agar teks "Rp 1.234.567" bisa dijumlahkan sebagai angka
+                def clean_currency(x):
+                    return str(x).replace('Rp', '').replace('.', '').replace(',', '').strip()
+                
+                # Ambil SUM langsung dari kolom Total Biaya (Rp)
+                total_spend_mekari = pd.to_numeric(
+                    df_db_mekari['Total Biaya (Rp)'].apply(clean_currency), 
+                    errors='coerce'
+                ).fillna(0).sum()
+                
+                total_pesan_mekari = pd.to_numeric(
+                    df_db_mekari['Total Interaksi'], 
+                    errors='coerce'
+                ).fillna(0).sum()
+            else:
+                total_spend_mekari = 0
+                total_pesan_mekari = 0
         
-        st.markdown("---")
+            # Tampilan Metrik Utama
+            mk1, mk2 = st.columns(2)
+            mk1.metric("💸 Total Spend", f"Rp {total_spend_mekari:,.0f}")
+            mk2.metric("💬 Total Interaksi WA Terbayar", f"{total_pesan_mekari:,.0f} Pesan")
+            
+            st.markdown("---")
         with st.container(border=True):
             st.markdown("### 📤 Upload Laporan Mekari Baru")
             st.markdown("Bisa upload file `Campaign Logs` atau `Billing Logs`.")
