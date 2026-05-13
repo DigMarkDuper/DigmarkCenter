@@ -1927,8 +1927,9 @@ elif page == "📈 ADS ANALYTICS":
                 if st.button("🗑️ Kosongkan Database Meta", use_container_width=True, key="rst_mt"):
                     init_connection().open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(7).clear() 
                     st.cache_data.clear(); st.rerun()
-
+                    
 # ---------------- TAB MEKARI (SMART IMPORTER) ----------------
+tab_tiktok, tab_instagram, tab_mekari = st.tabs(["🎵 TikTok", "📸 Instagram", "💸 Mekari WA"])
 with tab_mekari:
     st.info("💡 **Smart Importer:** Sistem merekap file otomatis menjadi **1 Baris Struk Ringkas**.")
     
