@@ -990,7 +990,7 @@ if page == "📈 INSIGHTS & ANALYTICS":
     import io
     st.title("📈 ANALITIK KONTEN")
 
-    # 1. DEFINISIKAN VARIABLE GLOBAL HALAMAN (Agar bisa dipakai di semua blok bawah)
+    # 1. DEFINISIKAN VARIABLE GLOBAL HALAMAN
     header_names = ["Date", "Platform", "View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]
     numeric_cols = ["View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]
 
@@ -1008,31 +1008,8 @@ if page == "📈 INSIGHTS & ANALYTICS":
     if 'bundle' not in st.session_state or st.session_state.bundle is None:
         st.session_state.bundle = fetch_all_master_data()
 
+    # Ambil data dari Tab Index 2 (Sheet ke-3)
     df_db = st.session_state.bundle.get(2, pd.DataFrame())
-
-    # =====================================================
-    # GLOBAL ANALYTICS (DASHBOARD ATAS)
-    # =====================================================
-    st.markdown("## 📊 Global Content Analytics")
-
-    if not df_db.empty:
-        # Paksa Header & Konversi Numerik
-        if len(df_db.columns) == len(header_names):
-            df_db.columns = header_names
-        
-        for col in numeric_cols:
-            if col in df_db.columns:
-                df_db[col] = pd.to_numeric(df_db[col], errors='coerce').fillna(0)
-
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Total Views", f"{int(df_db['View'].sum()):,}")
-        m2.metric("Total Reach", f"{int(df_db['Reach'].sum()):,}")
-        m3.metric("Total Interaction", f"{int(df_db['Interaction'].sum()):,}")
-        m4.metric("Total Follows", f"{int(df_db['Follow'].sum()):,}")
-    else:
-        st.warning("⚠️ Database masih kosong.")
-
-    st.markdown("---")
 
     # =====================================================
     # IMPORTER
@@ -1106,17 +1083,13 @@ if page == "📈 INSIGHTS & ANALYTICS":
                 except Exception as e:
                     logs.append(f"❌ Error {f.name}: {e}")
 
-            # MERGE INSTAGRAM
             if ig_frames:
                 m_ig = ig_frames[0]
                 for d in ig_frames[1:]:
                     m_ig = pd.merge(m_ig, d, on='Date', how='outer')
-                
                 m_ig['Platform'] = 'Instagram'
-                # numeric_cols sekarang aman dipanggil karena sudah didefinisikan di atas
                 for c in numeric_cols:
-                    if c not in m_ig.columns: 
-                        m_ig[c] = 0
+                    if c not in m_ig.columns: m_ig[c] = 0
                 all_processed.append(m_ig.fillna(0))
 
             if all_processed:
@@ -1126,7 +1099,7 @@ if page == "📈 INSIGHTS & ANALYTICS":
                 st.caption(l)
 
     # =====================================================
-    # PREVIEW AREA
+    # PREVIEW AREA (HANYA TABEL, TANPA SUMMARIES)
     # =====================================================
     if st.session_state.preview_data is not None:
         st.markdown("### 📄 Preview Data Upload")
@@ -1144,21 +1117,30 @@ if page == "📈 INSIGHTS & ANALYTICS":
                 st.rerun()
 
     # =====================================================
-    # DATABASE TABLE
+    # DATABASE TABLE (DENGAN PERBAIKAN LOAD)
     # =====================================================
     st.markdown("---")
     st.markdown("### 🗄️ Database Content Insight")
 
     if not df_db.empty:
+        # 1. Bersihkan baris yang benar-benar kosong (sering terjadi di Sheets)
+        df_db = df_db.dropna(how='all')
+        
+        # 2. Paksa Header jika kolom tidak terbaca otomatis
+        if len(df_db.columns) == len(header_names):
+            df_db.columns = header_names
+        
         try:
+            # Sortir tanggal terbaru
             df_db['Date'] = pd.to_datetime(df_db['Date'], errors='coerce', dayfirst=True)
             df_db = df_db.sort_values(by='Date', ascending=False)
             df_db['Date'] = df_db['Date'].dt.strftime('%d-%m-%Y')
         except:
             pass
+            
         st.dataframe(df_db, use_container_width=True, hide_index=True)
     else:
-        st.warning("⚠️ Data di Spreadsheet belum tersedia.")
+        st.warning("⚠️ Database terbaca kosong. Klik refresh di sidebar jika data di Sheets sebenarnya sudah ada.")
 
 # --- HALAMAN 4: WA ADMIN REPORT ---
 elif page == "💬 WA ADMIN REPORT":
