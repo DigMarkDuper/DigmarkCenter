@@ -1085,22 +1085,36 @@ if page == "📈 INSIGHTS & ANALYTICS":
                     if c not in m_ig.columns: m_ig[c] = 0
                 all_processed.append(m_ig.fillna(0))
 
-            if all_processed:
+             if all_processed:
                 df_final = pd.concat(all_processed, ignore_index=True)
                 st.write("🔍 **Preview Data Gabungan:**")
                 st.dataframe(df_final.head(10), use_container_width=True)
                 
                 if st.button("🚀 SIMPAN KE SPREADSHEET (TAB 3)", use_container_width=True):
                     final_list = df_final[["Date", "Platform", "View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]].values.tolist()
+                    
                     if append_sheet_rows(2, final_list):
-                        st.success("Data berhasil masuk!"); st.cache_data.clear(); st.rerun()
+                        st.success("Data berhasil masuk!")
+                        
+                        # --- PERBAIKAN: PAKSA REFRESH DATA SETELAH SIMPAN ---
+                        st.cache_data.clear() # Hapus cache agar fetch_all_master_data mengambil data baru
+                        st.session_state.bundle = fetch_all_master_data() # Update session state bundle
+                        st.rerun() # Refresh aplikasi agar tabel di bawah langsung muncul
 
-    # --- TABEL HISTORIS ---
+    # --- TABEL HISTORIS (PENAMPILAN DATA DARI SHEET) ---
     st.markdown("---")
-    df_in = bundle_data.get(2, pd.DataFrame())
+    
+    # Ambil data terbaru dari session state bundle yang sudah diperbarui
+    df_in = st.session_state.get('bundle', {}).get(2, pd.DataFrame())
+    
     if not df_in.empty:
-        st.markdown("### 📊 Data Historis Content Insight")
-        st.dataframe(df_in.tail(15), use_container_width=True, hide_index=True)       
+        st.markdown("### 📊 Data Historis Content Insight (Database)")
+        
+        # Opsi: Gunakan st.data_editor agar tampilan lebih interaktif 
+        # atau st.dataframe untuk tabel standar
+        st.dataframe(df_in.sort_index(ascending=False), use_container_width=True, hide_index=True)
+    else:
+        st.warning("⚠️ Tabel tidak muncul karena data di Spreadsheet (Tab 3) masih kosong atau sinkronisasi gagal.")       
 # --- HALAMAN 4: WA ADMIN REPORT ---
 elif page == "💬 WA ADMIN REPORT":
     
