@@ -1949,7 +1949,7 @@ elif page == "📈 ADS ANALYTICS":
                     init_connection().open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(7).clear() 
                     st.cache_data.clear(); st.rerun()
 
-# ---------------- TAB MEKARI (SMART IMPORTER) ----------------
+    # ---------------- TAB MEKARI (SMART IMPORTER) ----------------
     with tab_mekari:
         st.info("💡 **Smart Importer:** Sistem merekap file otomatis menjadi **1 Baris Struk Ringkas** beserta Periode Datanya agar tidak ada duplikasi input.")
         
