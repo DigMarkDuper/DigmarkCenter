@@ -989,27 +989,8 @@ bundle_data = st.session_state.get('bundle', {})
 if page == "📈 INSIGHTS & ANALYTICS":
     import io 
     st.title("📈 ANALITIK KONTEN")
-# --- TAMPILKAN PREVIEW & SUMMARY ---
-        if st.session_state.data_siap_upload is not None:
-            df_preview = st.session_state.data_siap_upload
-            
-            st.markdown("### 📊 Ringkasan Data (Total)")
-            # Membuat kolom untuk metrik ringkasan
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Total Views", f"{df_preview['View'].sum():,}")
-            m2.metric("Total Reach", f"{df_preview['Reach'].sum():,}")
-            m3.metric("Total Interaction", f"{df_preview['Interaction'].sum():,}")
-            m4.metric("Total Follows", f"{df_preview['Follow'].sum():,}")
-
-            st.markdown("### 🔍 Preview Data Detail")
-            
-            # Menambahkan baris TOTAL di bagian bawah tabel preview (opsional)
-            df_with_total = df_preview.copy()
-            # Pastikan kolom numerik dijumlahkan
-            numeric_cols = ["View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]
-            total_row = df_with_total[numeric_cols].sum()
     
-    # Gunakan session_state untuk menampung data preview agar bisa dihapus
+    # Inisialisasi session state untuk preview
     if 'preview_data' not in st.session_state:
         st.session_state.preview_data = None
 
@@ -1025,7 +1006,7 @@ if page == "📈 INSIGHTS & ANALYTICS":
             for f in files:
                 try:
                     raw_bytes = f.getvalue()
-                    # 1. Decoding Bertingkat (Sesuai diskusi dengan ChatGPT)
+                    # 1. Decoding Bertingkat
                     content = []
                     try: content = raw_bytes.decode("utf-8").splitlines()
                     except:
@@ -1034,14 +1015,13 @@ if page == "📈 INSIGHTS & ANALYTICS":
                             try: content = raw_bytes.decode("utf-16").splitlines()
                             except: content = raw_bytes.decode("latin-1").splitlines()
                     
-                    # 2. Pembersihan Teks
+                    # 2. Pembersihan Teks untuk Identifikasi
                     sample_text = "\n".join(content[:10]).lower().replace('"', '').replace('\x00', '').replace(' ', '')
                     
-                    # 3. Deteksi & Formatting Tanggal TikTok
+                    # 3. Deteksi & Formatting TikTok
                     if "videoviews" in sample_text:
                         df_tk = pd.read_csv(io.StringIO("\n".join(content)))
                         res_tk = pd.DataFrame()
-                        # Perbaikan Tanggal: Pastikan format seragam DD-MM-YYYY
                         res_tk['Date'] = pd.to_datetime(df_tk['Date']).dt.strftime('%d-%m-%Y')
                         res_tk['Platform'] = 'TikTok'
                         res_tk['View'] = df_tk.get('Video Views', 0)
@@ -1052,7 +1032,7 @@ if page == "📈 INSIGHTS & ANALYTICS":
                         all_processed.append(res_tk)
                         logs.append(f"✅ TikTok: {f.name}")
                     
-                    # 4. Deteksi & Formatting Tanggal Instagram
+                    # 4. Deteksi & Formatting Instagram
                     else:
                         target = ""
                         if "follows" in sample_text: target = "Follow"
@@ -1071,13 +1051,15 @@ if page == "📈 INSIGHTS & ANALYTICS":
                             
                             data_str = "\n".join(content[skip:]).replace('\x00', '')
                             df_ig = pd.read_csv(io.StringIO(data_str))
-                            # Perbaikan Tanggal Instagram (Membuang Jam/Huruf T)
                             df_ig['Date'] = pd.to_datetime(df_ig['Date']).dt.strftime('%d-%m-%Y')
                             ig_frames.append(df_ig[['Date', 'Primary']].rename(columns={'Primary': target}))
                             logs.append(f"✅ Instagram {target}: {f.name}")
+                        else:
+                            logs.append(f"❓ File tidak dikenali: {f.name}")
                 except Exception as e:
                     logs.append(f"❌ Error {f.name}: {e}")
 
+            # Proses Merging Instagram
             if ig_frames:
                 m_ig = ig_frames[0]
                 for d in ig_frames[1:]: m_ig = pd.merge(m_ig, d, on='Date', how='outer')
@@ -1091,53 +1073,55 @@ if page == "📈 INSIGHTS & ANALYTICS":
 
             for l in logs: st.caption(l)
 
-        # --- PREVIEW AREA ---
+        # --- AREA PREVIEW & RINGKASAN (TOTAL) ---
         if st.session_state.preview_data is not None:
-            st.write("🔍 **Preview Data Sebelum Simpan:**")
-            st.dataframe(st.session_state.preview_data, use_container_width=True, hide_index=True)
+            df_view = st.session_state.preview_data
+            
+            st.markdown("---")
+            st.markdown("### 📊 Ringkasan Data (Total)")
+            
+            # Baris Metrik untuk Total
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Total Views", f"{int(df_view['View'].sum()):,}")
+            m2.metric("Total Reach", f"{int(df_view['Reach'].sum()):,}")
+            m3.metric("Total Interaction", f"{int(df_view['Interaction'].sum()):,}")
+            m4.metric("Total Follows", f"{int(df_view['Follow'].sum()):,}")
+
+            st.markdown("### 🔍 Preview Data Detail")
+            st.dataframe(df_view, use_container_width=True, hide_index=True)
             
             if st.button("🚀 KONFIRMASI SIMPAN KE SPREADSHEET", use_container_width=True):
-                final_list = st.session_state.preview_data[["Date", "Platform", "View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]].values.tolist()
+                final_list = df_view[["Date", "Platform", "View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]].values.tolist()
                 
                 if append_sheet_rows(2, final_list):
                     st.success("🔥 Data Berhasil Dicatat!")
-                    
-                    # --- SOLUSI: BERSIHKAN SEMUA VARIABEL ---
-                    st.session_state.preview_data = None # Hapus preview agar hilang
+                    st.session_state.preview_data = None # Hapus preview
                     st.cache_data.clear()
                     st.session_state.bundle = fetch_all_master_data()
-                    st.rerun() # Refresh total agar tampilan bersih
+                    st.rerun()
 
-    # --- TABEL DATABASE ---
+    # --- TABEL DATABASE HISTORIS ---
     st.markdown("---")
-    df_in = st.session_state.get('bundle', {}).get(2, pd.DataFrame())
-    if not df_in.empty:
-        st.markdown("### 📊 Database Content Insight")
-        st.dataframe(df_in, use_container_width=True, hide_index=True)
-
-    # --- TABEL HISTORIS (PENYEBAB TABEL TIDAK MUNCUL) ---
-    st.markdown("---")
+    st.markdown("### 🗄️ Database Content Insight")
     
-    # PERBAIKAN: Selalu tarik data terbaru dari session state atau paksa fetch jika kosong
+    # Cek data terbaru
     if 'bundle' not in st.session_state or st.session_state.bundle is None:
         st.session_state.bundle = fetch_all_master_data()
     
-    # Ambil index 2 (Tab 3 Spreadsheet)
-    df_in = st.session_state.bundle.get(2, pd.DataFrame())
+    df_db = st.session_state.bundle.get(2, pd.DataFrame())
     
-    if not df_in.empty:
-        st.markdown("### 📊 Data Historis Content Insight (Database)")
-        # Tampilkan tabel
-        st.dataframe(df_in, use_container_width=True, hide_index=True)
+    if not df_db.empty:
+        # Menampilkan tabel historis
+        st.dataframe(df_db.sort_index(ascending=False), use_container_width=True, hide_index=True)
         
-        # Tombol Refresh Manual jika data masih belum terlihat
-        if st.button("🔄 Paksa Refresh Data"):
+        # Tombol Refresh
+        if st.button("🔄 Paksa Refresh Data Database"):
             st.cache_data.clear()
             st.session_state.bundle = fetch_all_master_data()
             st.rerun()
     else:
-        st.warning("⚠️ Data di Spreadsheet Tab 3 terbaca kosong oleh sistem.")
-        if st.button("🔎 Cek Ulang Koneksi Sheet"):
+        st.warning("⚠️ Data di Spreadsheet Tab 3 belum terbaca atau masih kosong.")
+        if st.button("🔎 Cek Koneksi Sheet"):
             st.cache_data.clear()
             st.session_state.bundle = fetch_all_master_data()
             st.rerun()
