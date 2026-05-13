@@ -1835,27 +1835,35 @@ elif page == "📈 ADS ANALYTICS":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # =====================================================================
+   # =====================================================================
     # 3. TAB UNTUK RINCIAN PER PLATFORM
     # =====================================================================
-    tab_tiktok, tab_meta, tab_mekari = st.tabs(["📱 Rincian TikTok Ads", "🟦 Rincian Meta Ads", "🟩 Rincian Mekari (WA)"])
+    tab_tiktok, tab_meta, tab_mekari = st.tabs([
+        "📱 Rincian TikTok Ads", 
+        "🟦 Rincian Meta Ads", 
+        "🟩 Rincian Mekari (WA)"
+    ])
 
-    # ---------------- TAB TIKTOK ----------------
+    # =====================================================================
+    # TAB TIKTOK
+    # =====================================================================
     with tab_tiktok:
         cpl_tk = total_spend_tiktok / total_leads_tiktok if total_leads_tiktok > 0 else 0
         cac_tk = total_spend_tiktok / closing_tiktok if closing_tiktok > 0 else 0
-        
+
         t1, t2, t3, t4, t5 = st.columns(5)
         t1.metric("💸 Spend TikTok", f"Rp {total_spend_tiktok:,.0f}")
         t2.metric("👥 Leads Masuk", total_leads_tiktok)
         t3.metric("🎯 Cost Per Lead", f"Rp {cpl_tk:,.0f}")
         t4.metric("🎓 Closing TikTok", closing_tiktok)
         t5.metric("💰 Biaya/Siswa (CAC)", f"Rp {cac_tk:,.0f}")
-        
+
         st.markdown("---")
+
         with st.container(border=True):
             st.markdown("### 📤 Upload Laporan TikTok Ads Baru")
             up_tk = st.file_uploader("Upload File Laporan TikTok Ads", type=['csv', 'xlsx'], key="up_tk")
+
             if up_tk is not None:
                 try:
                     df_up_tk = pd.read_csv(up_tk) if up_tk.name.endswith('.csv') else pd.read_excel(up_tk)
@@ -1865,15 +1873,20 @@ elif page == "📈 ADS ANALYTICS":
                     df_calc_up = df_clean_tk.copy()
                     df_calc_up.columns = [str(c).strip().lower() for c in df_calc_up.columns]
                     col_cost_up = next((c for c in df_calc_up.columns if 'cost' in c), None)
+                    
                     up_spend_tk = pd.to_numeric(df_calc_up[col_cost_up], errors='coerce').fillna(0).sum() if col_cost_up else 0
-                        
+                    
                     st.success(f"✅ Budget TikTok yang akan ditambahkan: **Rp {up_spend_tk:,.0f}**")
+                    
                     if st.button("📥 Import ke Spreadsheet (TikTok)", use_container_width=True, key="btn_imp_tk"):
                         with st.spinner("Mengirim ke Tab 7..."):
                             df_final = df_clean_tk.fillna("")
                             bulk_data = [df_final.columns.tolist()] + df_final.values.tolist() if df_ads_tiktok_db.empty else df_final.values.tolist()
-                            if append_sheet_rows(6, bulk_data): 
-                                st.success("✅ Berhasil masuk ke Tab TikTok."); st.balloons(); st.cache_data.clear(); st.rerun()
+                            if append_sheet_rows(6, bulk_data):
+                                st.success("✅ Berhasil masuk ke Tab TikTok.")
+                                st.balloons()
+                                st.cache_data.clear()
+                                st.rerun()
                 except Exception as e:
                     st.error(f"Gagal memproses: {e}")
 
@@ -1882,24 +1895,29 @@ elif page == "📈 ADS ANALYTICS":
                 st.dataframe(df_ads_tiktok_db, use_container_width=True, hide_index=True)
                 if st.button("🗑️ Kosongkan Database TikTok", use_container_width=True, key="rst_tk"):
                     init_connection().open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(6).clear()
-                    st.cache_data.clear(); st.rerun()
+                    st.cache_data.clear()
+                    st.rerun()
 
-    # ---------------- TAB META ----------------
+    # =====================================================================
+    # TAB META
+    # =====================================================================
     with tab_meta:
         cpl_mt = total_spend_meta / total_leads_meta if total_leads_meta > 0 else 0
         cac_mt = total_spend_meta / closing_meta if closing_meta > 0 else 0
-        
+
         m1, m2, m3, m4, m5 = st.columns(5)
         m1.metric("💸 Spend Meta", f"Rp {total_spend_meta:,.0f}")
         m2.metric("👥 Leads Masuk", total_leads_meta)
         m3.metric("🎯 Cost Per Lead", f"Rp {cpl_mt:,.0f}")
         m4.metric("🎓 Closing Meta", closing_meta)
         m5.metric("💰 Biaya/Siswa (CAC)", f"Rp {cac_mt:,.0f}")
-        
+
         st.markdown("---")
+
         with st.container(border=True):
             st.markdown("### 📤 Upload Laporan Meta Ads Baru")
             up_mt = st.file_uploader("Upload File Laporan Meta Ads", type=['csv', 'xlsx'], key="up_mt")
+
             if up_mt is not None:
                 try:
                     df_up_mt = pd.read_csv(up_mt) if up_mt.name.endswith('.csv') else pd.read_excel(up_mt)
@@ -1909,15 +1927,20 @@ elif page == "📈 ADS ANALYTICS":
                     df_calc_up_mt = df_clean_mt.copy()
                     df_calc_up_mt.columns = [str(c).strip().lower() for c in df_calc_up_mt.columns]
                     col_cost_up_mt = next((c for c in df_calc_up_mt.columns if 'spent' in c or 'spend' in c or 'cost' in c), None)
+                    
                     up_spend_mt = pd.to_numeric(df_calc_up_mt[col_cost_up_mt], errors='coerce').fillna(0).sum() if col_cost_up_mt else 0
-                        
+                    
                     st.success(f"✅ Budget Meta yang akan ditambahkan: **Rp {up_spend_mt:,.0f}**")
+                    
                     if st.button("📥 Import ke Spreadsheet (Meta)", use_container_width=True, key="btn_imp_mt"):
                         with st.spinner("Mengirim ke Tab 8..."):
                             df_final_mt = df_clean_mt.fillna("")
                             bulk_data_mt = [df_final_mt.columns.tolist()] + df_final_mt.values.tolist() if df_ads_meta_db.empty else df_final_mt.values.tolist()
-                            if append_sheet_rows(7, bulk_data_mt): 
-                                st.success("✅ Berhasil masuk ke Tab Meta."); st.balloons(); st.cache_data.clear(); st.rerun()
+                            if append_sheet_rows(7, bulk_data_mt):
+                                st.success("✅ Berhasil masuk ke Tab Meta.")
+                                st.balloons()
+                                st.cache_data.clear()
+                                st.rerun()
                 except Exception as e:
                     st.error(f"Gagal memproses: {e}")
 
@@ -1925,39 +1948,95 @@ elif page == "📈 ADS ANALYTICS":
             if not df_ads_meta_db.empty:
                 st.dataframe(df_ads_meta_db, use_container_width=True, hide_index=True)
                 if st.button("🗑️ Kosongkan Database Meta", use_container_width=True, key="rst_mt"):
-                    init_connection().open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(7).clear() 
-                    st.cache_data.clear(); st.rerun()
-                    
-# ---------------- TAB MEKARI (SMART IMPORTER) ----------------
-tab_tiktok, tab_instagram, tab_mekari = st.tabs(["🎵 TikTok", "📸 Instagram", "💸 Mekari WA"])
-with tab_mekari:
-    st.info("💡 **Smart Importer:** Sistem merekap file otomatis menjadi **1 Baris Struk Ringkas**.")
-    
-    # 1. Dashboard Metrics (Pasti Terupdate)
-    df_db_mekari = st.session_state.get('bundle', {}).get(8, pd.DataFrame())
-    
-    # Fungsi pembersih angka yang lebih teliti
-    def force_clean_num(x):
-        if pd.isna(x) or x == '': return 0
-        # Hapus Rp, titik ribuan, koma desimal, dan spasi
-        s = str(x).replace('Rp', '').replace('.', '').replace(',', '').strip()
-        try: return float(s)
-        except: return 0
+                    init_connection().open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(7).clear()
+                    st.cache_data.clear()
+                    st.rerun()
 
-    if not df_db_mekari.empty:
-        df_db_mekari = df_db_mekari.dropna(how='all')
-        # Hitung Total Spend dari kolom database
-        total_spend_mekari = df_db_mekari['Total Biaya (Rp)'].apply(force_clean_num).sum()
-        total_pesan_mekari = pd.to_numeric(df_db_mekari['Total Interaksi'], errors='coerce').fillna(0).sum()
-    else:
-        total_spend_mekari, total_pesan_mekari = 0, 0
+    # =====================================================================
+    # TAB MEKARI
+    # =====================================================================
+    with tab_mekari:
+        st.info("💡 Smart Importer: Sistem merekap file otomatis menjadi 1 Baris Struk Ringkas.")
+        df_db_mekari = st.session_state.get('bundle', {}).get(8, pd.DataFrame())
 
-    # Tampilan Metrik Utama
-    mk1, mk2 = st.columns(2)
-    mk1.metric("💸 Total Spend", f"Rp {total_spend_mekari:,.0f}")
-    mk2.metric("💬 Total Interaksi WA Terbayar", f"{total_pesan_mekari:,.0f} Pesan")
-    
-    st.markdown("---")
+        def force_clean_num(x):
+            if pd.isna(x) or x == '': return 0
+            s = str(x).replace('Rp', '').replace('.', '').replace(',', '').strip()
+            try: return float(s)
+            except: return 0
+
+        if not df_db_mekari.empty:
+            df_db_mekari = df_db_mekari.dropna(how='all')
+            total_spend_mekari = df_db_mekari['Total Biaya (Rp)'].apply(force_clean_num).sum()
+            total_pesan_mekari = pd.to_numeric(df_db_mekari['Total Interaksi'], errors='coerce').fillna(0).sum()
+        else:
+            total_spend_mekari, total_pesan_mekari = 0, 0
+
+        mk1, mk2 = st.columns(2)
+        mk1.metric("💸 Total Spend", f"Rp {total_spend_mekari:,.0f}")
+        mk2.metric("💬 Total Interaksi WA Terbayar", f"{total_pesan_mekari:,.0f} Pesan")
+
+        st.markdown("---")
+        with st.container(border=True):
+            st.markdown("### 📤 Upload Laporan Mekari Baru")
+            up_mk = st.file_uploader("Upload Laporan Mekari (CSV)", type=['csv'], key="up_mk_v4")
+
+            if up_mk is not None:
+                try:
+                    df_up = pd.read_csv(up_mk)
+                    df_up.columns = [str(c).strip().lower() for c in df_up.columns]
+                    up_spend, up_msgs = 0.0, len(df_up)
+                    jenis_lap = "Mekari Log"
+
+                    if 'credit' in df_up.columns:
+                        series = pd.to_numeric(df_up['credit'], errors='coerce').dropna()
+                        if not series.empty:
+                            if series.mean() < 5000:
+                                up_spend = series.sum()
+                                jenis_lap = "WA Billing (Price/Msg)"
+                            else:
+                                up_spend = abs(series.max() - series.min())
+                                jenis_lap = "WA Billing (Balance)"
+
+                    col_d = next((c for c in df_up.columns if 'created' in c or 'date' in c), None)
+                    p_data = "Tanggal Tidak Terdeteksi"
+                    if col_d:
+                        td = pd.to_datetime(df_up[col_d], utc=True, errors='coerce')
+                        if not td.dropna().empty:
+                            p_data = f"{td.min().strftime('%d %b %Y')} s/d {td.max().strftime('%d %b %Y')}"
+
+                    st.success(f"✅ Terdeteksi: **{jenis_lap}**")
+                    st.info(f"📅 Periode: {p_data}\n\n📊 Biaya File Ini: Rp {up_spend:,.0f}")
+
+                    if st.button("📥 Catat ke Database", use_container_width=True, key="save_mk"):
+                        import datetime
+                        tgl_skrg = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                        fmt_cost = f"Rp{int(up_spend):,}".replace(',', '.')
+                        row = [tgl_skrg, p_data, jenis_lap, up_msgs, fmt_cost]
+                        if append_sheet_rows(8, [row]):
+                            st.success("Berhasil Disimpan!")
+                            st.cache_data.clear()
+                            st.session_state.bundle = fetch_all_master_data()
+                            st.rerun()
+                except Exception as e:
+                    st.error(f"Gagal memproses file: {e}")
+
+        st.markdown("---")
+        col_ref1, col_ref2 = st.columns([0.85, 0.15])
+        col_ref1.markdown("### 📑 Riwayat Saldo Mekari")
+        if col_ref2.button("🔄 Refresh", use_container_width=True, key="ref_mk"):
+            st.cache_data.clear()
+            st.session_state.bundle = fetch_all_master_data()
+            st.rerun()
+
+        if not df_db_mekari.empty:
+            st.dataframe(df_db_mekari, use_container_width=True, hide_index=True)
+            if st.button("🗑️ Kosongkan Riwayat", use_container_width=True, key="del_mk"):
+                init_connection().open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(8).clear()
+                st.cache_data.clear()
+                st.rerun()
+        else:
+            st.warning("Data riwayat di Spreadsheet belum terbaca atau masih kosong.")
     
     # 2. Uploader Section
     with st.container(border=True):
