@@ -1952,13 +1952,13 @@ elif page == "📈 ADS ANALYTICS":
                     st.cache_data.clear()
                     st.rerun()
 
-    # =====================================================================
-    # TAB MEKARI
-    # =====================================================================
+    # ---------------- TAB MEKARI (SMART IMPORTER) ----------------
     with tab_mekari:
-        st.info("💡 Smart Importer: Sistem merekap file otomatis menjadi 1 Baris Struk Ringkas.")
+        st.info("💡 **Smart Importer:** Sistem merekap file otomatis menjadi **1 Baris Struk Ringkas**.")
+        
+        # 1. Dashboard Metrics
         df_db_mekari = st.session_state.get('bundle', {}).get(8, pd.DataFrame())
-
+        
         def force_clean_num(x):
             if pd.isna(x) or x == '': return 0
             s = str(x).replace('Rp', '').replace('.', '').replace(',', '').strip()
@@ -1974,20 +1974,24 @@ elif page == "📈 ADS ANALYTICS":
 
         mk1, mk2 = st.columns(2)
         mk1.metric("💸 Total Spend", f"Rp {total_spend_mekari:,.0f}")
-        mk2.metric("💬 Total Interaksi WA Terbayar", f"{total_pesan_mekari:,.0f} Pesan")
-
+        mk2.metric("💬 Total Interaksi WA", f"{total_pesan_mekari:,.0f} Pesan")
+        
         st.markdown("---")
+        
+        # 2. Uploader Section
         with st.container(border=True):
             st.markdown("### 📤 Upload Laporan Mekari Baru")
-            up_mk = st.file_uploader("Upload Laporan Mekari (CSV)", type=['csv'], key="up_mk_v4")
-
+            # PERBAIKAN: Gunakan key unik "up_mk_final_ads"
+            up_mk = st.file_uploader("Upload Laporan Mekari (CSV)", type=['csv'], key="up_mk_final_ads")
+            
             if up_mk is not None:
                 try:
                     df_up = pd.read_csv(up_mk)
                     df_up.columns = [str(c).strip().lower() for c in df_up.columns]
+                    
                     up_spend, up_msgs = 0.0, len(df_up)
                     jenis_lap = "Mekari Log"
-
+                    
                     if 'credit' in df_up.columns:
                         series = pd.to_numeric(df_up['credit'], errors='coerce').dropna()
                         if not series.empty:
@@ -1997,18 +2001,18 @@ elif page == "📈 ADS ANALYTICS":
                             else:
                                 up_spend = abs(series.max() - series.min())
                                 jenis_lap = "WA Billing (Balance)"
-
+                    
                     col_d = next((c for c in df_up.columns if 'created' in c or 'date' in c), None)
                     p_data = "Tanggal Tidak Terdeteksi"
                     if col_d:
                         td = pd.to_datetime(df_up[col_d], utc=True, errors='coerce')
                         if not td.dropna().empty:
                             p_data = f"{td.min().strftime('%d %b %Y')} s/d {td.max().strftime('%d %b %Y')}"
-
+                    
                     st.success(f"✅ Terdeteksi: **{jenis_lap}**")
-                    st.info(f"📅 Periode: {p_data}\n\n📊 Biaya File Ini: Rp {up_spend:,.0f}")
-
-                    if st.button("📥 Catat ke Database", use_container_width=True, key="save_mk"):
+                    st.info(f"📅 **Periode:** {p_data}\n\n📊 **Biaya File Ini:** Rp {up_spend:,.0f}")
+                    
+                    if st.button("📥 Catat ke Database", use_container_width=True, key="btn_save_mekari"):
                         import datetime
                         tgl_skrg = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                         fmt_cost = f"Rp{int(up_spend):,}".replace(',', '.')
@@ -2021,95 +2025,23 @@ elif page == "📈 ADS ANALYTICS":
                 except Exception as e:
                     st.error(f"Gagal memproses file: {e}")
 
+        # 3. Tabel Riwayat
         st.markdown("---")
         col_ref1, col_ref2 = st.columns([0.85, 0.15])
         col_ref1.markdown("### 📑 Riwayat Saldo Mekari")
-        if col_ref2.button("🔄 Refresh", use_container_width=True, key="ref_mk"):
+        if col_ref2.button("🔄 Refresh", use_container_width=True, key="btn_ref_mekari"):
             st.cache_data.clear()
             st.session_state.bundle = fetch_all_master_data()
             st.rerun()
 
         if not df_db_mekari.empty:
             st.dataframe(df_db_mekari, use_container_width=True, hide_index=True)
-            if st.button("🗑️ Kosongkan Riwayat", use_container_width=True, key="del_mk"):
+            if st.button("🗑️ Kosongkan Riwayat", use_container_width=True, key="btn_del_mekari"):
                 init_connection().open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(8).clear()
                 st.cache_data.clear()
                 st.rerun()
         else:
             st.warning("Data riwayat di Spreadsheet belum terbaca atau masih kosong.")
-    
-    # 2. Uploader Section
-    with st.container(border=True):
-        st.markdown("### 📤 Upload Laporan Mekari Baru")
-        up_mk = st.file_uploader("Upload Laporan Mekari (CSV)", type=['csv'], key="up_mk_v4")
-        
-        if up_mk is not None:
-            try:
-                df_up = pd.read_csv(up_mk)
-                df_up.columns = [str(c).strip().lower() for c in df_up.columns]
-                
-                up_spend = 0.0
-                up_msgs = len(df_up)
-                jenis_lap = "Mekari Log"
-                
-                if 'credit' in df_up.columns:
-                    # Konversi kolom credit ke angka
-                    series = pd.to_numeric(df_up['credit'], errors='coerce').dropna()
-                    if not series.empty:
-                        # SMART LOGIC: Jika angka rata-rata kecil (< 5000), maka itu Biaya/Msg (SUM)
-                        # Jika angka rata-rata besar (> 5000), maka itu Saldo (SELISIH)
-                        if series.mean() < 5000:
-                            up_spend = series.sum()
-                            jenis_lap = "WA Billing (Price/Msg)"
-                        else:
-                            up_spend = abs(series.max() - series.min())
-                            jenis_lap = "WA Billing (Balance)"
-                
-                # Periode Tanggal
-                col_d = next((c for c in df_up.columns if 'created' in c or 'date' in c), None)
-                p_data = "Tanggal Tidak Terdeteksi"
-                if col_d:
-                    td = pd.to_datetime(df_up[col_d], utc=True, errors='coerce')
-                    if not td.dropna().empty:
-                        p_data = f"{td.min().strftime('%d %b %Y')} s/d {td.max().strftime('%d %b %Y')}"
-                
-                st.success(f"✅ Terdeteksi: **{jenis_lap}**")
-                st.info(f"📅 **Periode:** {p_data}\n\n📊 **Biaya File Ini:** Rp {up_spend:,.0f}")
-                
-                if st.button("📥 Catat ke Database", use_container_width=True):
-                    import datetime
-                    tgl_skrg = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-                    # Simpan dengan format string Rp yang bersih agar penjumlahan dashboard sukses
-                    fmt_cost = f"Rp{int(up_spend):,}".replace(',', '.')
-                    
-                    row = [tgl_skrg, p_data, jenis_lap, up_msgs, fmt_cost]
-                    if append_sheet_rows(8, [row]):
-                        st.success("Berhasil Disimpan!")
-                        st.cache_data.clear()
-                        st.session_state.bundle = fetch_all_master_data()
-                        st.rerun()
-            except Exception as e:
-                st.error(f"Gagal memproses file: {e}")
-
-    # 3. Tabel Riwayat & Refresh Button
-    st.markdown("---")
-    
-    # Tombol Refresh Kecil di atas tabel
-    col_ref1, col_ref2 = st.columns([0.85, 0.15])
-    col_ref1.markdown("### 📑 Riwayat Saldo Mekari")
-    if col_ref2.button("🔄 Refresh", use_container_width=True):
-        st.cache_data.clear()
-        st.session_state.bundle = fetch_all_master_data()
-        st.rerun()
-
-    if not df_db_mekari.empty:
-        st.dataframe(df_db_mekari, use_container_width=True, hide_index=True)
-        if st.button("🗑️ Kosongkan Riwayat", use_container_width=True):
-            init_connection().open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(8).clear()
-            st.cache_data.clear()
-            st.rerun()
-    else:
-        st.warning("Data riwayat di Spreadsheet belum terbaca atau masih kosong.")
 
 # =====================================================================
 # SYSTEM RUNNER (JANGAN DIHAPUS, PASTIKAN ADA DI PALING BAWAH FILE)
