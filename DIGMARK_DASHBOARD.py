@@ -989,6 +989,25 @@ bundle_data = st.session_state.get('bundle', {})
 if page == "📈 INSIGHTS & ANALYTICS":
     import io 
     st.title("📈 ANALITIK KONTEN")
+# --- TAMPILKAN PREVIEW & SUMMARY ---
+        if st.session_state.data_siap_upload is not None:
+            df_preview = st.session_state.data_siap_upload
+            
+            st.markdown("### 📊 Ringkasan Data (Total)")
+            # Membuat kolom untuk metrik ringkasan
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Total Views", f"{df_preview['View'].sum():,}")
+            m2.metric("Total Reach", f"{df_preview['Reach'].sum():,}")
+            m3.metric("Total Interaction", f"{df_preview['Interaction'].sum():,}")
+            m4.metric("Total Follows", f"{df_preview['Follow'].sum():,}")
+
+            st.markdown("### 🔍 Preview Data Detail")
+            
+            # Menambahkan baris TOTAL di bagian bawah tabel preview (opsional)
+            df_with_total = df_preview.copy()
+            # Pastikan kolom numerik dijumlahkan
+            numeric_cols = ["View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]
+            total_row = df_with_total[numeric_cols].sum()
     
     # Gunakan session_state untuk menampung data preview agar bisa dihapus
     if 'preview_data' not in st.session_state:
