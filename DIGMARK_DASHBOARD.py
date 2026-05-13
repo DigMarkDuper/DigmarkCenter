@@ -988,76 +988,113 @@ bundle_data = st.session_state.get('bundle', {})
 # --- HALAMAN 3: INSIGHTS & ANALYTICS ---
 if page == "📈 INSIGHTS & ANALYTICS":
     import io
+    from datetime import datetime
     st.title("📈 ANALITIK KONTEN")
 
     # 1. SETUP VARIABLE & SESSION STATE
     header_names = ["Date", "Platform", "View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]
+    numeric_cols = ["View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]
     
     if 'preview_data' not in st.session_state:
         st.session_state.preview_data = None
     if 'uploader_key' not in st.session_state:
         st.session_state.uploader_key = 0
 
-    # Ambil data database untuk summary global
+    # Ambil data database
     if 'bundle' not in st.session_state or st.session_state.bundle is None:
         st.session_state.bundle = fetch_all_master_data()
     df_db_main = st.session_state.get('bundle', {}).get(2, pd.DataFrame())
 
-    # 2. GLOBAL SUMMARIES (DARI DATABASE) - DI BAGIAN ATAS
-    st.markdown("### 📊 Ringkasan Performa Global (Database)")
+    # =====================================================
+    # 2. GLOBAL SUMMARIES (DASHBOARD ATAS)
+    # =====================================================
+    st.markdown("### 📊 Ringkasan Performa Konten (Database)")
     if not df_db_main.empty:
-        # Pembersihan header & tipe data numerik
+        # Bersihkan Header & Data
         if len(df_db_main.columns) == len(header_names):
             df_db_main.columns = header_names
         
-        # Konversi ke numerik untuk kalkulasi sum
-        for col in ["View", "Reach", "Interaction", "Follow"]:
+        for col in numeric_cols:
             df_db_main[col] = pd.to_numeric(df_db_main[col], errors='coerce').fillna(0)
+        
+        # Pisahkan Data per Platform
+        df_tk_db = df_db_main[df_db_main['Platform'] == 'TikTok']
+        df_ig_db = df_db_main[df_db_main['Platform'] == 'Instagram']
+
+        # Tampilan Tab/Kolom untuk Summary
+        tab_tk, tab_ig, tab_total = st.tabs(["🎵 TikTok", "📸 Instagram", "🌐 Total Gabungan"])
+        
+        with tab_tk:
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Views", f"{int(df_tk_db['View'].sum()):,}")
+            c2.metric("Reach", f"{int(df_tk_db['Reach'].sum()):,}")
+            c3.metric("Interaksi", f"{int(df_tk_db['Interaction'].sum()):,}")
+            c4.metric("Follows", f"{int(df_tk_db['Follow'].sum()):,}")
             
-        g1, g2, g3, g4 = st.columns(4)
-        g1.metric("Total Views", f"{int(df_db_main['View'].sum()):,}")
-        g2.metric("Total Reach", f"{int(df_db_main['Reach'].sum()):,}")
-        g3.metric("Total Interaction", f"{int(df_db_main['Interaction'].sum()):,}")
-        g4.metric("Total Follows", f"{int(df_db_main['Follow'].sum()):,}")
+        with tab_ig:
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Views", f"{int(df_ig_db['View'].sum()):,}")
+            c2.metric("Reach", f"{int(df_ig_db['Reach'].sum()):,}")
+            c3.metric("Interaksi", f"{int(df_ig_db['Interaction'].sum()):,}")
+            c4.metric("Follows", f"{int(df_ig_db['Follow'].sum()):,}")
+
+        with tab_total:
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Grand Views", f"{int(df_db_main['View'].sum()):,}", delta="TikTok + IG")
+            c2.metric("Grand Reach", f"{int(df_db_main['Reach'].sum()):,}")
+            c3.metric("Grand Interaksi", f"{int(df_db_main['Interaction'].sum()):,}")
+            c4.metric("Grand Follows", f"{int(df_db_main['Follow'].sum()):,}")
     else:
-        st.info("Database masih kosong, summaries belum tersedia.")
+        st.info("Database masih kosong.")
 
     st.markdown("---")
 
-    # 3. IMPORTER (UPLOAD FILE)
+    # =====================================================
+    # 3. IMPORTER SECTION
+    # =====================================================
     with st.expander("🚀 Ultra-Smart Importer (TikTok & Instagram)", expanded=True):
-        st.info("💡 Upload file CSV. Preview akan muncul di bawah expander.")
-        
-        # Key dinamis untuk reset otomatis
         files = st.file_uploader(
-            "Pilih File CSV", 
+            "Upload CSV Insight", 
             type=["csv"], 
             accept_multiple_files=True, 
-            key=f"uploader_vfinal_{st.session_state.uploader_key}"
+            key=f"ins_v4_{st.session_state.uploader_key}"
         )
         
         if files:
             all_processed = []
             ig_frames = []
             logs = []
+            current_year = datetime.now().year
 
             for f in files:
                 try:
                     raw_bytes = f.getvalue()
+                    # Deteksi Encoding
                     content = []
-                    try: content = raw_bytes.decode("utf-8").splitlines()
-                    except:
-                        try: content = raw_bytes.decode("utf-8-sig").splitlines()
-                        except:
-                            try: content = raw_bytes.decode("utf-16").splitlines()
-                            except: content = raw_bytes.decode("latin-1").splitlines()
+                    for enc in ["utf-8", "utf-8-sig", "utf-16", "latin-1"]:
+                        try:
+                            content = raw_bytes.decode(enc).splitlines()
+                            break
+                        except: continue
                     
                     sample = "\n".join(content[:10]).lower().replace('"', '').replace('\x00', '').replace(' ', '')
                     
-                    if "videoviews" in sample:
+                    # --- LOGIKA TIKTOK (Overview.csv / FollowerHistory.csv) ---
+                    if "videoviews" in sample or "followerhistory" in f.name.lower() or "activefollowers" in sample:
                         df_tk = pd.read_csv(io.StringIO("\n".join(content)))
                         res_tk = pd.DataFrame()
-                        res_tk['Date'] = pd.to_datetime(df_tk['Date']).dt.strftime('%d-%m-%Y')
+                        
+                        # Fix Tanggal TikTok (Handling "Month Day" format)
+                        def parse_tk_date(d_str):
+                            try:
+                                # Coba parse "January 1" -> Jadi "01-01-2024" (current year)
+                                dt_obj = pd.to_datetime(d_str, format='%B %d', errors='coerce')
+                                if pd.isna(dt_obj): # Jika gagal, coba format YYYY-MM-DD
+                                    dt_obj = pd.to_datetime(d_str, errors='coerce')
+                                return dt_obj.replace(year=current_year).strftime('%d-%m-%Y')
+                            except: return d_str
+
+                        res_tk['Date'] = df_tk['Date'].apply(parse_tk_date)
                         res_tk['Platform'] = 'TikTok'
                         res_tk['View'] = df_tk.get('Video Views', 0)
                         res_tk['Reach'] = df_tk.get('Video Views', 0)
@@ -1065,7 +1102,9 @@ if page == "📈 INSIGHTS & ANALYTICS":
                         res_tk['Profile Visit'] = df_tk.get('Profile Views', 0)
                         res_tk['Link Clicks'] = 0; res_tk['Follow'] = 0
                         all_processed.append(res_tk)
-                        logs.append(f"✅ TikTok: {f.name}")
+                        logs.append(f"✅ TikTok ({f.name})")
+
+                    # --- LOGIKA INSTAGRAM ---
                     else:
                         target = ""
                         if "follows" in sample: target = "Follow"
@@ -1078,15 +1117,12 @@ if page == "📈 INSIGHTS & ANALYTICS":
                         if target:
                             skip = 0
                             for i, line in enumerate(content):
-                                clean_l = line.lower().replace('"', '').replace('\x00', '')
-                                if "date" in clean_l and "primary" in clean_l:
+                                if "date" in line.lower() and "primary" in line.lower():
                                     skip = i; break
-                            data_str = "\n".join(content[skip:]).replace('\x00', '')
-                            df_ig = pd.read_csv(io.StringIO(data_str))
-                            df_ig['Date'] = df_ig['Date'].astype(str).str.split('T').str[0]
-                            df_ig['Date'] = pd.to_datetime(df_ig['Date']).dt.strftime('%d-%m-%Y')
+                            df_ig = pd.read_csv(io.StringIO("\n".join(content[skip:])))
+                            df_ig['Date'] = pd.to_datetime(df_ig['Date'].astype(str).str.split('T').str[0]).dt.strftime('%d-%m-%Y')
                             ig_frames.append(df_ig[['Date', 'Primary']].rename(columns={'Primary': target}))
-                            logs.append(f"✅ Instagram {target}: {f.name}")
+                            logs.append(f"✅ Instagram {target} ({f.name})")
                 except Exception as e:
                     logs.append(f"❌ Error {f.name}: {e}")
 
@@ -1094,7 +1130,7 @@ if page == "📈 INSIGHTS & ANALYTICS":
                 m_ig = ig_frames[0]
                 for d in ig_frames[1:]: m_ig = pd.merge(m_ig, d, on='Date', how='outer')
                 m_ig['Platform'] = 'Instagram'
-                for c in ["View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]:
+                for c in numeric_cols:
                     if c not in m_ig.columns: m_ig[c] = 0
                 all_processed.append(m_ig.fillna(0))
 
@@ -1102,52 +1138,54 @@ if page == "📈 INSIGHTS & ANALYTICS":
                 st.session_state.preview_data = pd.concat(all_processed, ignore_index=True)
             for l in logs: st.caption(l)
 
-    # 4. SUMMARIES PREVIEW & TABEL PREVIEW
+    # =====================================================
+    # 4. PREVIEW & SAVE SECTION
+    # =====================================================
     if st.session_state.preview_data is not None:
         df_p = st.session_state.preview_data
+        st.markdown("### 🔍 Preview Data Baru")
         
-        st.markdown("### 🔍 Ringkasan Preview (Data Baru)")
-        p1, p2, p3, p4 = st.columns(4)
-        p1.metric("Views", f"{int(df_p['View'].sum()):,}")
-        p2.metric("Reach", f"{int(df_p['Reach'].sum()):,}")
-        p3.metric("Interaction", f"{int(df_p['Interaction'].sum()):,}")
-        p4.metric("Follows", f"{int(df_p['Follow'].sum()):,}")
+        # Ringkasan Preview (TikTok vs IG vs Total)
+        p_tk = df_p[df_p['Platform'] == 'TikTok']
+        p_ig = df_p[df_p['Platform'] == 'Instagram']
+        
+        c1, c2, c3 = st.columns(3)
+        c1.metric("TikTok Views", f"{int(p_tk['View'].sum()):,}")
+        c2.metric("IG Views", f"{int(p_ig['View'].sum()):,}")
+        c3.metric("Total Views", f"{int(df_p['View'].sum()):,}")
 
         st.dataframe(df_p, use_container_width=True, hide_index=True)
         
         if st.button("🚀 KONFIRMASI SIMPAN KE GOOGLE SHEETS", use_container_width=True):
             final_list = df_p[header_names].values.tolist()
             if append_sheet_rows(2, final_list):
-                st.success("🔥 Data Berhasil Disimpan!")
-                # RESET AGAR PREVIEW HILANG & FILE UPLOADER KOSONG
+                st.success("🔥 Data Berhasil Dicatat!")
+                # RESET TOTAL
                 st.session_state.preview_data = None 
                 st.session_state.uploader_key += 1 
                 st.cache_data.clear()
                 st.session_state.bundle = fetch_all_master_data()
                 st.rerun()
 
-    # 5. DATABASE HISTORIS
+    # =====================================================
+    # 5. DATABASE TABLE & REFRESH
+    # =====================================================
     st.markdown("---")
-    st.markdown("### 🗄️ Database Content Insight (Riwayat)")
+    st.markdown("### 🗄️ Riwayat Database")
     
-    # Refresh data bundle untuk tabel riwayat
-    df_db_final = st.session_state.get('bundle', {}).get(2, pd.DataFrame())
-    
-    if not df_db_final.empty:
-        df_db_final = df_db_final.dropna(how='all')
-        if len(df_db_final.columns) == len(header_names):
-            df_db_final.columns = header_names
+    df_show = st.session_state.get('bundle', {}).get(2, pd.DataFrame())
+    if not df_show.empty:
+        df_show = df_show.dropna(how='all')
+        if len(df_show.columns) == len(header_names):
+            df_show.columns = header_names
         try:
-            df_db_final['Date'] = pd.to_datetime(df_db_final['Date'], dayfirst=True, errors='coerce')
-            df_db_final = df_db_final.sort_values(by='Date', ascending=False)
-            df_db_final['Date'] = df_db_final['Date'].dt.strftime('%d-%m-%Y')
+            df_show['Date'] = pd.to_datetime(df_show['Date'], dayfirst=True, errors='coerce')
+            df_show = df_show.sort_values(by='Date', ascending=False)
+            df_show['Date'] = df_show['Date'].dt.strftime('%d-%m-%Y')
         except: pass
-        st.dataframe(df_db_final, use_container_width=True, hide_index=True)
-    else:
-        st.warning("⚠️ Tabel riwayat kosong.")
+        st.dataframe(df_show, use_container_width=True, hide_index=True)
 
-    # 6. TOMBOL REFRESH DI PALING BAWAH
-    if st.button("🔄 Segarkan Seluruh Data", use_container_width=True):
+    if st.button("🔄 Segarkan Data", use_container_width=True):
         st.cache_data.clear()
         st.session_state.bundle = fetch_all_master_data()
         st.rerun()
