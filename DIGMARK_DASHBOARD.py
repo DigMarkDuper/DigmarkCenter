@@ -7,7 +7,8 @@ import plotly.graph_objects as go
 import base64
 import datetime
 import sys
-
+from database_lokasi 
+import indo_coords
 # =====================================================================
 # SYSTEM OPTIMIZATION: BATCH LOADING & GLOBAL CACHING
 # =====================================================================
