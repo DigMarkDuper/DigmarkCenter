@@ -1058,14 +1058,12 @@ if page == "📈 INSIGHTS & ANALYTICS":
                             logs.append(f"✅ Instagram {target}: {f.name}")
                         else:
                             logs.append(f"❓ File tidak dikenali: {f.name}")
-                            
                 except Exception as e:
                     logs.append(f"❌ Error {f.name}: {e}")
 
             for l in logs: 
                 st.caption(l)
 
-            # Gabungkan Data Instagram
             if ig_frames:
                 m_ig = ig_frames[0]
                 for d in ig_frames[1:]:
@@ -1075,7 +1073,6 @@ if page == "📈 INSIGHTS & ANALYTICS":
                     if c not in m_ig.columns: m_ig[c] = 0
                 all_processed.append(m_ig.fillna(0))
 
-            # Tampilkan Preview & Tombol Simpan
             if all_processed:
                 df_final = pd.concat(all_processed, ignore_index=True)
                 st.write("🔍 **Preview Data Gabungan:**")
@@ -1085,19 +1082,36 @@ if page == "📈 INSIGHTS & ANALYTICS":
                     final_list = df_final[["Date", "Platform", "View", "Reach", "Interaction", "Profile Visit", "Link Clicks", "Follow"]].values.tolist()
                     if append_sheet_rows(2, final_list):
                         st.success("Data berhasil masuk!")
-                        st.cache_data.clear()
-                        st.session_state.bundle = fetch_all_master_data()
+                        st.cache_data.clear() # Membersihkan cache
+                        st.session_state.bundle = fetch_all_master_data() # Tarik ulang data dari awal
                         st.rerun()
 
-    # --- TABEL HISTORIS ---
+    # --- TABEL HISTORIS (PENYEBAB TABEL TIDAK MUNCUL) ---
     st.markdown("---")
-    df_in = st.session_state.get('bundle', {}).get(2, pd.DataFrame())
+    
+    # PERBAIKAN: Selalu tarik data terbaru dari session state atau paksa fetch jika kosong
+    if 'bundle' not in st.session_state or st.session_state.bundle is None:
+        st.session_state.bundle = fetch_all_master_data()
+    
+    # Ambil index 2 (Tab 3 Spreadsheet)
+    df_in = st.session_state.bundle.get(2, pd.DataFrame())
     
     if not df_in.empty:
         st.markdown("### 📊 Data Historis Content Insight (Database)")
-        st.dataframe(df_in.sort_index(ascending=False), use_container_width=True, hide_index=True)
+        # Tampilkan tabel
+        st.dataframe(df_in, use_container_width=True, hide_index=True)
+        
+        # Tombol Refresh Manual jika data masih belum terlihat
+        if st.button("🔄 Paksa Refresh Data"):
+            st.cache_data.clear()
+            st.session_state.bundle = fetch_all_master_data()
+            st.rerun()
     else:
-        st.warning("⚠️ Tabel tidak muncul karena data di Spreadsheet (Tab 3) masih kosong.")
+        st.warning("⚠️ Data di Spreadsheet Tab 3 terbaca kosong oleh sistem.")
+        if st.button("🔎 Cek Ulang Koneksi Sheet"):
+            st.cache_data.clear()
+            st.session_state.bundle = fetch_all_master_data()
+            st.rerun()
 
 # --- HALAMAN 4: WA ADMIN REPORT ---
 elif page == "💬 WA ADMIN REPORT":
