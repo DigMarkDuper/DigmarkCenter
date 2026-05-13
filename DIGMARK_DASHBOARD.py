@@ -591,84 +591,78 @@ if page == "🏠 HOMEPAGE":
                     done_kw = ['DONE', 'TRUE', 'V', '1', 'POSTED', 'SELESAI', 'UPLOADED']
                     web_pending = len(df_web_now[~df_web_now['Status Post'].astype(str).str.upper().isin(done_kw)])
 
-        # ==========================================================
-# 3. RINGKASAN PERFORMA (KPI)
+        # --- D. Render KPI ---
+        def render_kpi(icon, title, value):
+            st.markdown(f"""
+                <div class="kpi-card">
+                    <div style="font-size: 24px;">{icon}</div>
+                    <div>
+                        <div style="font-size: 11px; color: #6B7280; font-weight: 600;">{title}</div>
+                        <div style="font-size: 18px; font-weight: 800; color: #111827;">{value}</div>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown('<div style="font-weight: 800; margin-bottom: 15px;">📊 RINGKASAN PERFORMA</div>', unsafe_allow_html=True)
+        k1, k2, k3, k4 = st.columns(4)
+        
+        with k1: render_kpi("🎯", "Closing / Leads (Bulan Ini)", f"{total_closing} / {total_leads}")
+        with k2: render_kpi("📱", f"Utang Sosmed ({bulan_lalu})", f"{sos_pending} Task")
+        with k3: render_kpi("🌐", f"Utang Web ({bulan_ini})", f"{web_pending} Page")
+
+    except Exception as e:
+        st.error(f"⚠️ Gagal memuat metrik: {e}")
+
+    st.markdown("---")
 # ==========================================================
-def render_kpi(icon, title, value):
-    st.markdown(f"""
-        <div class="kpi-card">
-            <div style="font-size: 24px;">{icon}</div>
-            <div>
-                <div style="font-size: 11px; color: #6B7280; font-weight: 600;">{title}</div>
-                <div style="font-size: 18px; font-weight: 800; color: #111827;">{value}</div>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-
-try:
-    st.markdown('<div style="font-weight: 800; margin-bottom: 15px;">📊 RINGKASAN PERFORMA</div>', unsafe_allow_html=True)
-    k1, k2, k3, k4 = st.columns(4)
-    
-    with k1: render_kpi("🎯", "Closing / Leads (Bulan Ini)", f"{total_closing} / {total_leads}")
-    with k2: render_kpi("📱", f"Utang Sosmed ({bulan_lalu})", f"{sos_pending} Task")
-    with k3: render_kpi("🌐", f"Utang Web ({bulan_ini})", f"{web_pending} Page")
-    # with k4: render_kpi("...", "...", "...") # Tambahkan jika perlu
-
-except Exception as e:
-    st.error(f"⚠️ Gagal memuat metrik KPI: {e}")
-
-st.markdown("---")
-
-# ==========================================================
-# 4. PETA PERSEBARAN & GRAFIK (INTEGRATED & FIXED)
+# 4. PETA PERSEBARAN & GRAFIK (FIXED INDENTATION)
 # ==========================================================
 st.markdown(f"<h3 style='color:{BRAND_BLUE}; font-size: 18px; margin-bottom: 10px; margin-top: 15px;'>🗺️ Peta Persebaran & Top Asal Prospek</h3>", unsafe_allow_html=True)
 
 try:
-    # --- A. PENYIAPAN DATA ---
+    # --- FILTER DATA: Hanya Leads Murni ---
     df_maps = df_wa_home.copy()
     
-    # 1. Bersihkan baris kosong/hantu
+    # Bersihkan baris hantu
     kolom_penting = [col for col in ['Tanggal Masuk', 'No Hp', 'Status'] if col in df_maps.columns]
     if kolom_penting:
         df_maps = df_maps.dropna(subset=kolom_penting, how='all')
         
-    # 2. Filter data sampah (Double Chat, Partnership, dll)
+    # Filter tag sampah (Double Chat, Partnership, dll)
     mekari_col = next((c for c in df_maps.columns if 'Mekari' in str(c)), None)
     if mekari_col:
         tag_dibuang = ['Double Chat', 'Closed - Not Interested', 'Partnership']
         pola_hapus = '|'.join(tag_dibuang)
         df_maps = df_maps[~df_maps[mekari_col].astype(str).str.contains(pola_hapus, case=False, na=False)]
 
-    # --- B. PENGOLAHAN LOKASI ---
+    # --- PENGOLAHAN LOKASI ---
     asal_col = next((col for col in df_maps.columns if 'Asal' in str(col)), None)
     
     if asal_col and not df_maps.empty:
-        # Penyeragaman teks ke Title Case
+        # Penyeragaman format teks
         df_maps[asal_col] = df_maps[asal_col].astype(str).str.strip().str.title()
         
         asal_counts = df_maps[asal_col].value_counts().reset_index()
         asal_counts.columns = ['Lokasi', 'Jumlah'] 
         
-        # Buang nilai tidak valid
+        # Buang data tidak valid
         invalid_vals = ['', '-', 'Nan', 'None', 'Undefined', '#N/A']
         asal_counts = asal_counts[~asal_counts['Lokasi'].isin(invalid_vals)]
         
-        # --- C. MATCHING KOORDINAT ---
+        # --- LOGIKA MATCHING KOORDINAT (Gunakan data dari database_lokasi.py) ---
         lats, lons = [], []
-        # indo_coords harus sudah di-import dari database_lokasi.py di bagian atas file
         for loc in asal_counts['Lokasi']:
             loc_clean = str(loc).lower().replace('kabupaten', '').replace('kab.', '').replace('kota', '').replace('provinsi', '').replace('prov.', '').strip()
             
             matched = False
-            # Prioritas 1: Exact Match
+            # 1. Exact Match
             for key, coords in indo_coords.items():
                 clean_key = key.lower().strip()
                 if clean_key == loc_clean or f" {clean_key} " in f" {loc_clean} " or loc_clean.startswith(f"{clean_key} ") or loc_clean.endswith(f" {clean_key}"):
                     lats.append(coords[0]); lons.append(coords[1])
                     matched = True; break
             
-            # Prioritas 2: Fuzzy Match
+            # 2. Partial Match
             if not matched:
                 for key, coords in indo_coords.items():
                     clean_key = key.lower().strip()
@@ -682,24 +676,45 @@ try:
         asal_counts['Lat'], asal_counts['Lon'] = lats, lons
         map_data = asal_counts.dropna(subset=['Lat', 'Lon'])
         
-        # --- D. VISUALISASI PETA ---
-        with st.container(border=True):
-            st.markdown("<div style='font-size:14px; color:gray; font-weight:bold; margin-bottom:10px;'>Titik Persebaran Leads - Seluruh Indonesia</div>", unsafe_allow_html=True)
-            if not map_data.empty:
-                fig_map = px.scatter_mapbox(
-                    map_data, lat="Lat", lon="Lon", size="Jumlah", color="Jumlah", 
-                    color_continuous_scale=["#FF8C00", "#E31A1C", "#800026"], 
-                    size_max=35, zoom=3.8, center=dict(lat=-2.5, lon=118.0), 
-                    mapbox_style="carto-positron", hover_name="Lokasi",
-                    hover_data={"Lat":False, "Lon":False, "Jumlah":True}
-                )
-                fig_map.update_traces(marker=dict(opacity=0.8, line=dict(width=1, color='white')))
-                fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, height=600, coloraxis_showscale=False)
-                st.plotly_chart(fig_map, use_container_width=True)
-            else:
-                st.warning("⚠️ Lokasi leads terdeteksi, tapi koordinat tidak ditemukan di database.")
+# --- RENDER PETA DENGAN KONTRAS TINGGI ---
+            with st.container(border=True):
+                st.markdown("<div style='font-size:14px; color:gray; font-weight:bold; margin-bottom:10px;'>Titik Persebaran Leads - Kontras Tinggi</div>", unsafe_allow_html=True)
+                
+                if not map_data.empty:
+                    fig_map = px.scatter_mapbox(
+                        map_data, 
+                        lat="Lat", lon="Lon", 
+                        size="Jumlah", 
+                        color="Jumlah", 
+                        # PERBAIKAN: Menggunakan skala warna yang lebih gelap dan kontras (Orange ke Dark Red)
+                        color_continuous_scale=["#FF8C00", "#E31A1C", "#800026"], 
+                        size_max=35, 
+                        zoom=3.8, 
+                        center=dict(lat=-2.5, lon=118.0), 
+                        mapbox_style="carto-positron", 
+                        hover_name="Lokasi",
+                        hover_data={"Lat":False, "Lon":False, "Jumlah":True}
+                    )
+                    
+                    # PERBAIKAN: Menambahkan garis tepi (outline) dan mengatur transparansi agar titik 'pop out'
+                    fig_map.update_traces(
+                        marker=dict(
+                            opacity=0.8,
+                            line=dict(width=1, color='white') # Garis tepi putih tipis agar antar titik tidak menyatu
+                        )
+                    )
+                    
+                    fig_map.update_layout(
+                        margin={"r":0,"t":0,"l":0,"b":0}, 
+                        height=600, 
+                        coloraxis_showscale=False, # Sembunyikan color bar untuk tampilan bersih
+                        hoverlabel=dict(bgcolor="white", font_size=12, font_family="Arial")
+                    )
+                    st.plotly_chart(fig_map, use_container_width=True)
+                else:
+                    st.warning("⚠️ Belum ada koordinat peta yang terdeteksi.")
 
-        # --- E. VISUALISASI TREEMAP ---
+        # --- 2. GRAFIK TREEMAP ---
         with st.container(border=True):
             st.markdown("<div style='font-size:14px; color:gray; font-weight:bold; margin-bottom:10px;'>📍 Sebaran Domisili Prospek (TreeMap)</div>", unsafe_allow_html=True)
             if not asal_counts.empty:
@@ -707,7 +722,8 @@ try:
                     asal_counts, 
                     path=[px.Constant("Seluruh Wilayah"), 'Lokasi'], 
                     values='Jumlah',
-                    color='Jumlah', color_continuous_scale='GnBu'
+                    color='Jumlah', 
+                    color_continuous_scale='GnBu'
                 )
                 fig_asal.update_traces(textinfo="label+value", texttemplate="<b>%{label}</b><br>%{value} Leads")
                 fig_asal.update_layout(height=500, margin=dict(t=10, l=10, r=10, b=10), coloraxis_showscale=False)
@@ -715,10 +731,10 @@ try:
             else:
                 st.info("Data Asal belum tersedia untuk dibuatkan TreeMap.")
     else:
-        st.info("💡 Data kolom 'Asal' tidak ditemukan atau masih kosong.")
+        st.info("Data Asal belum tersedia untuk dipetakan.")
 
 except Exception as e:
-    st.error(f"⚠️ Gagal memuat visualisasi: {e}")
+    st.error(f"Gagal memuat visualisasi peta/grafik: {e}")
 
 st.markdown("<br>", unsafe_allow_html=True)
         
