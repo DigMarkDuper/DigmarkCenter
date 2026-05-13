@@ -591,10 +591,6 @@ if page == "🏠 HOMEPAGE":
                     done_kw = ['DONE', 'TRUE', 'V', '1', 'POSTED', 'SELESAI', 'UPLOADED']
                     web_pending = len(df_web_now[~df_web_now['Status Post'].astype(str).str.upper().isin(done_kw)])
 
-        # --- C. Performa Views & Reach ---
-        total_view = df_in_home['View'].sum() if not df_in_home.empty else 0
-        total_reach = df_in_home['Reach'].sum() if not df_in_home.empty else 0
-
         # --- D. Render KPI ---
         def render_kpi(icon, title, value):
             st.markdown(f"""
@@ -611,9 +607,8 @@ if page == "🏠 HOMEPAGE":
         k1, k2, k3, k4 = st.columns(4)
         
         with k1: render_kpi("🎯", "Closing / Leads (Bulan Ini)", f"{total_closing} / {total_leads}")
-        with k2: render_kpi("👀", "Views / Reach", f"{total_view:,.0f} / {total_reach:,.0f}")
-        with k3: render_kpi("📱", f"Utang Sosmed ({bulan_lalu})", f"{sos_pending} Task")
-        with k4: render_kpi("🌐", f"Utang Web ({bulan_ini})", f"{web_pending} Page")
+        with k2: render_kpi("📱", f"Utang Sosmed ({bulan_lalu})", f"{sos_pending} Task")
+        with k3: render_kpi("🌐", f"Utang Web ({bulan_ini})", f"{web_pending} Page")
 
     except Exception as e:
         st.error(f"⚠️ Gagal memuat metrik: {e}")
