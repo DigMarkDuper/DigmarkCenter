@@ -1951,18 +1951,23 @@ elif page == "📈 ADS ANALYTICS":
 
 # ---------------- TAB MEKARI (SMART IMPORTER) ----------------
 with tab_mekari:
-    st.info("💡 **Smart Importer:** Sistem merekap file otomatis menjadi **1 Baris Struk Ringkas** beserta Periode Datanya agar tidak ada duplikasi input.")
+    st.info("💡 **Smart Importer:** Sistem merekap file otomatis menjadi **1 Baris Struk Ringkas**.")
     
-    # DEFINISI VARIABLE (Agar tidak Error line 1957)
+    # 1. Pastikan pengambilan data bundle konsisten
+    if 'bundle' not in st.session_state or st.session_state.bundle is None:
+        st.session_state.bundle = fetch_all_master_data()
+        
+    # Mengambil data dari Tab Index 8 (Sheet ke-9)
     df_db_mekari = st.session_state.get('bundle', {}).get(8, pd.DataFrame())
     
-    # Logika perhitungan dari database (Sheet Tab 9 / Index 8)
+    # 2. Logika perhitungan metrik Dashboard
     if not df_db_mekari.empty:
-        # Fungsi pembersih agar teks "Rp 1.234.567" bisa dijumlahkan sebagai angka
+        # Menghapus baris yang benar-benar kosong
+        df_db_mekari = df_db_mekari.dropna(how='all')
+        
         def clean_currency(x):
             return str(x).replace('Rp', '').replace('.', '').replace(',', '').strip()
         
-        # Ambil SUM langsung dari kolom Total Biaya (Rp)
         total_spend_mekari = pd.to_numeric(
             df_db_mekari['Total Biaya (Rp)'].apply(clean_currency), 
             errors='coerce'
@@ -1985,8 +1990,7 @@ with tab_mekari:
     
     with st.container(border=True):
         st.markdown("### 📤 Upload Laporan Mekari Baru")
-        st.markdown("Bisa upload file `Campaign Logs` atau `Billing Logs`.")
-        up_mk = st.file_uploader("Upload Laporan Mekari (CSV/Excel)", type=['csv', 'xlsx'], key="up_mk")
+        up_mk = st.file_uploader("Upload Laporan Mekari (CSV/Excel)", type=['csv', 'xlsx'], key="up_mk_v2")
         
         if up_mk is not None:
             try:
@@ -1994,69 +1998,64 @@ with tab_mekari:
                 df_calc_mk = df_up_mk.copy()
                 df_calc_mk.columns = [str(c).strip().lower() for c in df_calc_mk.columns]
                 
-                jenis_laporan = "Tidak Dikenali"
-                up_spend_mk = 0
-                up_pesan_mk = 0
-                periode_data = "Tanggal Tidak Terdeteksi"
-                
-                # 1. Deteksi File: CAMPAIGN LOGS (Broadcast)
-                if 'deducted balance' in df_calc_mk.columns or 'broadcast amount' in df_calc_mk.columns:
-                    jenis_laporan = "WA Campaign (Broadcast)"
-                    col_cost = next((c for c in df_calc_mk.columns if 'deducted balance' in c), None)
-                    col_pesan = next((c for c in df_calc_mk.columns if 'broadcast amount' in c), None)
-                    
-                    up_spend_mk = float(pd.to_numeric(df_calc_mk[col_cost], errors='coerce').fillna(0).sum()) if col_cost else 0.0
-                    up_pesan_mk = int(pd.to_numeric(df_calc_mk[col_pesan], errors='coerce').fillna(0).sum()) if col_pesan else 0
-                    
-                # 2. Deteksi File: CONVERSATION / BILLING LOGS (Chat Individu)
-                elif 'credit' in df_calc_mk.columns and 'conversation_id' in df_calc_mk.columns:
-                    jenis_laporan = "WA Conversation (Billing/Follow Up)"
-                    col_cost = next((c for c in df_calc_mk.columns if 'credit' in c), None)
-                    
-                    up_spend_mk = float(pd.to_numeric(df_calc_mk[col_cost], errors='coerce').fillna(0).sum()) if col_cost else 0.0
+                # Logika deteksi biaya (Billing vs Campaign)
+                if 'credit' in df_calc_mk.columns and 'conversation_id' in df_calc_mk.columns:
+                    jenis_laporan = "WA Conversation (Billing)"
+                    series_c = pd.to_numeric(df_calc_mk['credit'], errors='coerce').dropna()
+                    up_spend_mk = float(abs(series_c.iloc[0] - series_c.iloc[-1])) if not series_c.empty else 0.0
                     up_pesan_mk = int(len(df_calc_mk))
-                
-                # 3. EXTRACTION TANGGAL (MEMBUAT PERIODE DATA)
-                col_date = next((c for c in df_calc_mk.columns if 'created' in c or 'date' in c or 'tanggal' in c), None)
-                if col_date:
-                    try:
-                        temp_dates = pd.to_datetime(df_calc_mk[col_date], utc=True, errors='coerce')
-                        min_date = temp_dates.min()
-                        max_date = temp_dates.max()
-                        if pd.notnull(min_date) and pd.notnull(max_date):
-                            periode_data = f"{min_date.strftime('%d %b %Y')} s/d {max_date.strftime('%d %b %Y')}"
-                    except:
-                        pass
-                
-                st.success(f"✅ Format terdeteksi sebagai: **{jenis_laporan}**")
-                st.info(f"📅 **Periode Data:** {periode_data}\n\n📊 **Total Saldo:** Rp {up_spend_mk:,.0f} | **Jumlah Pesan:** {up_pesan_mk:,.0f}")
-                
-                if st.button("📥 Catat Saldo Ini ke Database", use_container_width=True, key="btn_imp_mk"):
-                    with st.spinner("Mengirim ringkasan ke Tab 9..."):
-                        import datetime
-                        tgl_sekarang = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-                        
-                        header_mk = ["Waktu Import", "Periode Laporan", "Jenis Laporan WA", "Total Interaksi", "Total Biaya (Rp)"]
-                        baris_data_mk = [str(tgl_sekarang), str(periode_data), str(jenis_laporan), int(up_pesan_mk), float(up_spend_mk)]
-                        
-                        # Menggunakan df_db_mekari yang sudah didefinisikan di atas
-                        bulk_data_mk = [header_mk, baris_data_mk] if df_db_mekari.empty else [baris_data_mk]
-                        
-                        if append_sheet_rows(8, bulk_data_mk): 
-                            st.success("✅ Berhasil menyimpan riwayat saldo Mekari!")
-                            st.balloons()
-                            st.cache_data.clear()
-                            st.rerun()
-            except Exception as e:
-                st.error(f"Gagal memproses file Mekari: {e}")
+                elif 'deducted balance' in df_calc_mk.columns:
+                    jenis_laporan = "WA Campaign (Broadcast)"
+                    col_cost = next(c for c in df_calc_mk.columns if 'deducted' in c)
+                    up_spend_mk = float(pd.to_numeric(df_calc_mk[col_cost], errors='coerce').fillna(0).sum())
+                    up_pesan_mk = int(len(df_calc_mk))
+                else:
+                    jenis_laporan = "Format Lain"
+                    up_spend_mk, up_pesan_mk = 0.0, 0
 
-    with st.expander("📑 Riwayat Saldo Mekari Tersimpan", expanded=False):
+                # Extraction Periode
+                periode_data = "Tanggal Tidak Terdeteksi"
+                col_date = next((c for c in df_calc_mk.columns if 'created' in c or 'date' in c), None)
+                if col_date:
+                    temp_dates = pd.to_datetime(df_calc_mk[col_date], utc=True, errors='coerce')
+                    if not temp_dates.dropna().empty:
+                        periode_data = f"{temp_dates.min().strftime('%d %b %Y')} s/d {temp_dates.max().strftime('%d %b %Y')}"
+                
+                st.info(f"📊 **Terdeteksi:** Rp {up_spend_mk:,.0f} | **Periode:** {periode_data}")
+                
+                if st.button("📥 Catat ke Database", use_container_width=True):
+                    import datetime
+                    tgl_skrg = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                    
+                    header_mk = ["Waktu Import", "Periode Laporan", "Jenis Laporan WA", "Total Interaksi", "Total Biaya (Rp)"]
+                    # Format string Rp untuk tampilan di sheet
+                    fmt_cost = f"Rp{int(up_spend_mk):,}".replace(',', '.')
+                    baris_baru = [tgl_skrg, periode_data, jenis_laporan, up_pesan_mk, fmt_cost]
+                    
+                    # Jika database kosong, sertakan header
+                    payload = [header_mk, baris_baru] if df_db_mekari.empty else [baris_baru]
+                    
+                    if append_sheet_rows(8, payload):
+                        st.success("Berhasil disimpan!")
+                        st.cache_data.clear()
+                        st.session_state.bundle = fetch_all_master_data()
+                        st.rerun()
+            except Exception as e:
+                st.error(f"Error: {e}")
+
+    # --- TABEL RIWAYAT (PASTIKAN NAMA VARIABEL SAMA) ---
+    with st.expander("📑 Riwayat Saldo Mekari Tersimpan", expanded=True):
         if not df_db_mekari.empty:
             st.dataframe(df_db_mekari, use_container_width=True, hide_index=True)
-            if st.button("🗑️ Kosongkan Riwayat Mekari", use_container_width=True, key="rst_mk"):
+            
+            if st.button("🗑️ Kosongkan Riwayat Mekari", use_container_width=True):
+                # Membersihkan worksheet index 8
                 init_connection().open("MASTER DATA DIGITAL MARKETING 2.0").get_worksheet(8).clear()
                 st.cache_data.clear()
+                st.session_state.bundle = fetch_all_master_data()
                 st.rerun()
+        else:
+            st.warning("Data riwayat di Spreadsheet masih kosong atau belum terbaca.")
 
 # =====================================================================
 # SYSTEM RUNNER (JANGAN DIHAPUS, PASTIKAN ADA DI PALING BAWAH FILE)
